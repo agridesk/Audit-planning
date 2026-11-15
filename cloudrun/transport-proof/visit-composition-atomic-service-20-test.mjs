@@ -122,6 +122,7 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  const preconditionConflict=testFixture(mode);preconditionConflict.setFail('precondition');
  await assert.rejects(()=>preconditionConflict.service.commit(args),/SHEETS_PRECONDITION_CONFLICT_BEFORE_COMMIT/);
  assert.equal(preconditionConflict.stats().mark,0);
+ assert.equal(preconditionConflict.stats().commits,0,'Sheets conflict must not create Firestore outbox');
  assert.equal(preconditionConflict.stats().commits,0,'Conflicting Sheets source must not create a Firestore outbox');
  assert.equal(preconditionConflict.stats().applied,0);
  assert.equal(preconditionConflict.stats().leases,0);

@@ -171,14 +171,13 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const actual=result?.[18];
   if(typeof actual!=='number'||!Number.isFinite(actual)||
      equal([actual],[changes[0].before[18]])||
-     str(changes[0].before[18])!==str(changes[0].values[18]))
+     str(changes[0].before[18])===str(changes[0].values[18]))
    throw Error('COMPOSITION_RECOVERY_HOURS_NOT_FORMAT_ONLY');
   // Recheck the formatted evidence after the unformatted read to guard races.
   const second=await inspectRenderParity(plan);
   if(!second.allFormattedBefore)throw Error('COMPOSITION_RECOVERY_SOURCE_MOVED');
   const normalized=structuredClone(plan);
   normalized.projectionPreconditions[0].before[18]=actual;
-  normalized.projectionWrites[0].values[0][18]=actual;
   const check=await inspect(normalized);
   if(check.state!=='READY'&&check.state!=='MATCH')
    throw Error('COMPOSITION_RECOVERY_NORMALIZED_PRECONDITION_CONFLICT');

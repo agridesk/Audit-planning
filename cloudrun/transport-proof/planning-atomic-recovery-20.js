@@ -27,7 +27,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   const snapshot=entry.snapshot;
   if(!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))throw Error('ATOMIC_RECOVERY_SNAPSHOT_INCOMPLETE');
   const rowCheck=await projector.inspect(normalizedPlan||snapshot);
-  if(normalizedPlan&&(entry.action!=='VISIT_COMPOSITION_SEPARATELY'||entry.state!=='UNCERTAIN'||
+  if(normalizedPlan&&(entry.action!=='VISIT_COMPOSITION_SEPARATELY'||!['UNCERTAIN','PROJECTED'].includes(entry.state)||
      normalizedPlan.auditId!==snapshot.auditId||
      JSON.stringify(normalizedPlan.appendIntents)!==JSON.stringify(snapshot.appendIntents)))
    throw Error('ATOMIC_RECOVERY_NORMALIZATION_UNAUTHORIZED');

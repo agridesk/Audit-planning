@@ -66,3 +66,12 @@ R2: actuele Config_Scopes/Config_Scope_Dependencies en verboden combinaties read
 R3: Self planning YES/NO, Single Save, Multiple, TOGETHER, SEPARATELY en SWAP per afzonderlijke DEV test, met vóór/na snapshots, outbox, Sheets en reload-pariteit; stop bij eerste FAIL.
 R4: resterende injecties voor crash tussen gate release/outbox settlement, lease CAS-conflict, concurrency, 5000-row scan boundary, typecoercion, retry/duplicate; daarna Manager/Auditor regressie.
 R5: formeel DEV acceptatiebesluit, pas daarna traffic-cutover; PROD blijft buiten scope.
+
+11. LIVE READ-ONLY SHEETS RECONCILIATIE — 15 NOVEMBER 2026 (NA PR #110)
+Bron: Google Sheets connector, DEV spreadsheet 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs. Geen mutaties.
+Audit planning r115: VIS-484C04B11EFE19B89477, MPS-GAP, 8 uur, Approved; r116: VIS-A16060674CB60DFC43D6, MPS-ABC, 5 uur, Approved; r117 leeg. Beide Visit IDs elk eenmaal in de gelezen Audit planning-data (A2:AV445); geen verschoven rij met lege A en andere data aangetroffen.
+Audit_Visit_Obligations r203/204: beide ACTIVE; beide Visit IDs elk eenmaal in A2:E1004.
+Notification Queue r769 EN r771: zelfde Visit ID VIS-484C04B11EFE19B89477, zelfde PayloadHash 6404230f22aa9a5f14053512d9a9788f, type AUDIT_PLANNED_BY_MANAGER, status SENT_DEV_REDIRECT. r770 EN r772: zelfde Visit ID VIS-A16060674CB60DFC43D6, zelfde PayloadHash 723408192aa4fb21a19e3448ebf70273, zelfde type/status. De rijen binnen elk paar zijn op A:M identiek behalve kolom L TimestampSent (eerste 46341.78402777778, tweede 46341.941666666666). Oorzaak en writer NIET vastgesteld. GitHub P0 issue #111: https://github.com/agridesk/Audit-planning/issues/111.
+Config_Scope_Dependencies live: DEP_MPSGAP_GRASP, MPS-GAP -> GRASP, ADD_ON, Must_Audit_Together=YES, Share_Expiry=YES, Active=YES. De herstelde Separate-visits betreffen GAP en ABC; geen directe tegenspraak met deze dependency.
+PR #110 gemerged commit 0ccb9327243cc71e9c0f391112dee548eeb59134; twee CI-workflows geslaagd. R4 offline scan/fencing tests PASS, maar geen live E2E.
+BESLUIT: R1C NO-GO wegens dubbele notificatie-events, totdat exacte outbox-append-pariteit, Firestore leases en notificatie-writer/herkomst onafhankelijk bewezen zijn. Geen live planningwrites of notificatie-remediatie zonder forensische reconciliatie. R2 offline tests kunnen doorgaan.

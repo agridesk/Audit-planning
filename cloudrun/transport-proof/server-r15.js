@@ -2267,6 +2267,8 @@ http.createServer(async(req,res)=>{
      if(rows.state==='CONFLICT'){
       matchingGate.projection.cellDiff=await planningAtomicProjector.inspectDiff(snapshot);
       matchingGate.projection.renderParity=await planningAtomicProjector.inspectRenderParity(snapshot);
+       if(append.state==='MISSING'&&typeof planningAtomicAppendProjector.inspectDiagnostic==='function')
+        matchingGate.projection.appendDiagnostic=await planningAtomicAppendProjector.inspectDiagnostic(snapshot.appendIntents);
      }
      matchingGate.recoveryEvidenceComplete=rows.state==='MATCH'&&append.state==='MATCH';
     }catch(error){

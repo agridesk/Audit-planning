@@ -400,10 +400,11 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
    ['Config_Scope_Dependencies','G',1000],['Config_Scopes','Z',250],['Auditors','AF',500],
    ['Auditor_Scope_Qualifications','C',5000],['Companies','AZ',1200],
    ['Log realized audits','AZ',2500],['Concept Reservations','P',2000],
-   ['Auditor Availability','AB',2500]
+   ['Auditor Availability','AB',2500],['Audit planning','BW',2000]
   ];
   const endpoint=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchGet');
-  endpoint.searchParams.set('valueRenderOption','FORMATTED_VALUE');
+  endpoint.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  endpoint.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
   for(const [name,width,limit] of sources)
    endpoint.searchParams.append('ranges',"'"+name+"'!A1:"+width+limit);
   const response=await fetch(endpoint.toString(),{headers:{authorization:'Bearer '+await getToken()},cache:'no-store'});
@@ -418,7 +419,7 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
     throw Error('VISIT_COMPOSITION_SOURCE_TRUNCATED_'+sources[i][0]);
    tables[sources[i][0]]=rows;
   }
-  const planningRows=await readPlanningRows(),
+  const planningRows=tables['Audit planning'],
    sourceCanonical=await planningAtomicStore.readAudit(body.auditId);
   const people=tables['Auditors'],header=people[0]||[],
    emailColumn=header.indexOf('E-mail'),uidColumn=header.indexOf('Auditor_UID');

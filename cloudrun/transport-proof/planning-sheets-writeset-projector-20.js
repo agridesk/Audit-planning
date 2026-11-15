@@ -182,5 +182,37 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    throw Error('COMPOSITION_RECOVERY_NORMALIZED_PRECONDITION_CONFLICT');
   return normalized;
  }
- return Object.freeze({inspect,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,apply});
+ // Read-only, recovery-specific normalization of a fully projected row after
+ // Sheets USER_ENTERED reinterprets the hours target as a numeric cell.
+ // Never accept any unrelated difference, even if its display looks similar.
+ async function normalizeCommittedTargetHours(plan){
+  const changes=rows(plan),range='Audit planning!A74:BS74';
+  if(changes.length!==5||changes[0].range!==range)
+   throw Error('COMPOSITION_TARGET_RECOVERY_RANGE_UNEXPECTED');
+  const parity=await inspectRenderParity(plan);
+  if(!parity.detail.every(x=>x.formattedMatchesTarget))
+   throw Error('COMPOSITION_TARGET_RECOVERY_RENDER_MISMATCH');
+  const diff=await inspectDiff(plan);
+  if(diff.length!==5||diff[0].differing.length!==1||
+     diff[0].differing[0].column!==19||
+     diff.slice(1).some(x=>x.differingCount!==0))
+   throw Error('COMPOSITION_TARGET_RECOVERY_OTHER_CELL_DRIFT');
+  const url=new URL(base+'/values:batchGet');
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  url.searchParams.append('ranges',range);
+  const actual=(await request(url.toString())).valueRanges?.[0]?.values?.[0]?.[18];
+  if(typeof actual!=='number'||!Number.isFinite(actual)||
+     equal([actual],[changes[0].values[18]]))
+   throw Error('COMPOSITION_TARGET_RECOVERY_HOURS_NOT_COERCED');
+  const again=await inspectRenderParity(plan);
+  if(!again.detail.every(x=>x.formattedMatchesTarget))
+   throw Error('COMPOSITION_TARGET_RECOVERY_SOURCE_MOVED');
+  const normalized=structuredClone(plan);
+  normalized.projectionWrites[0].values[0][18]=actual;
+  if((await inspect(normalized)).state!=='MATCH')
+   throw Error('COMPOSITION_TARGET_RECOVERY_NOT_MATCH');
+  return normalized;
+ }
+ return Object.freeze({inspect,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
 }

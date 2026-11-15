@@ -177,6 +177,18 @@ const lateIntent=[{range:'Notification Queue!A:M',values:[['now','PENDING','EVEN
 assert.equal((await lateProjector.apply({operationId:'late',gateToken:'fence',intents:lateIntent})).confirmed,true);
 assert.equal(lateWrites,0);
 assert.ok(scanCount>=3);
+// NotificationSender clears Reserved (M) after delivery. This must not
+// cause a false hash conflict on recovery; conflicting payloads still fail.
+const deliveredIntent=[{range:'Notification Queue!A:M',values:[['2026-11-15','PENDING','PLANNED','','VIS-D','','subject','body',0,'','hash-delivered','',JSON.stringify({payload:{auditId:'VIS-D'}})]]}];
+rows['Notification Queue'].push(['2026-11-15','SENT_DEV_REDIRECT','PLANNED','','VIS-D','','subject','body',1,'','hash-delivered','2026-11-15T12:00:00','']);
+assert.equal((await service.inspect(deliveredIntent)).state,'MATCH');
+const deliveredRow=rows['Notification Queue'].at(-1);
+deliveredRow[1]='PENDING';
+await assert.rejects(()=>service.inspect(deliveredIntent),/APPEND_NOTIFICATION_HASH_CONFLICT/);
+deliveredRow[1]='SENT_DEV_REDIRECT';
+deliveredRow[12]='{"payload":{"auditId":"DIFFERENT"}}';
+await assert.rejects(()=>service.inspect(deliveredIntent),/APPEND_NOTIFICATION_HASH_CONFLICT/);
+rows['Notification Queue'].pop();
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

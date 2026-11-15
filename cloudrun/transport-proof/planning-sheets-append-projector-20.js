@@ -102,6 +102,11 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
+   // A previous append or another writer may have materialized this row since
+   // the initial scan. Reconcile again before issuing an irreversible append.
+   const fresh=await inspect([{range:missing.range,values:[missing.row]}]);
+   if(fresh.state==='MATCH')continue;
+   await verifyFence({operationId,gateToken});
    // values.append guesses a table boundary and can place data in a later column.
    // appendCells always starts at column A, preserving RAW scalar types.
    const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');

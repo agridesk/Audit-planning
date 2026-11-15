@@ -20,7 +20,7 @@ function setup(){
 }
 test('forward recovery never mutates until exclusive fence is held',async()=>{
  const x=setup();let calls=0;
- x.projector.inspect=async()=>({state:++calls<3?'READY':'MATCH'});
+ x.projector.inspect=async()=>({state:++calls===1?'READY':'MATCH'});
  x.appendProjector.inspect=async()=>({state:'MATCH'});
  const result=await createVisitCompositionForwardRecovery20(x).commit({operationId:id});
  assert.equal(result.state,'PROJECTED');

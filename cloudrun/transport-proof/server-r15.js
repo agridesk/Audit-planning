@@ -2118,6 +2118,17 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
    res.end(html);return;
   }
+  if(req.method==='GET'&&u.pathname==='/manager/atomic-composition-login'){
+   if(!runtime.isDev||String(req.headers.host||'').toLowerCase()!=='r1-recovery---ams-fase12-dev-zwtcar7xpa-ew.a.run.app'){
+    res.writeHead(404);res.end();return;
+   }
+   const actor=await session(req);
+   if(actor?.role==='manager'){
+    res.writeHead(303,{'location':'/manager/atomic-composition-recovery','cache-control':'no-store'});res.end();return;
+   }
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'});
+   res.end('<!doctype html><html><head><meta charset="utf-8"><title>AMS DEV R1 Manager login</title></head><body style="font:16px system-ui;max-width:600px;margin:50px auto"><h1>AMS DEV R1 Manager login</h1><form method="POST" action="/auth/dev-login"><input type="hidden" name="role" value="Manager"><button type="submit" style="font-size:18px;padding:12px">Login as Manager (DEV)</button></form><p>After login open <a href="/manager/atomic-composition-recovery">recovery check</a>.</p></body></html>');return;
+  }
   // Read-only manager approval form for the single quarantined Separate operation.
   if(req.method==='GET'&&u.pathname==='/manager/atomic-composition-recovery'){
    if(!runtime.isDev||!visitCompositionForwardRecovery){res.writeHead(404);res.end();return;}

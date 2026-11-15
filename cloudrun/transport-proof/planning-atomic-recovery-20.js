@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 export function createPlanningAtomicRecovery({store,projector,appendProjector,gate,availabilityService}={}){
  if(typeof store?.listOutbox!=='function'||typeof store?.readAudit!=='function'||typeof store?.markProjected!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.inspect!=='function'||typeof gate?.read!=='function')throw Error('ATOMIC_RECOVERY_DEPENDENCY_INVALID');
- async function recoverOne(entry){
+ async function recoverOne(entry,{normalizedPlan}={}){
   if(!entry||!['PENDING','UNCERTAIN','PROJECTED'].includes(entry.state)||!entry.auditId||!entry.operationId||!entry.snapshot)return {state:'SKIPPED'};
   const settled=entry.state==='PROJECTED';
   if(settled){
@@ -26,7 +26,11 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   }
   const snapshot=entry.snapshot;
   if(!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))throw Error('ATOMIC_RECOVERY_SNAPSHOT_INCOMPLETE');
-  const rowCheck=await projector.inspect(snapshot);
+  const rowCheck=await projector.inspect(normalizedPlan||snapshot);
+  if(normalizedPlan&&(entry.action!=='VISIT_COMPOSITION_SEPARATELY'||entry.state!=='UNCERTAIN'||
+     normalizedPlan.auditId!==snapshot.auditId||
+     JSON.stringify(normalizedPlan.appendIntents)!==JSON.stringify(snapshot.appendIntents)))
+   throw Error('ATOMIC_RECOVERY_NORMALIZATION_UNAUTHORIZED');
   const appendCheck=await appendProjector.inspect(snapshot.appendIntents);
   if(rowCheck.state!=='MATCH'||appendCheck.state!=='MATCH')return {state:'UNRESOLVED',rowState:rowCheck.state,appendState:appendCheck.state};
   const global=await gate.read();

@@ -81,8 +81,16 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
      if(existing.length===1&&!same(existing[0],item.row)){
       // Delivery updates Status/Attempts/LastError/TimestampSent; immutable
       // event identity and payload must remain byte-for-byte consistent.
-      const immutable=[0,2,3,4,5,6,7,10,12];
+      const immutable=[0,2,3,4,5,6,7,10];
       if(immutable.some(i=>str(existing[0][i])!==str(item.row[i])))
+       throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
+      // NotificationSender clears column M (Reserved) after delivery.
+      // A missing reservation is safe only for a terminal delivered row;
+      // nonempty, different payloads remain a hard conflict.
+      const storedReserved=str(existing[0][12]),expectedReserved=str(item.row[12]);
+      const delivered=['SENT','SENT_DEV_REDIRECT','SENT_SIMULATED','SENT_SUPPRESSED'];
+      if(storedReserved!==expectedReserved&&
+         !(storedReserved===''&&expectedReserved!==''&&delivered.includes(str(existing[0][1]))))
        throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
       continue;
      }

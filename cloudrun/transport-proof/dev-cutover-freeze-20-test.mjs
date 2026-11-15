@@ -27,7 +27,7 @@ assert.match(r15,/if\(!dryRun&&\(planningAtomicEnabled\|\|!planningAtomicPrepEna
 // atomic-owned writes only. The backfill route must retire automatically.
 for(const path of ['/api/v1/planning/commit-handoff','/api/v1/manager/approve-direct',
  '/api/v1/auditor/action','/api/v1/manager/company-management/save',
- '/api/v1/planning/direct-commit','/api/v1/planning/visit-composition-atomic','/api/v1/planning/atomic-recover','/api/v1/planning/atomic-forward-recover','/api/v1/planning/atomic-partial-repair','/api/v1/planning/atomic-self-planning-rescue']){
+ '/api/v1/planning/direct-commit','/api/v1/planning/visit-composition-atomic','/api/v1/planning/atomic-recover','/api/v1/planning/atomic-forward-recover','/api/v1/planning/atomic-partial-repair','/api/v1/planning/atomic-self-planning-rescue','/api/v1/planning/atomic-composition-forward-recover']){
  assert.deepEqual(freeze('POST',path,{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
  for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,path,{atomicPlanningEnabled:true}).allow,false);
 }
@@ -36,6 +36,8 @@ for(const path of ['/api/v1/planning/atomic-backfill','/api/v1/manager/extension
  assert.equal(freeze('POST',path,{atomicPlanningEnabled:true,backfillWriteEnabled:true,legacyWritersFrozen:true}).allow,false);
 }
 assert.match(r15,/atomicPlanningEnabled:planningAtomicEnabled/);
+assert.equal(freeze('POST','/api/v1/planning/atomic-composition-forward-recover').allow,false);
+assert.deepEqual(freeze('POST','/api/v1/planning/atomic-composition-forward-recover',{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
 assert.match(r15,/u\.pathname==='\/api\/v1\/planning\/atomic-self-planning-rescue'/);
 assert.equal(freeze('POST','/api/v1/planning/atomic-self-planning-rescue').allow,false);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');

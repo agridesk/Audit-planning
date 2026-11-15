@@ -57,6 +57,10 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    const rows=data.values;
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
    if(!rows.length||rows.some(row=>!Array.isArray(row)))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
+   // A legacy values.append can leave an orphaned row starting in AG/BY.
+   // Never append again while such rows exist: they may contain this operation.
+   if(sheet==='Audit planning'&&rows.slice(1).some(row=>str(row[0])===''&&row.some(v=>str(v)!=='')))
+    throw Error('APPEND_PROJECTION_SHIFTED_ROW_PRESENT');
    sources.set(sheet,rows);
   }
   const missing=[];
@@ -75,8 +79,13 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
-   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
-   await request(url,'POST',{values:[missing.row]});
+   // values.append guesses a table boundary and can place data in a later column.
+   // appendCells always starts at column A, preserving RAW scalar types.
+   const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');
+   const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
+   if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
+   const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
+   await request(base+':batchUpdate','POST',{requests:[{appendCells:{sheetId:target.properties.sheetId,rows:[{values}],fields:'userEnteredValue'}}]});
    await verifyFence({operationId,gateToken});
   }
   const after=await inspect(intents);

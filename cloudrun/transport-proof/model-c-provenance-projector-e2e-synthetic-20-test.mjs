@@ -14,8 +14,15 @@ assert.equal(baseline.snapshot.Formal_Hours,8);
 const sheetRows=[headers],calls=[];
 const mockFetch=async(url,init={})=>{
  const u=new URL(url),method=init.method||'GET';calls.push({method,url:u.toString()});
+ if(method==='GET'&&u.pathname.endsWith('/spreadsheets/fixture'))return {ok:true,json:async()=>({sheets:[{properties:{sheetId:7,title:'Audit_Obligations'}}]})};
  if(method==='GET')return {ok:true,json:async()=>({values:structuredClone(sheetRows)})};
- if(method==='POST'){assert.equal(u.searchParams.get('valueInputOption'),'RAW');sheetRows.push(...JSON.parse(init.body).values);return {ok:true,json:async()=>({updates:{updatedRows:1}})};}
+ if(method==='POST'){
+  const append=JSON.parse(init.body).requests?.[0]?.appendCells;
+  assert.equal(append.sheetId,7);
+  assert.equal(append.fields,'userEnteredValue');
+  for(const row of append.rows)sheetRows.push(row.values.map(c=>c.userEnteredValue?.stringValue??c.userEnteredValue?.numberValue??c.userEnteredValue?.boolValue??''));
+  return {ok:true,json:async()=>({replies:[{}]})};
+ }
  throw Error('UNEXPECTED_METHOD');
 };
 let fence=0;

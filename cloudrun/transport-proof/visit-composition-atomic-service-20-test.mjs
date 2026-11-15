@@ -53,12 +53,12 @@ function testFixture(mode='TOGETHER'){
    allocations:[{blockId:'block-1',obligationId:'ob-1',minutes:90},
     {blockId:'block-1',obligationId:'ob-2',minutes:90}]
   }:null};
- let applied=0,leases=0,uncertain=0,locked=false,mark=0,fail='';
+ let applied=0,leases=0,uncertain=0,locked=false,mark=0,commits=0,fail='';
  const outbox=new Map();
  const store={
   async readAudit(id){if(id!==auditId)return null;return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'rev-1',status:'Pending Planning'}};},
   async readOutbox(id){return outbox.get(id)||null;},
-  async commitMulti(x){if(fail==='commit')throw Error('WRITE_TIMEOUT');outbox.set(x.operationId,
+  async commitMulti(x){commits++;if(fail==='commit')throw Error('WRITE_TIMEOUT');outbox.set(x.operationId,
     {auditId,actorId:'manager-1',action:'VISIT_COMPOSITION_'+mode,state:'PENDING'});
     return {replayed:false,entities:x.entities.map(e=>e.auditId)};},
   async markProjected(x){if(fail==='mark')throw Error('SETTLEMENT_TIMEOUT');mark++;outbox.get(x.operationId).state='PROJECTED';},
@@ -76,7 +76,7 @@ function testFixture(mode='TOGETHER'){
  const appendProjector={async apply(){if(fail==='append')throw Error('APPEND_TIMEOUT');},async inspect(){return {state:'MATCH',count:1}}};
  const service=createVisitCompositionAtomicService20({store,gate,availabilityService,hardGate:()=>{},
   preflight:async()=>preview,projector,appendProjector});
- return {service,preview,stats:()=>({applied,leases,uncertain,locked,mark}),setFail:x=>fail=x};
+ return {service,preview,stats:()=>({applied,leases,uncertain,locked,mark,commits}),setFail:x=>fail=x};
 }
 for(const mode of ['TOGETHER','SEPARATELY']){
  const f=testFixture(mode);
@@ -122,6 +122,7 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  const preconditionConflict=testFixture(mode);preconditionConflict.setFail('precondition');
  await assert.rejects(()=>preconditionConflict.service.commit(args),/SHEETS_PRECONDITION_CONFLICT_BEFORE_COMMIT/);
  assert.equal(preconditionConflict.stats().mark,0);
+ assert.equal(preconditionConflict.stats().commits,0,'Conflicting Sheets source must not create a Firestore outbox');
  assert.equal(preconditionConflict.stats().applied,0);
  assert.equal(preconditionConflict.stats().leases,0);
  assert.equal(preconditionConflict.stats().locked,false);

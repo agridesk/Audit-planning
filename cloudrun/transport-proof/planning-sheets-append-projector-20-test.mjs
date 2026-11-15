@@ -129,6 +129,25 @@ await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',values
 assert.equal((await service.inspect(logicalIntent)).state,'MATCH');
 queue.pop();
 assert.equal((await service.inspect(logicalIntent)).state,'MISSING');
+// Live R1C evidence 2026-11-15: two duplicate pairs with different TimestampSent.
+const incidentRows=[
+ ['VIS-484C04B11EFE19B89477','6404230f22aa9a5f14053512d9a9788f'],
+ ['VIS-A16060674CB60DFC43D6','723408192aa4fb21a19e3448ebf70273']
+];
+const incidentIntents=[];
+for(const [visit,hash] of incidentRows){
+ const row=['2026-11-15T10:14','SENT_DEV_REDIRECT','AUDIT_PLANNED_BY_MANAGER',
+ 'auditor@example.test',visit,'Finca Hermosa','Subject','Body',0,'',hash,46341.78402777778,''];
+ const second=[...row];second[11]=46341.941666666666;
+ queue.push(row,second);
+ const pending=[...row];pending[1]='PENDING';pending[11]='';
+ incidentIntents.push({range:'Notification Queue!A:M',values:[pending]});
+}
+const writesBeforeIncident=appended;
+await assert.rejects(()=>service.inspect(incidentIntents),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
+await assert.rejects(()=>service.apply({operationId:'incident-111',gateToken:'fenced',intents:incidentIntents}),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
+assert.equal(appended,writesBeforeIncident);
+queue.splice(-4,4);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

@@ -97,3 +97,55 @@ assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
 const headerLike=[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']];
 assert.equal((await service.inspect([{range:'Audit_Obligations!A:G',values:headerLike}])).state,'MISSING');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
+
+
+const diagIntent=[{range:'Notification Queue!A:M',values:[
+ ['2026-10-29','PENDING','PLANNED','','audit-1','','','','','','hash-1'],
+ ['2026-11-15','PENDING','SEPARATE','','audit-new','','','','','','hash-new']
+]}];
+const diagnostic=await service.inspectDiagnostic(diagIntent);
+assert.equal(diagnostic.total,2);
+assert.equal(diagnostic.items[0].state,'MATCH');
+assert.equal(diagnostic.items[1].state,'MISSING');
+assert.equal(diagnostic.items[1].index,1);
+assert.equal(diagnostic.items[1].sheet,'Notification Queue');
+assert.ok(!JSON.stringify(diagnostic).includes('audit-new'));
+assert.ok(!JSON.stringify(diagnostic).includes('hash-new'));
+assert.ok(!JSON.stringify(diagnostic).includes('2026-11-15'));
+assert.equal((await service.inspect(diagIntent)).missing.length,1);
+console.log('Append read-only diagnostic: matching/missing and no cell-value disclosure passed');
+
+// Regression: partially applied six-intent composition recovers only the four
+// missing rows, preserving two existing obligation rows without duplication.
+const partialRows={
+ 'Audit planning':[['ID'],['existing-audit']],
+ 'Audit_Visit_Obligations':[['ID'],['visit-obligation-1'],['visit-obligation-2']],
+ 'Notification Queue':[['ID'],['existing-notification']]
+};
+let partialWrites=0;
+const partialFetch=async(url,init={})=>{
+ const u=new URL(url),path=decodeURIComponent(u.pathname);
+ const sheet=path.split('/values/')[1]?.split('!')[0];
+ if((init.method||'GET')==='GET')return ok({values:partialRows[sheet]});
+ if(init.method==='POST'&&path.endsWith(':append')){
+  partialRows[sheet].push(...JSON.parse(init.body).values);
+  partialWrites++;return ok({updates:{updatedRows:1}});
+ }
+ throw Error('PARTIAL_FIXTURE_UNKNOWN');
+};
+const partialService=createPlanningSheetsAppendProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl:partialFetch,verifyFence:async()=>{}
+});
+const partialIntents=[
+ {range:'Audit planning!A:CB',values:[['new-audit-1'],['new-audit-2']]},
+ {range:'Audit_Visit_Obligations!A:F',values:[['visit-obligation-1'],['visit-obligation-2']]},
+ {range:'Notification Queue!A:M',values:[['notification-1'],['notification-2']]}
+];
+assert.equal((await partialService.inspect(partialIntents)).missing.length,4);
+assert.equal((await partialService.apply({operationId:'composition-partial',gateToken:'fenced',intents:partialIntents})).confirmed,true);
+assert.equal(partialWrites,4);
+assert.equal((await partialService.inspect(partialIntents)).state,'MATCH');
+assert.equal(partialRows['Audit_Visit_Obligations'].length,3);
+assert.equal((await partialService.apply({operationId:'composition-partial',gateToken:'fenced',intents:partialIntents})).replayed,true);
+assert.equal(partialWrites,4);
+console.log('Partial composition recovery: four missing append rows, no obligation duplicates passed');

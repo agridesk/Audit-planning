@@ -65,6 +65,15 @@ export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflig
   if(verb==='POST'&&(authPosts.has(path.split('?')[0])||readOnlyPosts.has(path.split('?')[0])))return {action:'PASS'};
   return {action:'REJECT',status:421};
  }
+ // Isolated recovery tag: only the fenced recovery UI and auth endpoints.
+ if(requestHost==='r1-recovery---'+canonical){
+  const route=path.split('?')[0];
+  const get=new Set(['/manager/atomic-composition-recovery','/api/v1/planning/atomic-write-health']);
+  const post=new Set(['/api/v1/planning/atomic-composition-forward-recover',
+   '/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
+  if((verb==='GET'&&get.has(route))||(verb==='POST'&&post.has(route)))return {action:'PASS'};
+  return {action:'REJECT',status:421};
+ }
  if(!['GET','HEAD'].includes(verb))return {action:'REJECT',status:421};
  return {action:'REDIRECT',status:302,location:'https://'+canonical+path};
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {resolveAmsRuntimeConfig as resolve} from './runtime-environment-20.mjs';
+import {resolveAmsRuntimeConfig as resolve,canonicalDevEntry20} from './runtime-environment-20.mjs';
 const dev='audit-management-system-dev';
 const base={DEV_SSOT_SPREADSHEET_ID:'dev-sheet'};
 assert.deepEqual(resolve(base,dev),{mode:'DEV',project:dev,spreadsheet:'dev-sheet',isDev:true});
@@ -60,3 +60,10 @@ for(const file of ['server-r4.js','server-r10.js','server-r12.js','server-r15.js
  assert.match(source,/Audit planning!A1:BW/,'Missing full 20-scope range in '+file);
 }
 console.log('AMS runtime environment isolation contract: PASS');
+
+const r1=(method,url)=>canonicalDevEntry20({isDev:true,service:'ams-fase12-dev',host:'r1-recovery---ams-fase12-dev-zwtcar7xpa-ew.a.run.app',method,url,taggedPreflightReadOnly:true});
+assert.equal(r1('GET','/manager/atomic-composition-recovery').action,'PASS');
+assert.equal(r1('POST','/api/v1/planning/atomic-composition-forward-recover').action,'PASS');
+assert.equal(r1('POST','/auth/otp/verify').action,'PASS');
+assert.equal(r1('POST','/api/v1/planning/direct-commit').status,421);
+assert.equal(r1('GET','/manager/planning').status,421);

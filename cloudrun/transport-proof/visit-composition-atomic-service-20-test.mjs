@@ -72,7 +72,7 @@ function testFixture(mode='TOGETHER'){
   async markPlanningLeaseUncertain(){uncertain++;}
  };
  const projector={async apply(){applied++;if(fail==='project')throw Error('PROJECT_TIMEOUT');},
-  async inspect(){return {state:'MATCH',detail:[]}}};
+  async inspect(){return {state:fail==='precondition'?'CONFLICT':'MATCH',detail:[]}}};
  const appendProjector={async apply(){if(fail==='append')throw Error('APPEND_TIMEOUT');},async inspect(){return {state:'MATCH',count:1}}};
  const service=createVisitCompositionAtomicService20({store,gate,availabilityService,hardGate:()=>{},
   preflight:async()=>preview,projector,appendProjector});
@@ -119,6 +119,13 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  noRecipient.preview.appendIntents[0].values[0][3]='';
  await assert.rejects(()=>noRecipient.service.commit(args),/NOTIFICATION_RECIPIENT_MISSING/);
  assert.equal(noRecipient.stats().applied,0);
+ const preconditionConflict=testFixture(mode);preconditionConflict.setFail('precondition');
+ await assert.rejects(()=>preconditionConflict.service.commit(args),/SHEETS_PRECONDITION_CONFLICT_BEFORE_COMMIT/);
+ assert.equal(preconditionConflict.stats().mark,0);
+ assert.equal(preconditionConflict.stats().applied,0);
+ assert.equal(preconditionConflict.stats().leases,0);
+ assert.equal(preconditionConflict.stats().locked,false);
+ assert.equal(preconditionConflict.stats().uncertain,0);
  const precommitLeaseFailure=testFixture(mode);
  precommitLeaseFailure.preview.availabilityVersions['aud-1']=9;
  precommitLeaseFailure.setFail('release-lease');

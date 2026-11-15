@@ -65,6 +65,17 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   const missing=[];
   for(const item of items){
+   // Notification delivery timestamps may change while the logical event stays
+   // identical. A matching PayloadHash in column K must never be appended twice.
+   if(item.sheet==='Notification Queue'){
+    const hash=str(item.row[10]);
+    if(hash){
+     const existing=sources.get(item.sheet).slice(1).filter(row=>str(row[10])===hash);
+     if(existing.length>1)throw Error('APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT');
+     if(existing.length===1&&!same(existing[0],item.row))
+      throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
+    }
+   }
    const matches=sources.get(item.sheet).slice(1).filter(row=>same(row,item.row));
    if(matches.length>1)throw Error('APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT');
    if(!matches.length)missing.push(item);

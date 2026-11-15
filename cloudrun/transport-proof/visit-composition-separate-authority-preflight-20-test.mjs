@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 const h=Array.from({length:70},(_,i)=>'UNUSED_'+i);
@@ -192,3 +193,10 @@ assert.equal(finalOutcome.success,true);
 assert.equal(finalOutcome.auditIds.length,1);
 assert.equal(lease,0);
 console.log('VISIT_COMPOSITION_SEPARATE_AUTHORITY_20_PASS: full source-to-atomic outbox, Model C, 8+3 hour visits, availability and notifications');
+
+// Prevent drift between composition preflight and writeset projector Sheets render modes.
+const serverSource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const compositionSource=serverSource.slice(serverSource.indexOf('const planningAtomicComposition='),serverSource.indexOf('const atomicLifecyclePaths='));
+assert.match(compositionSource,/endpoint\.searchParams\.set\('valueRenderOption','UNFORMATTED_VALUE'\)/);
+assert.match(compositionSource,/endpoint\.searchParams\.set\('dateTimeRenderOption','FORMATTED_STRING'\)/);
+assert.match(compositionSource,/const planningRows=tables\['Audit planning'\]/);

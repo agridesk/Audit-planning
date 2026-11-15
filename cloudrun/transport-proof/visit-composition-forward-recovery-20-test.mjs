@@ -43,7 +43,9 @@ test('RECOVERING resume verifies rows before writing only missing appends',async
  const x=setup();
  x.gate.read=async()=>({holder:{operationId:id,state:'RECOVERING'}});
  x.projector.inspect=async()=>({state:'MATCH'});
- x.appendProjector.inspect=async()=>({state:'MISSING'});
+ let appended=false;
+ x.appendProjector.inspect=async()=>({state:appended?'MATCH':'MISSING'});
+ x.appendProjector.apply=async()=>{appended=true;x.events.push('appends');};
  const result=await createVisitCompositionForwardRecovery20(x).commit({operationId:id});
  assert.equal(result.resumed,true);
  assert.deepEqual(x.events,['normalize-target','resume','normalize-target','appends','finish','settle']);

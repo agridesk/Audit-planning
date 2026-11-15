@@ -68,7 +68,7 @@ function testFixture(mode='TOGETHER'){
   async release(){locked=false;},async uncertain(){uncertain++;}};
  const availabilityService={
   async acquirePlanningLease(){leases++;return {token:'lease-1',version:1,document:{version:1}};},
-  async releasePlanningLease(){leases--;},
+  async releasePlanningLease(){if(fail==='release-lease')throw Error('LEASE_RELEASE_TIMEOUT');leases--;},
   async markPlanningLeaseUncertain(){uncertain++;}
  };
  const projector={async apply(){applied++;if(fail==='project')throw Error('PROJECT_TIMEOUT');},
@@ -122,6 +122,11 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  const drift=testFixture(mode);drift.preview.availabilityVersions['aud-1']=9;
  await assert.rejects(()=>drift.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
  assert.equal(drift.stats().leases,0);assert.equal(drift.stats().locked,false);
+ const leaseFailure=testFixture(mode);leaseFailure.setFail('release-lease');
+ await assert.rejects(()=>leaseFailure.service.commit(args),/LEASE_RELEASE_TIMEOUT/);
+ assert.equal(leaseFailure.stats().mark,1);
+ assert.equal(leaseFailure.stats().locked,true,'Projected audit with uncertain lease must retain the global gate');
+ assert.ok(leaseFailure.stats().uncertain>=2);
  const projectionFailure=testFixture(mode);projectionFailure.setFail('project');
  await assert.rejects(()=>projectionFailure.service.commit(args),/PROJECT_TIMEOUT/);
  assert.ok(projectionFailure.stats().uncertain>=2);

@@ -1431,11 +1431,12 @@ async function proxy(req,res){
  // canonical DEV Origin required by the R5 authentication bridge. No business
  // writer, API mutation or cross-origin request receives this exception.
  const preflightHost='preflight---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+ const recoveryHost='r1-recovery---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
  const preflightAuthRoutes=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
  if(runtime.isDev&&process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'&&
-    String(req.headers.host||'').toLowerCase()===preflightHost&&
+    [preflightHost,recoveryHost].includes(String(req.headers.host||'').toLowerCase())&&
     req.method==='POST'&&preflightAuthRoutes.has(writerPath)){
-  const expectedPreflightOrigin='https://'+preflightHost;
+  const expectedPreflightOrigin='https://'+String(req.headers.host||'').toLowerCase();
   const requestOrigin=String(req.headers.origin||'');
   // The login HTML deliberately uses Referrer-Policy: no-referrer.
   // Native HTML forms can consequently submit Origin: null or omit Origin.

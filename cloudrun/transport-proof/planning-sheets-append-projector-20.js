@@ -29,10 +29,16 @@ function validate(intents){
   if(previous&&previous!==item.range)throw Error('APPEND_INTENT_MIXED_RANGES');
   sheetRanges.set(item.sheet,item.range);
  }
- const signatures=new Set();
+ const signatures=new Set(),notificationHashes=new Set();
  for(const item of result){
   const sig=item.sheet+'|'+JSON.stringify(norm(item.row));
   if(signatures.has(sig))throw Error('APPEND_DUPLICATE_INTENT');signatures.add(sig);
+  if(item.sheet==='Notification Queue'){
+   const hash=str(item.row[10]).trim();
+   if(!hash)throw Error('APPEND_NOTIFICATION_HASH_REQUIRED');
+   if(notificationHashes.has(hash))throw Error('APPEND_NOTIFICATION_DUPLICATE_HASH_INTENT');
+   notificationHashes.add(hash);
+  }
  }
  return result;
 }

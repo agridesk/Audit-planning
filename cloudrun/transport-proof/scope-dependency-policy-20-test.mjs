@@ -22,6 +22,18 @@ assert.equal(requiredTogetherScopePairs20({dependencies:[headers,
 assert.throws(()=>requiredTogetherScopePairs20({dependencies:[],scopeCodes:['MPS-GAP','GRASP']}),/SOURCE_UNAVAILABLE/);
 assert.throws(()=>requiredTogetherScopePairs20({dependencies:[['Wrong']],scopeCodes:['MPS-GAP','GRASP']}),/SCHEMA_INCOMPLETE/);
 assert.throws(()=>requiredTogetherScopePairs20({dependencies:[headers,['BROKEN','MPS-GAP','GRASP','ADD_ON','MAYBE','YES','YES']],scopeCodes:['MPS-GAP','GRASP']}),/ROW_INVALID/);
+// R2: reject malformed/contradictory active rules and preserve scope-specific permission.
+assert.throws(()=>requiredTogetherScopePairs20({dependencies:[headers,
+ ['DEP_DUP','MPS-GAP','GRASP','ADD_ON','YES','YES','YES'],
+ ['DEP_DUP','MPS-GAP','GRASP','ADD_ON','YES','YES','YES']],
+ scopeCodes:['MPS-GAP','GRASP']}),/ACTIVE_RULE_INVALID/);
+assert.throws(()=>requiredTogetherScopePairs20({dependencies:[headers,
+ ['DEP_SELF','MPS-GAP','MPS-GAP','ADD_ON','YES','YES','YES']],
+ scopeCodes:['MPS-GAP']}),/ACTIVE_RULE_INVALID/);
+assert.throws(()=>requiredTogetherScopePairs20({dependencies:[headers,
+ ['DEP_BAD','MPS-GAP','GRASP','ADD_ON','YES','YES','UNKNOWN']],
+ scopeCodes:['MPS-GAP','GRASP']}),/ROW_INVALID/);
+assert.equal(assertScopeSplitAllowed20({dependencies:rows,scopeCodes:['MPS-ABC','MPS-GAP']}),true);
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.match(r15,/result\.requiredTogetherPairs=requiredTogetherScopePairs20\(/);
 assert.match(r15,/assertScopeSplitAllowed20\(\{dependencies:tables\['Config_Scope_Dependencies'\],scopeCodes:selectedCodes\}\)/);

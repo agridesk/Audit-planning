@@ -113,6 +113,22 @@ assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
 // Header text is not evidence of a previously appended data row.
 const headerLike=[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']];
 assert.equal((await service.inspect([{range:'Audit_Obligations!A:G',values:headerLike}])).state,'MISSING');
+// R1C incident #111: same logical notification with a different sent timestamp.
+const queue=rows['Notification Queue'];
+const first=['2026-11-15','SENT_DEV_REDIRECT','AUDIT_PLANNED_BY_MANAGER','auditor@example.test','VIS-1','','','','','','payload-111','earlier'];
+const later=[...first];later[11]='later';
+queue.push(first,later);
+const logicalIntent=[{range:'Notification Queue!A:M',values:[first]}];
+await assert.rejects(()=>service.inspect(logicalIntent),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
+queue.pop();
+assert.equal((await service.inspect([{range:'Notification Queue!A:M',values:[later]}])).state,'MATCH');
+const pending=[...first];pending[1]='PENDING';pending[11]='';
+assert.equal((await service.inspect([{range:'Notification Queue!A:M',values:[pending]}])).state,'MATCH');
+const conflicting=[...later];conflicting[3]='different@example.test';
+await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',values:[conflicting]}]),/APPEND_NOTIFICATION_HASH_CONFLICT/);
+assert.equal((await service.inspect(logicalIntent)).state,'MATCH');
+queue.pop();
+assert.equal((await service.inspect(logicalIntent)).state,'MISSING');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

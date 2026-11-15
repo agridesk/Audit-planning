@@ -1,0 +1,54 @@
+AMS DEV — STATUS, ROADMAP EN BEWIJSDOSSIER
+Datum: 15 november 2026 | Status: R1 technisch hersteld; functionele vrijgave NO-GO
+Scope: DEV uitsluitend; PROD niet gewijzigd.
+
+1. BESTUURLIJKE CONCLUSIE
+De geblokkeerde VISIT_COMPOSITION_SEPARATELY-operatie is hersteld en de globale planning-gate is vrij. De Planning Toolkit is daarmee NIET functioneel gevalideerd en NIET releasegereed. Geen nieuwe business-save vóór een gecontroleerde functionele testprocedure.
+
+2. ACTUEEL HARD BEWIJS
+A. Gebruiker rapporteerde succesvolle recovery-response:
+{"success":true,"operationId":"5f724cc72dc4251a195a02d3c3531b3b90a1424315f9e637bd5500e1976e2934","state":"PROJECTED","resumed":true}
+B. Daarna gaf de geïsoleerde recoverypagina:
+Condition: NO_QUARANTINED_COMPOSITION; Operation: none.
+C. Vervolgens gaf de read-only atomic-write-health endpoint:
+{"success":true,"dev":true,"readonly":true,"safeToPlan":true,"gate":{"locked":false,"state":"NONE","kind":null,"acquiredAt":null,"recoveryStartedAt":null,"lastRecoveryFailure":null},"outbox":{"unresolved":0,"pages":1,"truncated":false},"activeOperation":null}
+D. Gebruiker rapporteerde Cloud Run deployment van revision ams-fase12-dev-00121-wup met 0% normaal verkeer, getagde URL https://r1-recovery---ams-fase12-dev-zwtcar7xpa-ew.a.run.app. Dit bewijst niet op zichzelf de actuele 100%-verkeersverdeling; rollback revision 00116-tib is de laatst gerapporteerde normale traffic-owner.
+E. GitHub agridesk/Audit-planning: PR #102 (appendCells fix), #103 (geïsoleerde recovery routes), #104 (recovery login allowlist), #105 (expliciete recovery Manager-login) gemerged op dev. PR #105 mergecommit 0b0b11d539b6a859a1534a3021c4c24cae8aedf0; drie CI-workflows succesvol vóór merge. PR #104 mergecommit 693a68ee562204ab89c74d6894eb9095a52aea5d; drie CI-workflows succesvol vóór merge. Bewijslinks: https://github.com/agridesk/Audit-planning/pull/102 ; /pull/103 ; /pull/104 ; /pull/105.
+F. DEV Sheets: eerder geverifieerde correctie Audit planning rijen 115/116 (beide afzonderlijke visits), rij 117 leeg; Audit_Visit_Obligations rijen 203/204 ACTIVE; Notification Queue rijen 769/770 SENT_DEV_REDIRECT. Dit is eerdere incidentinspectie; na definitieve recovery ontbreekt nog een volledige, nieuwe read-only verificatie van alle vijf targets, zes append-intents en leases.
+
+3. STATUS TEN OPZICHTE VAN INCIDENTROADMAP 15-11-2026
+R0 Stabilisatie: PASS op basis van gerapporteerde rollback 00116-tib en geïsoleerde herstelrevisies met 0% verkeer; actuele traffic-verdeling nog apart verifiëren.
+R1A Forensisch bewijs: GEDEELTELIJK. APPENDS-foutmechanisme concreet vastgesteld (Sheets values.append plaatste rijen in AG/BY i.p.v. A); appendCells correctie in PR #102. De oorspronkelijke recovery-exception uit 19:41 UTC en volledige historische reconstructie zijn niet integraal bewezen.
+R1B Correctie/tests: GEDEELTELIJK PASS. PR #102-105 gemerged, CI voor #104 en #105 groen; geen bewijs dat alle voorgeschreven foutinjectiegevallen zijn uitgevoerd.
+R1C Eenmalig herstel: OPERATIONEEL PASS: PROJECTED, resumed=true, gate NONE, unresolved=0, safeToPlan=true. STRIKTE BEWIJSGATE NOG OPEN: post-recovery read-only pariteit van vijf targets, zes appends, auditorleases en audit-entiteiten ontbreekt in dit dossier.
+R2 Canonieke scope/dependency-regels: OPEN. Config_Scopes en Config_Scope_Dependencies nog niet actueel geverifieerd; GAP/GRASP TOGETHER/SEPARATELY nog niet bewezen.
+R3 Functionele kernflows: OPEN / NO-GO. Self planning YES/NO, Single Save, Multiple, TOGETHER, SEPARATELY niet opnieuw E2E getest na recovery; SWAP-overlay eerder defect.
+R4 Hardening/regressie: OPEN. Geen volledige failure-injection- en Manager/Auditor-regressiematrix.
+R5 DEV-acceptatie: NO-GO. Geen canonieke vrijgave op 100% nieuw verkeer, geen volledig E2E-acceptatiebewijs. PROD afzonderlijk besluit.
+
+4. MASTER ROADMAP / GOVERNANCE
+Basis: AMS_MASTER_ROADMAP_V2.12_PROPOSED_2026-10-14_FULL.txt. Deze roadmap noemt zichzelf PROPOSED; formele eigenaaracceptatie is niet aangetoond, zodat hij niet zonder meer canoniek mag worden verklaard. V2.7 en ouder niet als actuele waarheid gebruikt.
+Planning 2.0 is het doel; Planning 1.0 alleen parityreferentie. Eén planningengine, één Availability-model, canonieke Model C-entiteiten, geen browser-to-Sheets writes. Phased cutover per surface pas na functionele parity en 3S-acceptatie.
+Voor de huidige incidentfase geldt de specifiekere 'AMS_DEV_RCA_NAAR_AFRONDING_ROADMAP_2026-11-15.txt' (R0-R5) als werkvolgorde; deze vervangt de master-governance niet.
+
+5. DIRECTE VERVOLGSTAPPEN — VOLGORDE EN GATES
+1. Read-only post-recovery bewijs: vijf writeset-targets, zes append-intents exact eenmaal, leases, visit/obligation-relaties, en Cloud Run traffic/revision. Geen mutaties.
+2. R2: actuele scope-dependencies, planning windows en verboden afzonderlijke combinaties met fixtures vastleggen.
+3. R3: gecontroleerde testmatrix Self planning YES/NO -> Single -> Multiple -> TOGETHER -> SEPARATELY -> SWAP; elke save afzonderlijk met Firestore/Sheets/reload-verificatie en stop bij FAIL.
+4. R4: timeouts, partial append, duplicate submit, 429/5xx, crash/recovery, leases en concurrency.
+5. R5: alleen na volledige acceptatie nieuw DEV-verkeer vrijgeven; PROD blijft buiten scope.
+
+6. OPEN RISICO'S
+- safeToPlan=true is een technische gate-check, geen functionele betrouwbaarheidsgarantie.
+- De geïsoleerde login kan na authenticatie naar '/' (gewone grid) navigeren; deze route is geen gevalideerde planningomgeving.
+- De oorspronkelijke RCA van 15-11 19:41 is een historische momentopname; uitspraken 'gate nog RECOVERING' en 'appends ontbreken' zijn door latere recovery-uitkomsten achterhaald.
+- Geen herhaling van de oorspronkelijke Separate Save: operatie is al PROJECTED.
+
+7. BRONNEN EN BEWIJSKLASSEN
+[DIRECT] door gebruiker aangeleverde Cloud Run-, recovery- en health-responses in deze chat.
+[REPO] GitHub PR #102-105 en CI-uitkomsten bij #104/#105.
+[DOCUMENT] AMS_DEV_GRONDIGE_RCA_2026-11-15(2).txt; AMS_DEV_RCA_NAAR_AFRONDING_ROADMAP_2026-11-15.txt; AMS_DEV_ROLLBACK_EN_HERSTELROADMAP_2026-11-15.txt; AMS_MASTER_ROADMAP_V2.12_PROPOSED_2026-10-14_FULL.txt.
+[OPEN] onafhankelijke read-only post-recovery reconciliatie en functionele E2E-acceptatie.
+
+OVERDRACHT NAAR VOLGENDE CHAT
+Start bij R1C bewijsafsluiting en R2; heropen niet de al PROJECTED operatie. Geen planningwrites zonder vooraf afgesproken test en verificatie. DEV is niet operationeel/releasegereed.

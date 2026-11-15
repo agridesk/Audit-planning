@@ -122,6 +122,8 @@ const logicalIntent=[{range:'Notification Queue!A:M',values:[first]}];
 await assert.rejects(()=>service.inspect(logicalIntent),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
 queue.pop();
 assert.equal((await service.inspect([{range:'Notification Queue!A:M',values:[later]}])).state,'MATCH');
+const pending=[...first];pending[1]='PENDING';pending[11]='';
+assert.equal((await service.inspect([{range:'Notification Queue!A:M',values:[pending]}])).state,'MATCH');
 const conflicting=[...later];conflicting[3]='different@example.test';
 await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',values:[conflicting]}]),/APPEND_NOTIFICATION_HASH_CONFLICT/);
 assert.equal((await service.inspect(logicalIntent)).state,'MATCH');

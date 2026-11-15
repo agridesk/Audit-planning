@@ -48,8 +48,8 @@ assert.equal((await projector.apply({operationId:'op',gateToken:'fence',intents}
 assert.equal(writes,4);
 // Duplicate stored row is a hard failure.
 sheets['Notification Queue'].push(notification('SENT_DEV_REDIRECT','VIS-A'));
-await assert.rejects(()=>projector.inspect(intents),/APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
-await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents}),/APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
+await assert.rejects(()=>projector.inspect(intents),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
+await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents}),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
 sheets['Notification Queue'].pop();
 // HTTP 429/503 must never be interpreted as a successful append.
 for(const status of [429,503]){

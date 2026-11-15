@@ -114,3 +114,11 @@ assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
 const headerLike=[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']];
 assert.equal((await service.inspect([{range:'Audit_Obligations!A:G',values:headerLike}])).state,'MISSING');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
+
+// Regression: a legacy append shifted into AG/BY must block any replay.
+rows['Audit planning']=[['Company','Location'],Array(32).fill('').concat(['Finca Hermosa','HQ'])];
+const shifted=[{range:'Audit planning!A:CN',values:[['Finca Hermosa','HQ','',8,'VIS-EXAMPLE']]}];
+const writesBeforeShifted=appended;
+await assert.rejects(()=>service.inspect(shifted),/APPEND_PROJECTION_SHIFTED_ROW_PRESENT/);
+await assert.rejects(()=>service.apply({operationId:'op-shifted',gateToken:'token',intents:shifted}),/APPEND_PROJECTION_SHIFTED_ROW_PRESENT/);
+assert.equal(appended,writesBeforeShifted);

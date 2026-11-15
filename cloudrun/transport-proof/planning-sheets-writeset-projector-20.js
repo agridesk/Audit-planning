@@ -131,5 +131,25 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   }
   return values;
  }
- return Object.freeze({inspect,inspectDiff,apply});
+ async function inspectRenderParity(plan){
+  const changes=rows(plan),url=new URL(base+'/values:batchGet');
+  url.searchParams.set('valueRenderOption','FORMATTED_VALUE');
+  for(const change of changes)url.searchParams.append('ranges',change.range);
+  const results=(await request(url.toString())).valueRanges;
+  if(!Array.isArray(results)||results.length!==changes.length)throw Error('SHEETS_RENDER_PARITY_READ_INCOMPLETE');
+  const detail=changes.map((change,i)=>{
+   const actual=results[i].values?.[0]||[];
+   const before=equal(actual,change.before),target=equal(actual,change.values);
+   const differences=[];
+   const n=Math.max(actual.length,change.before.length,change.values.length);
+   for(let j=0;j<n;j++)if(str(actual[j])!==str(change.before[j]))
+    differences.push({column:j+1,formattedMatchesTarget:str(actual[j])===str(change.values[j])});
+   return {range:change.range,formattedMatchesBefore:before,formattedMatchesTarget:target,
+    differingBeforeColumns:differences};
+  });
+  return {allFormattedBefore:detail.every(x=>x.formattedMatchesBefore),
+   allFormattedBeforeOrTarget:detail.every(x=>x.formattedMatchesBefore||x.formattedMatchesTarget),
+   detail};
+ }
+ return Object.freeze({inspect,inspectDiff,inspectRenderParity,apply});
 }

@@ -170,8 +170,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const result=(await request(url.toString())).valueRanges?.[0]?.values?.[0];
   const actual=result?.[18];
   if(typeof actual!=='number'||!Number.isFinite(actual)||
-     equal([actual],[changes[0].before[18]])||
-     str(changes[0].before[18])===str(changes[0].values[18]))
+     equal([actual],[changes[0].before[18]]))
    throw Error('COMPOSITION_RECOVERY_HOURS_NOT_FORMAT_ONLY');
   // Recheck the formatted evidence after the unformatted read to guard races.
   const second=await inspectRenderParity(plan);

@@ -274,14 +274,16 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
    return {success:true,sourceAuditId,composition:mode,operationId,authority:'FIRESTORE',
     projection:'PROJECTED',auditIds:preview.visits.map(v=>v.auditId)};
   }finally{
+   let leaseCleanupFailed=false;
    for(const lease of leases.filter(x=>!x.released)){
     try{
      if(!attempted)await availabilityService.releasePlanningLease({actor:leaseActor,...lease});
      else await availabilityService.markPlanningLeaseUncertain({actor:leaseActor,...lease,reason:'VISIT_COMPOSITION_WRITE_UNCERTAIN'});
-    }catch{/* Preserve gate uncertainty, never pronounce success. */}
+    }catch{leaseCleanupFailed=true;/* Never release the gate with an unverified lease. */}
    }
    if(lock){
-    if(!attempted)await gate.release({token:lock.token,verified:true,proof:'VISIT_COMPOSITION_PREFLIGHT_REJECTED'});
+    if(!attempted&&leaseCleanupFailed)await gate.uncertain({token:lock.token,reason:'VISIT_COMPOSITION_PREFLIGHT_LEASE_CLEANUP_UNCERTAIN'});
+    else if(!attempted)await gate.release({token:lock.token,verified:true,proof:'VISIT_COMPOSITION_PREFLIGHT_REJECTED'});
     else if(projected)await gate.uncertain({token:lock.token,reason:'VISIT_COMPOSITION_PROJECTED_LEASE_RELEASE_UNCERTAIN'});
     else{
      if(committed&&typeof store.markUncertain==='function')

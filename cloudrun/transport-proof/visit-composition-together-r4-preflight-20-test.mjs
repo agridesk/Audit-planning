@@ -81,4 +81,15 @@ const qualificationIndex=r4.indexOf('const assignmentHard=v211AssignmentHardChec
 assert.ok(preflightIndex>0&&qualificationIndex>preflightIndex,
  'Canonical obligation validation must precede auditor qualification');
 
+// R2: all linked obligations must permit every combined visit block.
+const narrowGrasp=obligations.map((row,i)=>i===2?[...row.slice(0,5),'2027-03-13','2027-03-13']:row);
+assert.throws(()=>validate({...base,obligations:narrowGrasp}),/TOGETHER_SCOPE_WINDOW_BLOCKED_GRASP/);
+const intersection=obligations.map((row,i)=>i===2?[...row.slice(0,5),'2027-03-12','2027-03-13']:row);
+assert.equal(validate({...base,obligations:intersection}).requiredMinutes,660);
+// Invalid calendar dates must fail closed, not normalize to a different day.
+const impossible=obligations.map((row,i)=>i===2?[...row.slice(0,5),'2027-02-30','2027-12-31']:row);
+assert.throws(()=>validate({...base,obligations:impossible}),/TOGETHER_MODEL_C_WINDOW_DATE_INVALID/);
+// A second ACTIVE link for an obligation outside this audit is prohibited.
+assert.throws(()=>validate({...base,links:[...links,['audit-other','o2','ACTIVE']]}),/TOGETHER_OBLIGATION_LINKED_ELSEWHERE/);
+
 console.log('VISIT_COMPOSITION_TOGETHER_R4_PREFLIGHT_20_PASS: canonical obligations, scope hours, windows and per-block allocation');

@@ -57,6 +57,10 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    const rows=data.values;
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
    if(!rows.length||rows.some(row=>!Array.isArray(row)))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
+   // A legacy values.append can leave an orphaned row starting in AG/BY.
+   // Never append again while such rows exist: they may contain this operation.
+   if(sheet==='Audit planning'&&rows.slice(1).some(row=>str(row[0])===''&&row.some(v=>str(v)!=='')))
+    throw Error('APPEND_PROJECTION_SHIFTED_ROW_PRESENT');
    sources.set(sheet,rows);
   }
   const missing=[];

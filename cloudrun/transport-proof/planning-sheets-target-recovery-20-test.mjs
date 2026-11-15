@@ -6,7 +6,7 @@ const ranges=['Audit planning!A74:BS74','Audit_Visit_Obligations!A144:F144',
  'Audit_Visit_Obligations!A175:F175','Auditor Availability!A1069:M1069',
  'Auditor Availability!A1070:M1070'];
 const target=[
- Array.from({length:71},(_,i)=>i===18?'19':i===32?'DONE':''),
+ Array.from({length:71},(_,i)=>i===18?'19,0':i===32?'DONE':''),
  ['a','b','c','d','e','f'],['g','h','i','j','k','l'],
  Array.from({length:13},(_,i)=>'a'+i),Array.from({length:13},(_,i)=>'b'+i)
 ];
@@ -38,7 +38,7 @@ test('committed target normalizes only a verified USER_ENTERED hour cell',async(
  assert.equal((await projector.inspect(plan)).state,'CONFLICT');
  const normalized=await projector.normalizeCommittedTargetHours(plan);
  assert.equal(normalized.projectionWrites[0].values[0][18],19);
- assert.equal(plan.projectionWrites[0].values[0][18],'19');
+ assert.equal(plan.projectionWrites[0].values[0][18],'19,0');
  assert.equal((await projector.inspect(normalized)).state,'MATCH');
 });
 test('committed target rejects unrelated raw cell drift',async()=>{

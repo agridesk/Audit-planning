@@ -54,7 +54,7 @@ export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflig
  // The exact preflight tag can serve a read-only browser acceptance session,
  // but only on an explicitly opted-in revision. This is never a second
  // writable DEV environment and does not change canonical writer authority.
- if(requestHost==='preflight---'+canonical){
+ if(taggedPreflightReadOnly===true&&requestHost==='preflight---'+canonical){
   if(['GET','HEAD'].includes(verb))return {action:'PASS'};
   const authPosts=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
   // These exact POST endpoints are authenticated, same-origin Firestore

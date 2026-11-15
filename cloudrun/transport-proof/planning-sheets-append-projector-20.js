@@ -67,6 +67,34 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   return {state:missing.length?'MISSING':'MATCH',missing,count:items.length};
  }
+ async function inspectDiagnostic(intents){
+  const items=validate(intents);
+  const sources=new Map();
+  for(const sheet of new Set(items.map(x=>x.sheet))){
+   const width=items.find(x=>x.sheet===sheet).range.split(':')[1];
+   const data=await request(base+'/values/'+encodeURIComponent(sheet+'!A1:'+width+'5000')+'?valueRenderOption=UNFORMATTED_VALUE');
+   if(!Array.isArray(data?.values)||data.values.length>=5000)throw Error('APPEND_DIAGNOSTIC_SOURCE_INVALID');
+   sources.set(sheet,data.values.slice(1));
+  }
+  return {total:items.length,items:items.map((item,index)=>{
+   const rows=sources.get(item.sheet);
+   const exact=rows.filter(row=>same(row,item.row));
+   if(exact.length)return {index,sheet:item.sheet,state:exact.length===1?'MATCH':'DUPLICATE'};
+   const expected=norm(item.row);
+   let best=null;
+   for(const row of rows){
+    const actual=norm(row);
+    const width=Math.max(actual.length,expected.length);
+    let matched=0;const differing=[];
+    for(let col=0;col<width;col++){
+     if((actual[col]??'')===(expected[col]??''))matched++;
+     else differing.push({column:col+1,actualType:typeof row[col],expectedType:typeof item.row[col]});
+    }
+    if(best===null||matched>best.matched)best={matched,width,differing:differing.slice(0,15)};
+   }
+   return {index,sheet:item.sheet,state:'MISSING',closest:best};
+  })};
+ }
  async function apply({operationId,gateToken,intents}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
@@ -84,5 +112,5 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   return {operationId,confirmed:true,replayed:false};
  }
- return Object.freeze({inspect,apply});
+ return Object.freeze({inspect,inspectDiagnostic,apply});
 }

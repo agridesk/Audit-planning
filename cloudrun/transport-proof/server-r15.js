@@ -1432,7 +1432,8 @@ async function proxy(req,res){
  // writer, API mutation or cross-origin request receives this exception.
  const preflightHost='preflight---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
  const preflightAuthRoutes=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
- if(runtime.isDev&&String(req.headers.host||'').toLowerCase()===preflightHost&&
+ if(runtime.isDev&&process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'&&
+    String(req.headers.host||'').toLowerCase()===preflightHost&&
     req.method==='POST'&&preflightAuthRoutes.has(writerPath)){
   const expectedPreflightOrigin='https://'+preflightHost;
   const requestOrigin=String(req.headers.origin||'');

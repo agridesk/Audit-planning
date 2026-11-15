@@ -72,8 +72,14 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
     if(hash){
      const existing=sources.get(item.sheet).slice(1).filter(row=>str(row[10])===hash);
      if(existing.length>1)throw Error('APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT');
-     if(existing.length===1&&!same(existing[0],item.row))
-      throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
+     if(existing.length===1&&!same(existing[0],item.row)){
+      // Delivery updates Status/Attempts/LastError/TimestampSent; immutable
+      // event identity and payload must remain byte-for-byte consistent.
+      const immutable=[0,2,3,4,5,6,7,10,12];
+      if(immutable.some(i=>str(existing[0][i])!==str(item.row[i])))
+       throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
+      continue;
+     }
     }
    }
    const matches=sources.get(item.sheet).slice(1).filter(row=>same(row,item.row));

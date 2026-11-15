@@ -52,3 +52,17 @@ Voor de huidige incidentfase geldt de specifiekere 'AMS_DEV_RCA_NAAR_AFRONDING_R
 
 OVERDRACHT NAAR VOLGENDE CHAT
 Start bij R1C bewijsafsluiting en R2; heropen niet de al PROJECTED operatie. Geen planningwrites zonder vooraf afgesproken test en verificatie. DEV is niet operationeel/releasegereed.
+8. VOORTGANG 15-11-2026 — R1C/R4 REGRESSIE
+GitHub PR #107 https://github.com/agridesk/Audit-planning/pull/107 gemerged op dev, commit 39075eb429f4e4caf6b162c541a5a153819dde73. Drie CI-workflows PASS: Swap 2.0 DEV Tests; AMS DEV contract tests; AMS remediation P0 tests. Toegevoegde offline failure-injection test: cloudrun/transport-proof/planning-append-r1c-failure-injection-test.mjs. Testgevallen: gedeeltelijke append met netwerk-timeout na feitelijke write, ontbrekende rijen alsnog aanvullen, replay zonder dubbel schrijven, bestaande duplicate blokkeren, 429/503 fail-closed. Dit is GEEN bewijs van live Firestore/Sheets pariteit en geen functionele E2E-acceptatie.
+
+9. R1C BEWIJSPOORT — NOG UIT TE VOEREN, UITSLUITEND READ-ONLY
+A. Firestore: voor operationId 5f724cc72dc4251a195a02d3c3531b3b90a1424315f9e637bd5500e1976e2934 outbox STATE=PROJECTED en zes bevroren append-intents plus vijf writeset targets uitlezen; alle vijf targets op actuele revision/waarden toetsen; auditorlease-status en gekoppelde audit-entiteiten controleren.
+B. Sheets: Audit planning rows 74,115,116,117 en de overige outbox writeset targets exact op celtype/waarde vergelijken; Audit_Visit_Obligations rows 203/204 en Notification Queue rows 769/770 plus beide Audit planning appends: elk intent exact eenmaal; geen verschoven AG/BY-rijen en geen duplicaten. Historische rijnummers zijn zoekhulp, niet zelfstandig bewijs: outbox-intent is de bron.
+C. Cloud Run: actuele 100%-traffic owner, tag r1-recovery 0%, digest/commit vastleggen.
+D. Bewijsgate PASS uitsluitend indien A-C aantoonbaar consistent. Anders STOP en RCA; geen handmatige gate-clear, geen herhaling van Separate Save.
+
+10. R2-R5 UITVOERINGSVOLGORDE NA R1C PASS
+R2: actuele Config_Scopes/Config_Scope_Dependencies en verboden combinaties read-only inventariseren, fixture-based paritytests voor GAP/GRASP TOGETHER/SEPARATELY, dependency- en windowregels.
+R3: Self planning YES/NO, Single Save, Multiple, TOGETHER, SEPARATELY en SWAP per afzonderlijke DEV test, met vóór/na snapshots, outbox, Sheets en reload-pariteit; stop bij eerste FAIL.
+R4: resterende injecties voor crash tussen gate release/outbox settlement, lease CAS-conflict, concurrency, 5000-row scan boundary, typecoercion, retry/duplicate; daarna Manager/Auditor regressie.
+R5: formeel DEV acceptatiebesluit, pas daarna traffic-cutover; PROD blijft buiten scope.

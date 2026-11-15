@@ -2117,6 +2117,43 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
    res.end(html);return;
   }
+  // Read-only manager approval form for the single quarantined Separate operation.
+  if(req.method==='GET'&&u.pathname==='/manager/atomic-composition-recovery'){
+   if(!runtime.isDev||!visitCompositionForwardRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const gate=await planningGlobalGate.read(),operationId=gate.holder?.operationId||'';
+   let eligible=false,condition='NO_QUARANTINED_COMPOSITION';
+   if(gate.holder?.state==='UNCERTAIN'&&gate.holder.kind==='VISIT_COMPOSITION_SEPARATELY'&&
+      /^[a-f0-9]{64}$/.test(operationId)){
+    const entry=await planningAtomicStore.readOutbox(operationId);
+    if(entry?.state==='UNCERTAIN'&&entry.action==='VISIT_COMPOSITION_SEPARATELY'){
+     const age=Date.now()-Date.parse(gate.holder.uncertainAt||'');
+     if(!Number.isFinite(age)||age<30*60*1000)condition='QUARANTINE_ACTIVE';
+     else{
+      const parity=await planningAtomicProjector.inspectRenderParity(entry.snapshot);
+      const rows=await planningAtomicProjector.inspect(entry.snapshot);
+      const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+      eligible=parity.allFormattedBefore&&rows.state==='CONFLICT'&&append.state==='MISSING'&&
+       entry.snapshot.projectionWrites?.length===5&&entry.snapshot.appendIntents?.length===6;
+      condition=eligible?'FORMATTED_SOURCE_VERIFIED':'SOURCE_NOT_ELIGIBLE';
+     }
+    }
+   }
+   const form=eligible?`<form method="post" action="/api/v1/planning/atomic-composition-forward-recover">
+    <input type="hidden" name="operationId" value="${operationId}">
+    <input type="hidden" name="confirm" value="RECOVER_VERIFIED_COMPOSITION">
+    <button type="submit">Complete existing Separate planning transaction</button></form>`:'';
+   const html=`<!doctype html><html lang="en"><meta charset="utf-8"><title>DEV composition recovery</title>
+    <body style="font:16px system-ui;max-width:760px;margin:30px auto;padding:0 15px">
+    <h1>AMS DEV - Separate planning recovery</h1><p>Condition: <strong>${condition}</strong></p>
+    <p>Operation: <code>${/^[a-f0-9]{64}$/.test(operationId)?operationId:'none'}</code></p>
+    <p>Completes only the existing Firestore transaction after independent Sheets verification.
+    Do not repeat the original planning save.</p>${form}
+    <p><a href="/api/v1/planning/atomic-write-health">Read-only health</a></p></body></html>`;
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(html);return;
+  }
   // Manual recovery approval page. GET remains read-only; only the explicit
   // same-origin Manager form POST can start the fenced forward recovery.
   if(req.method==='GET'&&u.pathname==='/manager/atomic-forward-recovery'){

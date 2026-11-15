@@ -114,3 +114,38 @@ assert.ok(!JSON.stringify(diagnostic).includes('hash-new'));
 assert.ok(!JSON.stringify(diagnostic).includes('2026-11-15'));
 assert.equal((await service.inspect(diagIntent)).missing.length,1);
 console.log('Append read-only diagnostic: matching/missing and no cell-value disclosure passed');
+
+// Regression: partially applied six-intent composition recovers only the four
+// missing rows, preserving two existing obligation rows without duplication.
+const partialRows={
+ 'Audit planning':[['ID'],['existing-audit']],
+ 'Audit_Visit_Obligations':[['ID'],['visit-obligation-1'],['visit-obligation-2']],
+ 'Notification Queue':[['ID'],['existing-notification']]
+};
+let partialWrites=0;
+const partialFetch=async(url,init={})=>{
+ const u=new URL(url),path=decodeURIComponent(u.pathname);
+ const sheet=path.split('/values/')[1]?.split('!')[0];
+ if((init.method||'GET')==='GET')return ok({values:partialRows[sheet]});
+ if(init.method==='POST'&&path.endsWith(':append')){
+  partialRows[sheet].push(...JSON.parse(init.body).values);
+  partialWrites++;return ok({updates:{updatedRows:1}});
+ }
+ throw Error('PARTIAL_FIXTURE_UNKNOWN');
+};
+const partialService=createPlanningSheetsAppendProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl:partialFetch,verifyFence:async()=>{}
+});
+const partialIntents=[
+ {range:'Audit planning!A:CB',values:[['new-audit-1'],['new-audit-2']]},
+ {range:'Audit_Visit_Obligations!A:F',values:[['visit-obligation-1'],['visit-obligation-2']]},
+ {range:'Notification Queue!A:M',values:[['notification-1'],['notification-2']]}
+];
+assert.equal((await partialService.inspect(partialIntents)).missing.length,4);
+assert.equal((await partialService.apply({operationId:'composition-partial',gateToken:'fenced',intents:partialIntents})).confirmed,true);
+assert.equal(partialWrites,4);
+assert.equal((await partialService.inspect(partialIntents)).state,'MATCH');
+assert.equal(partialRows['Audit_Visit_Obligations'].length,3);
+assert.equal((await partialService.apply({operationId:'composition-partial',gateToken:'fenced',intents:partialIntents})).replayed,true);
+assert.equal(partialWrites,4);
+console.log('Partial composition recovery: four missing append rows, no obligation duplicates passed');

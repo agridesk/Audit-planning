@@ -37,6 +37,7 @@ COPY visit-composition-together-r4-preflight-20.mjs ./
 COPY visit-composition-separate-authority-preflight-20.mjs ./
 COPY visit-composition-manager-page-20.mjs ./
 COPY visit-composition-atomic-service-20.js ./
+COPY visit-composition-forward-recovery-20.js ./
 COPY ecas-delivery-receipt-20.mjs ./
 COPY ecas-lifecycle-outbox-20.mjs ./
 COPY ecas-lifecycle-notification-intent-20.mjs ./

@@ -156,6 +156,27 @@ await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',
  values:[['stamp','PENDING','EVENT','','VIS-1','','','','','','same-hash'],
  ['stamp','PENDING','EVENT','','VIS-2','','','','','','same-hash']]}]),/APPEND_NOTIFICATION_DUPLICATE_HASH_INTENT/);
 assert.equal(appended,queueWritesBeforeValidation);
+// A concurrent writer can materialize a row after the first scan.
+// The projector must re-inspect and avoid a duplicate append.
+let scanCount=0,lateWrites=0;
+const lateRows={'Notification Queue':[['Stamp','State','Event']]};
+const lateFetch=async(url,init={})=>{
+ const u=new URL(url),path=decodeURIComponent(u.pathname);
+ if(path.includes('/values/')){
+  scanCount++;
+  if(scanCount===2)lateRows['Notification Queue'].push(['now','PENDING','EVENT','','VIS-LATE','','','','','','hash-late']);
+  return ok({values:lateRows['Notification Queue']});
+ }
+ if(path.endsWith('/spreadsheets/dev-sheet'))return ok({sheets:[{properties:{title:'Notification Queue',sheetId:1}}]});
+ if(path.endsWith(':batchUpdate')){lateWrites++;return ok({replies:[{}]});}
+ throw Error('LATE_FETCH_UNEXPECTED');
+};
+const lateProjector=createPlanningSheetsAppendProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'token',
+ fetchImpl:lateFetch,verifyFence:async()=>{}});
+const lateIntent=[{range:'Notification Queue!A:M',values:[['now','PENDING','EVENT','','VIS-LATE','','','','','','hash-late']]}];
+assert.equal((await lateProjector.apply({operationId:'late',gateToken:'fence',intents:lateIntent})).confirmed,true);
+assert.equal(lateWrites,0);
+assert.ok(scanCount>=3);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

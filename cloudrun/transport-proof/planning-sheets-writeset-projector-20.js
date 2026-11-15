@@ -151,5 +151,38 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    allFormattedBeforeOrTarget:detail.every(x=>x.formattedMatchesBefore||x.formattedMatchesTarget),
    detail};
  }
- return Object.freeze({inspect,inspectDiff,inspectRenderParity,apply});
+ // Recovery-only normalization: preserve a numeric source cell whose formatted
+ // display equals the frozen BEFORE value. Never normalize a changed business
+ // value or a cell that the operation intends to modify.
+ async function normalizeLegacySourceHours(plan){
+  const changes=rows(plan),range='Audit planning!A74:BS74';
+  if(changes.length!==5||changes[0].range!==range)throw Error('COMPOSITION_RECOVERY_RANGE_UNEXPECTED');
+  const parity=await inspectRenderParity(plan);
+  if(!parity.allFormattedBefore)throw Error('COMPOSITION_RECOVERY_FORMATTED_BEFORE_MISMATCH');
+  const diff=await inspectDiff(plan);
+  if(diff.length!==5||diff[0].differing.some(d=>d.column!==19&&!d.matchesBefore)||
+     diff.slice(1).some(x=>x.differing.some(d=>!d.matchesBefore)))
+   throw Error('COMPOSITION_RECOVERY_OTHER_CELL_DRIFT');
+  const url=new URL(base+'/values:batchGet');
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  url.searchParams.append('ranges',range);
+  const result=(await request(url.toString())).valueRanges?.[0]?.values?.[0];
+  const actual=result?.[18];
+  if(typeof actual!=='number'||!Number.isFinite(actual)||
+     equal([actual],[changes[0].before[18]])||
+     str(changes[0].before[18])!==str(changes[0].values[18]))
+   throw Error('COMPOSITION_RECOVERY_HOURS_NOT_FORMAT_ONLY');
+  // Recheck the formatted evidence after the unformatted read to guard races.
+  const second=await inspectRenderParity(plan);
+  if(!second.allFormattedBefore)throw Error('COMPOSITION_RECOVERY_SOURCE_MOVED');
+  const normalized=structuredClone(plan);
+  normalized.projectionPreconditions[0].before[18]=actual;
+  normalized.projectionWrites[0].values[0][18]=actual;
+  const check=await inspect(normalized);
+  if(check.state!=='READY'&&check.state!=='MATCH')
+   throw Error('COMPOSITION_RECOVERY_NORMALIZED_PRECONDITION_CONFLICT');
+  return normalized;
+ }
+ return Object.freeze({inspect,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,apply});
 }

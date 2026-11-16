@@ -668,7 +668,7 @@ const overlay=createPlanningOverlayService({
  service,
  readPlanningRows:planningCache.read,
  readScopeNames,
- readCanonicalSwaps:async()=>runtime.isDev&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
+ readCanonicalSwaps:async()=>swap20GridReadEnabled
   ?swap20DirectTransport.canonicalGridDates({actor:{role:'manager',email:process.env.AMS_DEV_MANAGER_EMAIL||''}})
   :{ok:true,rows:[]},
  listCanonicalAuditors:async()=>{
@@ -923,6 +923,7 @@ const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONIC
 const swap20DirectReady=Boolean(runtime.isDev&&swap20DirectTransport&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
 const swap20DirectRequested=runtime.isDev&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 const swap20DirectRouteEnabled=swap20DirectRequested&&swap20DirectReady;
+const swap20GridReadEnabled=swap20DirectRequested&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true';
 
 const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;
 const swap20LegacyArchive=runtime.isDev?createSwapLegacyJournalArchive({project,getToken}):null;
@@ -1093,7 +1094,7 @@ async function swap20ManagerRequest(req,res,operation){
  if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
- if(operation==='canonicalGridDates'&&!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
+ if(operation==='canonicalGridDates'&&!swap20GridReadEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
  let originOk=false;
  try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
  if(!originOk){res.writeHead(403,{'cache-control':'no-store'});res.end('ORIGIN_REJECTED');return;}
@@ -1123,7 +1124,7 @@ async function swap20ManagerRequest(req,res,operation){
  }
  // Exclusive DEV ownership: never fall back to GAS if direct route was requested
  // but its safety preconditions are not fulfilled.
- if(swap20DirectRequested&&!swap20DirectRouteEnabled){
+ if(operation!=='canonicalGridDates'&&swap20DirectRequested&&!swap20DirectRouteEnabled){
   res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));
   return;
@@ -1134,7 +1135,7 @@ async function swap20ManagerRequest(req,res,operation){
   :operation==='diagnosePair'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.diagnosePair({...data,actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
    :operation==='canonicalGridDates'
-   ?(swap20DirectRouteEnabled?await swap20DirectTransport.canonicalGridDates({actor}):{ok:false,code:'SWAP_DIRECT_GRID_DISABLED'})
+   ?await swap20DirectTransport.canonicalGridDates({actor})
    :operation==='listPending'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='preview'
@@ -2597,10 +2598,9 @@ http.createServer(async(req,res)=>{
    if(!runtime.isDev){res.writeHead(404);res.end('Not found');return;}
    const actor=await session(req);
    if(!actor||actor.role!=='auditor'){res.writeHead(actor?403:401);res.end('Auditor session required');return;}
-   if(!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
+   if(!swap20GridReadEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
    let originOk=false;try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
    if(!originOk){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
-   if(!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
    // Read through the same session-scoped grid source as the authenticated auditor.
    const permitted=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/manager/open',{headers:{cookie:String(req.headers.cookie||'')},signal:AbortSignal.timeout(15000)});
    if(!permitted.ok)throw Error('SWAP_AUDITOR_GRID_SCOPE_UNAVAILABLE');

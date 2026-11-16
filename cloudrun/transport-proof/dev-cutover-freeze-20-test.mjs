@@ -44,9 +44,8 @@ console.log('DEV cutover write freeze: fail closed on all business methods and g
 
 const directSwap={atomicPlanningEnabled:true,swapDirectRouteEnabled:true};
 for(const path of [
- ...['preview','eligible','diagnose','canonical-grid-dates','list','status'].map(route=>'/api/v1/manager/swap20/'+route),
- '/api/v1/auditor/swap20/list',
- '/api/v1/auditor/swap20/canonical-grid-dates'
+ ...['preview','eligible','diagnose','list','status'].map(route=>'/api/v1/manager/swap20/'+route),
+ '/api/v1/auditor/swap20/list'
 ]){
  assert.deepEqual(freeze('POST',path,directSwap),{allow:true});
  assert.equal(freeze('POST',path,{atomicPlanningEnabled:true}).allow,false);
@@ -57,3 +56,9 @@ for(const path of ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/with
  '/api/v1/manager/swap20/commit','/api/v1/auditor/swap20/respond','/api/v1/manager/swap20/preview/'])
  assert.equal(freeze('POST',path,directSwap).allow,false);
 assert.match(r15.slice(gatePos),/swapDirectRouteEnabled:swap20DirectRouteEnabled/);
+
+for(const path of ["/api/v1/manager/swap20/canonical-grid-dates","/api/v1/auditor/swap20/canonical-grid-dates"]){
+ assert.equal(freeze('POST',path,{atomicPlanningEnabled:true}).allow,true);
+ assert.equal(freeze('POST',path).allow,false);
+ assert.equal(freeze('PUT',path,directSwap).allow,false);
+}

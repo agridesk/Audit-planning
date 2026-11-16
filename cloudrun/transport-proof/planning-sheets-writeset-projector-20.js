@@ -75,9 +75,17 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const second=await inspect(plan);
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
-  const payload={valueInputOption:'USER_ENTERED',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
-  await request(base+'/values:batchUpdate','POST',payload);
-  await verifyFence({operationId,gateToken});
+  const entered=[],literalDates=[];
+  for(const change of changes){
+   const literalDate=plan.scopeExtension&&/^Audit_Obligations!([K-M])\d+(?::\1\d+)?$/.test(change.range)&&
+    typeof change.values[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(change.values[0]);
+   (literalDate?literalDates:entered).push({range:change.range,values:[change.values]});
+  }
+  for(const [valueInputOption,data] of [['USER_ENTERED',entered],['RAW',literalDates]]){
+   if(!data.length)continue;
+   await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:false});
+   await verifyFence({operationId,gateToken});
+  }
   // USER_ENTERED can reinterpret Last_Updated as a localized Sheets date.
   // Preserve the canonical timestamp as literal text, without changing the
   // existing numeric/date/formula behavior of all other cells.
@@ -214,5 +222,34 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    throw Error('COMPOSITION_TARGET_RECOVERY_NOT_MATCH');
   return normalized;
  }
- return Object.freeze({inspect,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
+ // Recovery only: prove each discrepant obligation cell contains the exact
+ // staged ISO date as a Sheets serial before restoring its literal value.
+ async function prepareExtensionDateRecovery(plan){
+  const first=await inspect(plan);
+  if(first.state!=='CONFLICT')return plan;
+  const changes=rows(plan),normalized=structuredClone(plan);
+  const read=async render=>{
+   const url=new URL(base+'/values:batchGet');
+   url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+   url.searchParams.set('dateTimeRenderOption',render);
+   for(const change of changes)url.searchParams.append('ranges',change.range);
+   const result=(await request(url.toString())).valueRanges;
+   if(!Array.isArray(result)||result.length!==changes.length)throw Error('EXT_RECOVERY_READ_INCOMPLETE');
+   return result.map(item=>item.values?.[0]||[]);
+  };
+  const displays=await read('FORMATTED_STRING'),serials=await read('SERIAL_NUMBER');
+  for(const [i,change] of changes.entries()){
+   if(equal(displays[i],change.values)||equal(displays[i],change.before))continue;
+   const iso=change.values[0];
+   const serial=(Date.parse(iso+'T00:00:00Z')-Date.UTC(1899,11,30))/86400000;
+   if(!plan.scopeExtension||!/^Audit_Obligations!([K-M])\d+(?::\1\d+)?$/.test(change.range)||
+      typeof iso!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(iso)||!Number.isSafeInteger(serial)||
+      displays[i].length!==1||serials[i].length!==1||serials[i][0]!==serial)
+    throw Error('EXT_RECOVERY_SOURCE_CONFLICT');
+   normalized.projectionPreconditions[i].before=displays[i];
+  }
+  if((await inspect(normalized)).state==='CONFLICT')throw Error('EXT_RECOVERY_SOURCE_MOVED');
+  return normalized;
+ }
+ return Object.freeze({inspect,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
 }

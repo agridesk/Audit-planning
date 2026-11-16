@@ -2239,11 +2239,15 @@ http.createServer(async(req,res)=>{
    const operationId=holder?.operationId||'';
    if(holder?.state==='UNCERTAIN'&&/^[a-f0-9]{64}$/.test(operationId)){
     const entry=await planningAtomicStore.readOutbox(operationId);
-    if(entry?.action==='PLAN'&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
+    if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
      const since=Date.parse(holder.uncertainAt||'');
      if(!Number.isFinite(since)||Date.now()-since<30*60*1000)condition='QUARANTINE_NOT_COMPLETE';
      else{
-      const rows=await planningAtomicProjector.inspect(entry.snapshot);
+      let rows;
+      try{
+       const plan=entry.action==='PLAN'?entry.snapshot:await planningAtomicProjector.prepareExtensionDateRecovery(entry.snapshot);
+       rows=await planningAtomicProjector.inspect(plan);
+      }catch{rows={state:'CONFLICT'};}
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
       eligible=['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state);
       condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
@@ -2270,7 +2274,7 @@ http.createServer(async(req,res)=>{
     <title>AMS DEV - Atomic recovery</title></head><body style="font:16px system-ui;max-width:780px;margin:30px auto;padding:0 15px">
     <h1>AMS DEV - Atomic recovery</h1><p>State: <strong>${condition}</strong></p>
     <p>Operation: <code>${safeId||'none'}</code></p>
-    <p>This will complete the existing Firestore PLAN transaction in Sheets and queue notifications.
+    <p>This will complete the existing Firestore transaction in Sheets and queue notifications.
     No new audit is created. Never retry Save while the gate is locked.</p>${form}
     <p><a href="/api/v1/planning/atomic-write-health">View read-only write health</a></p></body></html>`;
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});

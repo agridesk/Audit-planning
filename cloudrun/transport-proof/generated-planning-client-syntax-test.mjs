@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import {multiScopePlanningParity20} from './multi-scope-planning-parity-20.mjs';
 
 const source=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
-const start=source.indexOf('function planningHtml(auditId,identity){');
+const start=source.indexOf('function planningHtml(auditId,identity,batchDraft=false){');
 const end=source.indexOf('\nasync function handlePlanning(req,res,u)',start);
 if(start<0||end<0)throw new Error('planningHtml function not found');
 

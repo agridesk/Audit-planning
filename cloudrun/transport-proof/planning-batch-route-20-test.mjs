@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { devCutoverFreezeDecision20 } from './dev-cutover-freeze-20.mjs';
 
 const server = readFileSync(new URL('./server-r15.js', import.meta.url), 'utf8');
 const routeStart = server.indexOf("  if(req.method==='POST'&&u.pathname==='/api/v1/planning/batch-commit'");
@@ -47,4 +48,7 @@ await assert.rejects(execute({ input: [items[0], items[0]] }), /PLANNING_BATCH_I
 assert.equal((await execute({ role: 'auditor' })).status, 403);
 assert.equal((await execute({ requestOrigin: 'https://elsewhere.example' })).status, 403);
 assert.equal((await execute({ isDev: false })).calls.length, 0);
+const freeze = { isDev: true, freezeEnabled: true, method: 'POST', path: '/api/v1/planning/batch-commit' };
+assert.equal(devCutoverFreezeDecision20({ ...freeze, atomicPlanningEnabled: true }).allow, true);
+assert.equal(devCutoverFreezeDecision20({ ...freeze, atomicPlanningEnabled: false }).allow, false);
 console.log('DEV Multiple route contract PASS');

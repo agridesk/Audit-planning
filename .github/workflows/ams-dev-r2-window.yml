@@ -15,20 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
           service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v3
-      - name: Inspect SWAP proposal revision flags
+      - name: Open bounded R3 validation window
         shell: bash
         run: |
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
-          target=ams-fase12-dev-00180-yoh
+          target=ams-fase12-dev-00181-bos
           current() {
             gcloud run services describe ams-fase12-dev "${args[@]}" --format=json |
               jq -er '[.status.traffic[] | select((.percent // 0) > 0)] | if length == 1 and .[0].percent == 100 then .[0].revisionName else error("Expected one live revision") end'
@@ -36,25 +33,21 @@ jobs:
           before=$(current)
           [[ "$before" == ams-fase12-dev-00116-tib ]]
           sha=$(gcloud run revisions describe "$target" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-          [[ "$sha" == cc67f20e7c710d781f5fdd5515a7d6f6b4046672 ]]
-          gcloud run revisions describe "$target" "${args[@]}" --format=json |
-            jq -c '[.spec.containers[0].env[]? | select(.name | test("^AMS_SWAP20_(DIRECT_ROUTE|DIRECT_PROPOSAL_ENABLED|DIRECT_COMMIT_ENABLED|CANONICAL_CUTOVER_VERIFIED)$")) | {key:.name,value:(.value=="true")}] | from_entries'
-      - name: Verify SWAP source and Firestore parity without writes
-        working-directory: cloudrun/transport-proof
-        shell: bash
-        run: |
-          set -euo pipefail
-          token=$(gcloud auth print-access-token)
-          curl -sS -o /dev/null -w 'Sheets HTTP %{http_code}\n' -H "Authorization: Bearer $token" 'https://sheets.googleapis.com/v4/spreadsheets/1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs/values/A1'
-          curl -sS -o /dev/null -w 'Firestore HTTP %{http_code}\n' -H "Authorization: Bearer $token" 'https://firestore.googleapis.com/v1/projects/audit-management-system-dev/databases/(default)/documents/ams_swap20_dev_audits?pageSize=1'
-          unset token
-          evidence=$(mktemp)
-          trap 'rm -f "$evidence"' EXIT
-          status=0
-          node swap-dev-backfill-cli-20.mjs --verify >"$evidence" 2>&1 || status=$?
-          jq -Rc 'fromjson? | select(has("mode") or .result=="DEV_PARITY_VERIFIED") | del(.auditId,.operationId)' "$evidence"
-          if (( status != 0 )); then
-            grep -Eo 'SWAP_DEV_[A-Z0-9_]+|HTTP_[0-9]{3}' "$evidence" | sort -u || true
-            echo "::error::Read-only parity verification failed (exit $status)"
-            exit "$status"
-          fi
+          [[ "$sha" == 5b6121e997df2311296ebf1c5ad485377ba3fecd ]]
+          traffic() {
+            gcloud run services update-traffic ams-fase12-dev "${args[@]}" --to-revisions="$1=100"
+          }
+          rollback() {
+            live=$(current) || return 1
+            if [[ "$live" == "$target" ]]; then traffic "$before" || return 1; fi
+            [[ "$(current)" == "$before" ]] || return 1
+            echo "Verified restoration to $before"
+          }
+          trap rollback EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          traffic "$target"
+          [[ "$(current)" == "$target" ]]
+          echo "R3 SWAP runtime parity window open for 5 minutes on $target"
+          sleep 300 &
+          wait $!

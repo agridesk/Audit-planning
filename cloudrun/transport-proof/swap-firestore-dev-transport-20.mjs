@@ -112,7 +112,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return {ok:true,readOnly:true,source:'firestore-canonical',audits,availability,index};
  };
  const canonicalGridDates=async({actor}={})=>{
-  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GRID_DISABLED'};
+  if(canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GRID_DISABLED'};
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
   const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_swap20_dev_proposals';
   const token=await getToken();if(!token)throw Error('SWAP_DIRECT_GRID_TOKEN_MISSING');

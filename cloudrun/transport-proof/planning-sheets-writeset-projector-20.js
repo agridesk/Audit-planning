@@ -222,5 +222,34 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    throw Error('COMPOSITION_TARGET_RECOVERY_NOT_MATCH');
   return normalized;
  }
- return Object.freeze({inspect,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
+ // Recovery only: prove each discrepant obligation cell contains the exact
+ // staged ISO date as a Sheets serial before restoring its literal value.
+ async function prepareExtensionDateRecovery(plan){
+  const first=await inspect(plan);
+  if(first.state!=='CONFLICT')return plan;
+  const changes=rows(plan),normalized=structuredClone(plan);
+  const read=async render=>{
+   const url=new URL(base+'/values:batchGet');
+   url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+   url.searchParams.set('dateTimeRenderOption',render);
+   for(const change of changes)url.searchParams.append('ranges',change.range);
+   const result=(await request(url.toString())).valueRanges;
+   if(!Array.isArray(result)||result.length!==changes.length)throw Error('EXT_RECOVERY_READ_INCOMPLETE');
+   return result.map(item=>item.values?.[0]||[]);
+  };
+  const displays=await read('FORMATTED_STRING'),serials=await read('SERIAL_NUMBER');
+  for(const [i,change] of changes.entries()){
+   if(equal(displays[i],change.values)||equal(displays[i],change.before))continue;
+   const iso=change.values[0];
+   const serial=(Date.parse(iso+'T00:00:00Z')-Date.UTC(1899,11,30))/86400000;
+   if(!plan.scopeExtension||!/^Audit_Obligations!([K-M])\d+(?::\1\d+)?$/.test(change.range)||
+      typeof iso!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(iso)||!Number.isSafeInteger(serial)||
+      displays[i].length!==1||serials[i].length!==1||serials[i][0]!==serial)
+    throw Error('EXT_RECOVERY_SOURCE_CONFLICT');
+   normalized.projectionPreconditions[i].before=displays[i];
+  }
+  if((await inspect(normalized)).state==='CONFLICT')throw Error('EXT_RECOVERY_SOURCE_MOVED');
+  return normalized;
+ }
+ return Object.freeze({inspect,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
 }

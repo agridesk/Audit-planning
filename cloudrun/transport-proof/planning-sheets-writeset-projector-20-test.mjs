@@ -104,7 +104,7 @@ assert.ok(!JSON.stringify(rendered).includes('alternate-auditor'));
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');
 
 const extensionDate='Audit_Obligations!K151:K151';
-let dateValue='2027-06-19';
+let dateValue='2027-06-19', serialValue;
 const dateWrites=[];
 const dateProjector=createPlanningSheetsWritesetProjector({
  spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
@@ -115,7 +115,7 @@ const dateProjector=createPlanningSheetsWritesetProjector({
    dateValue=payload.valueInputOption==='RAW'?payload.data[0].values[0][0]:'19/06/2028';
   }
   return {ok:true,json:async()=>url.includes('values:batchGet')?
-   {valueRanges:[{values:[[dateValue]]}]}:
+   {valueRanges:[{values:[[url.includes('SERIAL_NUMBER')?serialValue:dateValue]]}]}:
    {sheets:[{properties:{title:'Audit_Obligations',sheetId:3,gridProperties:{rowCount:200}}}]}};
  }
 });
@@ -124,4 +124,14 @@ const extensionPlan={scopeExtension:{},
  projectionPreconditions:[{range:extensionDate,before:['2027-06-19']}]};
 assert.equal((await dateProjector.apply({operationId:'ext',gateToken:'held',plan:extensionPlan})).projected,true);
 assert.deepEqual(dateWrites,['RAW']);
+assert.equal((await dateProjector.inspect(extensionPlan)).state,'MATCH');
+
+dateValue='19/06/2028';
+serialValue=(Date.UTC(2028,5,19)-Date.UTC(1899,11,30))/86400000;
+const recoveryPlan=await dateProjector.prepareExtensionDateRecovery(extensionPlan);
+assert.deepEqual(recoveryPlan.projectionPreconditions[0].before,['19/06/2028']);
+serialValue++;
+await assert.rejects(dateProjector.prepareExtensionDateRecovery(extensionPlan),/EXT_RECOVERY_SOURCE_CONFLICT/);
+serialValue--;
+await dateProjector.apply({operationId:'ext',gateToken:'held',plan:recoveryPlan});
 assert.equal((await dateProjector.inspect(extensionPlan)).state,'MATCH');

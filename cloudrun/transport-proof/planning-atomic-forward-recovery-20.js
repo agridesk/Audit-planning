@@ -11,7 +11,7 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
  async function commit({operationId}={}){
   if(!/^[a-f0-9]{64}$/.test(String(operationId||'')))throw Error('ATOMIC_FORWARD_RECOVERY_ID_INVALID');
   const entry=await store.readOutbox(operationId);
-  if(!entry||entry.operationId!==operationId||entry.action!=='PLAN'||
+  if(!entry||entry.operationId!==operationId||!['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry.action)||
      !['UNCERTAIN','PENDING'].includes(entry.state)||entry.multi===true||
      !entry.auditId||!entry.snapshot||
      !Array.isArray(entry.snapshot.projectionWrites)||!entry.snapshot.projectionWrites.length||
@@ -45,14 +45,15 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
       currentAudit?.pendingOperationId!==operationId||currentAudit?.revision!==entry.revision)
     throw Error('ATOMIC_FORWARD_RECOVERY_CHANGED_DURING_FENCE');
    stage='READ_ROWS_BEFORE';
-   const first=await projector.inspect(entry.snapshot);
+   const plan=entry.action==='PLAN'?entry.snapshot:await projector.prepareExtensionDateRecovery(entry.snapshot);
+   const first=await projector.inspect(plan);
    stage='READ_APPEND_BEFORE';
    const appendBefore=await appendProjector.inspect(entry.snapshot.appendIntents);
    if(!['READY','MATCH'].includes(first.state)||!['MISSING','MATCH'].includes(appendBefore.state))
     throw Error('ATOMIC_FORWARD_RECOVERY_SOURCE_CONFLICT');
    mutationStarted=true;
    stage='APPLY_ROWS';
-   await projector.apply({operationId,gateToken:holder.token,plan:entry.snapshot});
+   await projector.apply({operationId,gateToken:holder.token,plan});
    stage='VERIFY_ROWS';
    const rowProof=await projector.inspect(entry.snapshot);
    if(rowProof.state!=='MATCH')throw Error('ATOMIC_FORWARD_RECOVERY_ROW_UNVERIFIED');

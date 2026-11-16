@@ -3,7 +3,9 @@ name: Deploy isolated AMS DEV revision
 on:
   push:
     branches: [dev]
-    paths: ['.github/workflows/ams-dev-deploy.yml']
+    paths:
+      - '.github/workflows/ams-dev-deploy.yml'
+      - 'cloudrun/transport-proof/planning-atomic-extension-service-20.js'
   workflow_dispatch:
 
 permissions:

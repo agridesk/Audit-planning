@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from 'node:util';
 import {pathToFileURL} from 'node:url';
 /**
  * DEV-only SWAP partial backfill CLI. Requires local gcloud ADC access token.
@@ -245,7 +246,7 @@ if(inspectDelta&&runtimeToken!==undefined){
    drift.push({name,collection,expected:write.update.fields.payload.stringValue});
   }
  }
- const linkedAudits=new Set();
+ const committedByAudit=new Map();
  if(drift.length){
   const proposalCollection=base+'/ams_swap20_dev_proposals';
   let cursor='',pages=0;
@@ -261,9 +262,13 @@ if(inspectDelta&&runtimeToken!==undefined){
        !drift.some(item=>[p.auditA,p.auditB].includes(item.name.split('/').pop())))continue;
     const journal=await json(base+'/ams_swap20_dev_journal/'+encodeURIComponent(p.operationId));
     const entry=JSON.parse(journal.fields?.payload?.stringValue||'null');
-    if(entry?.stage==='COMMITTED'&&entry.auditA===p.auditA&&entry.auditB===p.auditB){
-     linkedAudits.add(p.auditA);
-     linkedAudits.add(p.auditB);
+    if(entry?.stage==='COMMITTED'&&entry.operationId===p.operationId&&
+       entry.auditA===p.auditA&&entry.auditB===p.auditB&&p.auditA!==p.auditB){
+     for(const [id,blocks] of [[p.auditA,p.blocksA],[p.auditB,p.blocksB]]){
+      const matches=committedByAudit.get(id)||[];
+      matches.push(blocks);
+      committedByAudit.set(id,matches);
+     }
     }
    }
    cursor=proposals.nextPageToken||'';
@@ -275,9 +280,29 @@ if(inspectDelta&&runtimeToken!==undefined){
   const expected=JSON.parse(item.expected);
   const fields=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])]
    .filter(key=>JSON.stringify(actual[key])!==JSON.stringify(expected[key])).sort():['PAYLOAD_INVALID'];
-  const hasCommittedSwapJournal=linkedAudits.has(item.name.split('/').pop());
-  const key=JSON.stringify([item.collection,fields,hasCommittedSwapJournal]);
-  const group=driftGroups.get(key)||{collection:item.collection,fields,hasCommittedSwapJournal,documents:0};
+  const auditId=item.name.split('/').pop();
+  const candidates=committedByAudit.get(auditId)||[];
+  const hasCommittedSwapJournal=candidates.length>0;
+  const blocks=candidates[0];
+  const validBlocks=Array.isArray(blocks)&&blocks.length>0&&blocks.every(block=>
+   /^\d{4}-\d{2}-\d{2}$/.test(block?.date||'')&&/^([01]\d|2[0-3]):[0-5]\d$/.test(block?.start||'')&&
+   /^([01]\d|2[0-3]):[0-5]\d$/.test(block?.end||'')&&block.start<block.end);
+  let matchesCommittedProposal=false;
+  if(candidates.length===1&&validBlocks){
+   if(item.collection==='ams_swap20_dev_audits'&&isDeepStrictEqual(fields,['plannedBlocks'])){
+    matchesCommittedProposal=isDeepStrictEqual(actual.plannedBlocks,blocks);
+   }else if(item.collection==='ams_swap20_dev_availability'&&isDeepStrictEqual(fields,['reservations'])){
+    const auditName=item.name.replace('/ams_swap20_dev_availability/','/ams_swap20_dev_audits/');
+    const audit=JSON.parse(existing.get(auditName)?.fields?.payload?.stringValue||'null');
+    const owner=audit?.assignedTo;
+    if(typeof owner==='string'&&owner.includes('@')&&isDeepStrictEqual(audit.plannedBlocks,blocks)){
+     const reservations=blocks.map(({date,start,end})=>({auditId,owner,date,start,end,status:'Accepted'}));
+     matchesCommittedProposal=isDeepStrictEqual(actual.reservations,reservations);
+    }
+   }
+  }
+  const key=JSON.stringify([item.collection,fields,hasCommittedSwapJournal,matchesCommittedProposal]);
+  const group=driftGroups.get(key)||{collection:item.collection,fields,hasCommittedSwapJournal,matchesCommittedProposal,documents:0};
   group.documents++;
   driftGroups.set(key,group);
  }

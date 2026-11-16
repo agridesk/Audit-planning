@@ -231,6 +231,20 @@ const read=async()=>{
  return found;
 };
 const existing=await read();
+if(inspectDelta&&runtimeToken!==undefined){
+ const collections={};
+ for(const write of plan.writes){
+  const name=write.update.name;
+  const collection=name.split('/').at(-2);
+  const counts=collections[collection]??={expected:0,missing:0,drift:0};
+  counts.expected++;
+  if(!existing.has(name))counts.missing++;
+  else if(existing.get(name)?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)counts.drift++;
+ }
+ report(JSON.stringify({result:'DEV_RUNTIME_PARITY_INVENTORY',collections,
+  orphanReferences:plan.orphanCount,quarantined:plan.quarantinedCount,cutoverAuthorized:false}));
+ return;
+}
 if(inspectDelta){
  const discrepancies=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
  const missing=plan.writes.filter(w=>!existing.has(w.update.name));
@@ -391,9 +405,9 @@ export async function verifySwapDevRuntimeParity({getToken,project,spreadsheet})
  const runtimeToken=await getToken();
  if(!runtimeToken)throw Error('SWAP_DEV_TOKEN_MISSING');
  let evidence;
- await main({argv:['--verify'],runtimeToken,report:line=>{
+ await main({argv:['--inspect-delta'],runtimeToken,report:line=>{
   const result=JSON.parse(line);
-  if(result.result==='DEV_PARITY_VERIFIED')evidence=result;
+  if(result.result==='DEV_RUNTIME_PARITY_INVENTORY')evidence={...result,parityVerified:Object.values(result.collections).every(x=>x.missing===0&&x.drift===0)};
  }});
  if(!evidence)throw Error('SWAP_RUNTIME_PARITY_EVIDENCE_MISSING');
  return evidence;

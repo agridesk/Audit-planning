@@ -42,16 +42,19 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
       !Array.isArray(previous.claimIds)||previous.claimIds.length)
     throw Error('EXT_ATOMIC_BACKFILL_OR_PARITY_REQUIRED');
    const proof=await preflight({actor,body:{...body,authorityPreflight:true}});
+   const changes=proof?.canonicalSnapshot?.scopeExtension?.obligationChanges;
+   const count=changes?.length??1;
    if(proof?.success!==true||proof?.authorityPreflight!==true||
       proof.auditId!==auditId||proof.obligationId!==obligationId||
       proof.command!==command||proof.requestId!==requestId||
       proof.expectedSourceRevision!==previous.snapshot.sourceRevision||
       proof.canonicalSnapshot?.auditId!==auditId||
       proof.canonicalSnapshot?.status!=='Pending Planning'||
-      !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==9||
-      !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==9||
+      !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==4+5*count||
+      !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==4+5*count||
       !Array.isArray(proof.appendIntents)||proof.appendIntents.length!==1||
       proof.appendIntents[0]?.range!=='CB_Extension_Outbox!A:P'||
+      (count>1&&proof.appendIntents[0]?.values?.length!==count)||
       JSON.stringify(proof.sourceRowBefore)!==JSON.stringify(previous.snapshot.row)||
       JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');

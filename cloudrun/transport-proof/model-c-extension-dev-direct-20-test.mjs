@@ -103,3 +103,37 @@ const blocked=inspect({obligationRows:incompatible,linkRows:[lh,['BAD_A','BAD1',
 assert.equal(blocked.records[0].canApply,false,'mismatched legacy provenance cannot bypass policy');
 
 console.log('PASS DEV Model C direct per-obligation multi-scope Apply and Undo, readback dates, individual extension policy and aggregated expiry');
+
+const pairHeaders=[...oh,'Cycle_Key','Obligation_State'];
+const pairRows=[pairHeaders,
+ ['G','C','MPS-GAP','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-12-31','','','2027','OPEN'],
+ ['R','C','GRASP','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-11-30','','','2027','OPEN']];
+const pairSource={obligationRows:pairRows,linkRows:[lh,['P','G','ACTIVE'],['P','R','ACTIVE']],
+ planningRows:[ph,['P','Pending Planning','2027-01-31','','2026-09-30','2026-11-30']],
+ scopeRows:driftScopeRows,companyUid:'C',
+ sharedExpiryPairs:[{parentScopeCode:'MPS-GAP',childScopeCode:'GRASP',shareExpiry:true}]};
+const pairCommand={auditId:'P',companyUid:'C',obligationId:'R',command:'apply',requestId:'TX',actorUid:'M1'};
+const paired=plan({...pairCommand,snapshot:inspect(pairSource)});
+assert.equal(paired.updates.length,14);
+assert.deepEqual(paired.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-05-31','2027-05-31']);
+for(const {obligationId,expected} of paired.obligationChanges){
+ const row=pairRows.find(r=>r[0]===obligationId);
+ row.splice(5,5,expected.effectiveExpiry,expected.windowFrom,expected.windowTo,'Yes',expected.extensionMetadata);
+}
+const pairUndo=plan({...pairCommand,command:'undo',requestId:'UNDO',obligationId:'G',snapshot:inspect(pairSource)});
+assert.deepEqual(pairUndo.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-01-31','2027-01-31']);
+pairRows[2][9]=pairRows[2][9].replace('"transactionId":"TX"','"transactionId":"OTHER"');
+assert.throws(()=>plan({...pairCommand,command:'undo',snapshot:inspect(pairSource)}),/SHARED_EXPIRY_PROVENANCE_CONFLICT/);
+console.log('Shared expiry planner: paired Apply, paired Undo, and mismatched transaction rejection PASS');
+const {buildAtomicExtensionWriteset20}=await import('./planning-atomic-extension-writeset-20.mjs');
+const events=paired.obligationChanges.map(({obligationId})=>{
+ const values=Array(16).fill('');
+ values[0]='event-'+obligationId; values[3]=obligationId;
+ return {values,eventId:values[0]};
+});
+const pairedProof=buildAtomicExtensionWriteset20({plan:paired,source:pairSource,cbEvents:events,cbEvent:events[0],revisionOf:()=> 'revision'});
+assert.equal(pairedProof.projectionWrites.length,14);
+assert.equal(pairedProof.projectionPreconditions.length,14);
+assert.equal(pairedProof.appendIntents[0].values.length,2);
+assert.throws(()=>buildAtomicExtensionWriteset20({plan:paired,source:pairSource,cbEvents:[events[0],events[0]],cbEvent:events[0],revisionOf:()=> 'revision'}),/MEMBERSHIP_INVALID/);
+console.log('Shared expiry writeset: both obligations and both event intents verified');

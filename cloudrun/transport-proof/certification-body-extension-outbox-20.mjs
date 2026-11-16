@@ -18,7 +18,7 @@ const required=(rows,headers,label)=>{
 const rowObject=(head,row)=>Object.fromEntries(head.map((k,i)=>[k,str(row[i])]));
 export function prepareCbExtensionEvent20({
  obligationRows,scopeRows,certificationBodies,auditId,companyUid,obligationId,
- operationId,command,expected,previous,company,createdAt
+ operationId,command,expected,previous,company,createdAt,sharedExpiry=false
 }={}){
  if(!['apply','undo'].includes(command)||![auditId,companyUid,obligationId,operationId].every(str))
   throw Error('CB_OUTBOX_EVENT_IDENTITY_INVALID');
@@ -36,7 +36,7 @@ export function prepareCbExtensionEvent20({
  const created=new Date(createdAt||new Date().toISOString());
  if(!Number.isFinite(created.getTime()))throw Error('CB_OUTBOX_CREATED_AT_INVALID');
  const iso=created.toISOString(),notBefore=new Date(created.getTime()+10*60000).toISOString();
- const eventId='CB_EXT_'+str(operationId);
+ const eventId='CB_EXT_'+(sharedExpiry?JSON.stringify([str(operationId),str(obligationId)]):str(operationId));
  const details={company:str(company),baseExpiry:obligation.Base_Expiry_Date,
   effectiveExpiry:str(expected.effectiveExpiry),scopeCode:obligation.ScopeCode,
   certificationBodyId:body.certificationBodyId,

@@ -1,3 +1,4 @@
+import {requiredTogetherScopePairs20} from './scope-dependency-policy-20.mjs';
 import http from 'node:http';
 import {validateTogetherCompositionPreflight20} from './visit-composition-together-r4-preflight-20.mjs';
 import {resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
@@ -213,10 +214,10 @@ async function readIsolatedDevModelCExt20(){
  // Independent read-only checks overlap; identity still must pass before any write.
  const [project,r]=await Promise.all([
   verifiedAuditorLockDevProject(),
-  sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100'])
+  sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100','Config_Scope_Dependencies!A1:G1000'])
  ]);
  if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
- if(r.length!==5)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
+ if(r.length!==6||(r[5]?.values?.length??0)>=1000)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
@@ -229,7 +230,11 @@ async function readIsolatedDevModelCExt20(){
    throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
  const dates=normalizeDevModelCDateCells20(r);
  const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning;
- return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows:r[3]?.values||[]};
+ const scopeRows=r[3]?.values||[],scopeIndex=scopeRows[0]?.indexOf('ScopeCode')??-1;
+ if(scopeIndex<0)throw Error('EXT_DEV_SCOPE_CODE_COLUMN_MISSING');
+ const scopeCodes=[...new Set(scopeRows.slice(1).map(row=>clean(row[scopeIndex])).filter(Boolean))];
+ const sharedExpiryPairs=requiredTogetherScopePairs20({dependencies:r[5]?.values,scopeCodes});
+ return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows,sharedExpiryPairs};
 }
 function isolatedExtPilot20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'
@@ -2290,17 +2295,20 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
           const cbSource=await sheetsBatchGet(['Certification_Bodies!A1:H200']);
           const planningAudit=before.auditRows.get(auditId);
           const companyIndex=before.planningHead.indexOf('Company');
-          const cbEvent=prepareCbExtensionEvent20({
+          const cbEvents=plan.obligationChanges.map(change=>prepareCbExtensionEvent20({
             obligationRows:source.obligationRows,scopeRows:source.scopeRows,
             certificationBodies:cbSource[0]?.values||[],
-            auditId,companyUid,obligationId,operationId:plan.operationId,
-            command:body.command,expected:plan.expected,previous:before.obligations.get(obligationId),
+            auditId,companyUid,obligationId:change.obligationId,
+            operationId:plan.operationId,sharedExpiry:plan.obligationChanges.length>1,
+            command:body.command,expected:change.expected,previous:before.obligations.get(change.obligationId),
             company:companyIndex>=0?clean(planningAudit?.row?.[companyIndex]):''
-          });
+          }));
+          const cbEvent=cbEvents[0];
           if(body?.authorityPreflight===true&&
              process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'){
-           return buildAtomicExtensionWriteset20({plan,source,cbEvent,revisionOf:directRowRevision});
+           return buildAtomicExtensionWriteset20({plan,source,cbEvent,cbEvents,revisionOf:directRowRevision});
           }
+          if(plan.obligationChanges.length>1)throw Error('EXT_DEV_SHARED_EXPIRY_ATOMIC_REQUIRED');
           await sheetsValuesBatchUpdateRaw(plan.updates);
           const verify=inspectDevScopeExtension20({...await readIsolatedDevModelCExt20(),companyUid});
           const actual=verify.obligations.get(obligationId),expected=plan.expected;

@@ -1,0 +1,47 @@
+name: AMS DEV tagged revision health
+on:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/ams-dev-iap-health.yml']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing DEV revision tag
+        required: true
+        type: string
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  health:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TAG: ${{ inputs.tag || 'dev-65f3694371b6-1' }}
+      ACCOUNT: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Check health without following redirects
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^dev-[a-f0-9]{12}-[0-9]+$ ]]
+          gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format=json > "$RUNNER_TEMP/service.json"
+          origin=$(jq -er --arg tag "$TAG" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .url' "$RUNNER_TEMP/service.json")
+          [[ "$origin" == "https://${TAG}---ams-fase12-dev-zwtcar7xpa-ew.a.run.app" ]]
+          url="$origin/api/v1/planning/atomic-write-health"
+          now=$(date +%s)
+          jq -n --arg account "$ACCOUNT" --arg url "$url" --argjson now "$now" '{iss:$account,sub:$account,aud:$url,iat:$now,exp:($now+300)}' > "$RUNNER_TEMP/claims.json"
+          gcloud iam service-accounts sign-jwt "$RUNNER_TEMP/claims.json" "$RUNNER_TEMP/iap.jwt" --iam-account="$ACCOUNT" --project=audit-management-system-dev
+          token=$(cat "$RUNNER_TEMP/iap.jwt")
+          echo "::add-mask::$token"
+          code=$(curl --silent --show-error --max-time 25 --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' --header "Authorization: Bearer $token" "$url")
+          echo "Tagged health endpoint HTTP status: $code"
+          [[ "$code" == 200 ]]
+          jq -e '{success,dev,readonly,safeToPlan,locked:.gate.locked,unresolved:.outbox.unresolved}' "$RUNNER_TEMP/health.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          jq -e '.success == true and .dev == true and .readonly == true and .safeToPlan == true and .gate.locked == false and .outbox.unresolved == 0' "$RUNNER_TEMP/health.json" >/dev/null

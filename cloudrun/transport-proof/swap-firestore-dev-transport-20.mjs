@@ -9,7 +9,7 @@ import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinato
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 import {validateSwapCanonicalSchedule} from './swap-firestore-schedule-guard-20.mjs';
 export function createSwapFirestoreDevTransport(options={}){
- const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids,authorizeCanonicalAuditor,verifySourceFreeze}=options;
+ const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,proposalEnabled=false,resolveCanonicalAuditorUids,authorizeCanonicalAuditor,verifySourceFreeze}=options;
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
@@ -31,7 +31,7 @@ export function createSwapFirestoreDevTransport(options={}){
    throw Error('SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED');
  };
  const propose=async({operationId,auditA,auditB,internalReason,ecasComment,actor}={})=>{
-  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'};
+  if(!(enabled===true||proposalEnabled===true)||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'};
   await assertSourceFreeze();
   if(actor?.role!=='manager'||!actor.email||typeof resolveCanonicalAuditorUids!=='function')
    throw Error('SWAP_DIRECT_MANAGER_OR_AUDITOR_DIRECTORY_UNAVAILABLE');
@@ -153,7 +153,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
  const getProposal=async({operationId,actor}={})=>{
-  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
+  if(!(enabled===true||proposalEnabled===true)||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
   const [proposal,journal]=await Promise.all([reader.readProposal(operationId),reader.readJournal(operationId)]);
   const stage=journal?.stage||'NOT_STARTED';
@@ -163,7 +163,7 @@ export function createSwapFirestoreDevTransport(options={}){
    acknowledgedCount:(proposal.acknowledgedAuditorUids||[]).length,
    requiredCount:(proposal.requiredAuditorUids||[]).length,
    journalStage:stage,journalSequence:journal?1:0,journalRequiresManualReview:requiresManualReview,
-   commitEnabled:proposal.status==='CONFIRMED'&&!journal,
+   commitEnabled:enabled===true&&proposal.status==='CONFIRMED'&&!journal,
    source:'firestore-canonical'};
  };
  const preview=async({auditA,auditB}={})=>{

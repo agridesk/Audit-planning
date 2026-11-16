@@ -15,13 +15,15 @@ const swapReadOnlyRoutes=new Set([
 
 ]);
 
-export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false}={}){
+export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false,swapProposalRouteEnabled=false}={}){
  if(isDev!==true||freezeEnabled!==true)return {allow:true};
  const verb=String(method||'').toUpperCase();
  if(['GET','HEAD','OPTIONS'].includes(verb))return {allow:true};
  if(verb==='POST'&&new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']).has(path))
   return {allow:true};
  if(atomicPlanningEnabled===true&&verb==='POST'&&swapDirectReadRoutes.has(path))return {allow:true};
+ if(atomicPlanningEnabled===true&&swapProposalRouteEnabled===true&&verb==='POST'&&
+    ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/status'].includes(path))return {allow:true};
  // These POSTs are reads through the direct Firestore transport.
  if(atomicPlanningEnabled===true&&swapDirectRouteEnabled===true&&verb==='POST'&&swapReadOnlyRoutes.has(path))
   return {allow:true};

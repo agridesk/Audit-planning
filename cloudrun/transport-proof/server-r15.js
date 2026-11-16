@@ -902,7 +902,7 @@ async function swap20VerifyGasWriteAuthority(){
  })().catch(()=>false).finally(()=>{swap20AuthorityInflight=null;});
  return swap20AuthorityInflight;
 }
-const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:27,verifySourceFreeze:swap20VerifyGasWriteAuthority,
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',proposalEnabled:process.env.AMS_SWAP20_DIRECT_PROPOSAL_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:27,verifySourceFreeze:swap20VerifyGasWriteAuthority,
  authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId),
  resolveCanonicalAuditorUids:async({owners})=>{
   const roster=await swapRoster();
@@ -923,6 +923,7 @@ const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONIC
 const swap20DirectReady=Boolean(runtime.isDev&&swap20DirectTransport&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
 const swap20DirectRequested=runtime.isDev&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 const swap20DirectRouteEnabled=swap20DirectRequested&&swap20DirectReady;
+const swap20ProposalRouteEnabled=swap20DirectRequested&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true'&&process.env.AMS_SWAP20_DIRECT_PROPOSAL_ENABLED==='true';
 const swap20GridReadEnabled=swap20DirectRequested&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true';
 
 const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;
@@ -1124,7 +1125,7 @@ async function swap20ManagerRequest(req,res,operation){
  }
  // Exclusive DEV ownership: never fall back to GAS if direct route was requested
  // but its safety preconditions are not fulfilled.
- if(operation!=='canonicalGridDates'&&operation!=='listPending'&&swap20DirectRequested&&!swap20DirectRouteEnabled){
+ if(operation!=='canonicalGridDates'&&operation!=='listPending'&&!(swap20ProposalRouteEnabled&&['propose','getProposal'].includes(operation))&&swap20DirectRequested&&!swap20DirectRouteEnabled){
   res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));
   return;
@@ -1140,10 +1141,14 @@ async function swap20ManagerRequest(req,res,operation){
   ?(swap20GridReadEnabled?await swap20DirectTransport.list({actor}):planningAtomicEnabled||swap20DirectRequested?{ok:false,code:'SWAP_DIRECT_LIST_DISABLED'}:await swap20ReadList(actor))
   :operation==='preview'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.preview(data):(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data))
-   :operation==='propose'&&swap20DirectRouteEnabled
+   :operation==='propose'&&(swap20DirectRouteEnabled||swap20ProposalRouteEnabled)
    ?await swap20DirectTransport.propose({...data,actor})
-   :operation==='getProposal'&&swap20DirectRouteEnabled
+   :operation==='propose'&&planningAtomicEnabled
+   ?{ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'}
+   :operation==='getProposal'&&(swap20DirectRouteEnabled||swap20ProposalRouteEnabled)
    ?await swap20DirectTransport.getProposal({...data,actor})
+   :operation==='getProposal'&&planningAtomicEnabled
+   ?{ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'}
    :operation==='getProposal'
    ?await swap20GasOperation(actor,operation,data)
    :operation==='withdraw'&&swap20DirectRouteEnabled
@@ -1153,11 +1158,11 @@ async function swap20ManagerRequest(req,res,operation){
    :await swap20GasOperation(actor,operation,data);
  // Status is read-only: expose the separate index write gate so that
  // canonical CONFIRMED/NOT_STARTED cannot be mistaken for end-to-end readiness.
- if(operation==='getProposal'&&!swap20DirectRouteEnabled&&result?.ok===true&&swap20Index){
+ if(operation==='getProposal'&&!swap20DirectRouteEnabled&&!swap20ProposalRouteEnabled&&result?.ok===true&&swap20Index){
   try{const indexState=await swap20Index.meta();result.indexStatus=indexState?.data?.status||'MISSING';result.indexOperationId=indexState?.data?.operationId||'';result.commitEnabled=result.commitEnabled===true&&result.indexStatus==='READY';}
   catch(err){result.indexStatus='UNAVAILABLE';result.commitEnabled=false;console.error('[SWAP20_INDEX_STATUS_FAILED]',String(err?.message||err).slice(0,140));}
  }
- if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
+ if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();if(!planningAtomicEnabled)await swap20InvalidateMirror(actor);}
  if(operation==='canonicalGridDates')console.info('[SWAP_CANONICAL_GRID_DIAG]',JSON.stringify({ok:result?.ok===true,returnedRows:Array.isArray(result?.rows)?result.rows.length:-1,ms:Date.now()-swap20RequestStarted,revision:process.env.K_REVISION||'UNAVAILABLE'}));
  console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'manager',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -1564,7 +1569,8 @@ http.createServer(async(req,res)=>{
    backfillWriteEnabled:process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED==='true',
    legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true',
    atomicPlanningEnabled:planningAtomicEnabled,
-   swapDirectRouteEnabled:swap20DirectRouteEnabled
+   swapDirectRouteEnabled:swap20DirectRouteEnabled,
+   swapProposalRouteEnabled:swap20ProposalRouteEnabled
   });
   if(!cutoverFreeze.allow){
    res.writeHead(cutoverFreeze.status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

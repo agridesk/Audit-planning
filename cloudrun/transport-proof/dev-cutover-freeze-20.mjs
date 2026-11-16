@@ -4,15 +4,15 @@
  */
 import {planningAtomicOwnedHttpRoutes20} from './planning-atomic-cutover-guard-20.js';
 
-const swapGridReadRoutes=new Set(["/api/v1/manager/swap20/canonical-grid-dates","/api/v1/auditor/swap20/canonical-grid-dates"]);
+const swapDirectReadRoutes=new Set(["/api/v1/manager/swap20/canonical-grid-dates","/api/v1/auditor/swap20/canonical-grid-dates","/api/v1/manager/swap20/list","/api/v1/auditor/swap20/list"]);
 
 const swapReadOnlyRoutes=new Set([
  '/api/v1/manager/swap20/preview',
  '/api/v1/manager/swap20/eligible',
  '/api/v1/manager/swap20/diagnose',
- '/api/v1/manager/swap20/list',
+
  '/api/v1/manager/swap20/status',
- '/api/v1/auditor/swap20/list'
+
 ]);
 
 export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false}={}){
@@ -21,7 +21,7 @@ export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,back
  if(['GET','HEAD','OPTIONS'].includes(verb))return {allow:true};
  if(verb==='POST'&&new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']).has(path))
   return {allow:true};
- if(atomicPlanningEnabled===true&&verb==='POST'&&swapGridReadRoutes.has(path))return {allow:true};
+ if(atomicPlanningEnabled===true&&verb==='POST'&&swapDirectReadRoutes.has(path))return {allow:true};
  // These POSTs are reads through the direct Firestore transport.
  if(atomicPlanningEnabled===true&&swapDirectRouteEnabled===true&&verb==='POST'&&swapReadOnlyRoutes.has(path))
   return {allow:true};

@@ -1,0 +1,71 @@
+name: Deploy isolated AMS DEV revision
+
+on:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/ams-dev-deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ams-fase12-dev-isolated-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PROJECT: audit-management-system-dev
+      REGION: europe-west1
+      SERVICE: ams-fase12-dev
+      RUNTIME_ACCOUNT: 510075419067-compute@developer.gserviceaccount.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Deploy and verify isolated revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="dev-${GITHUB_SHA:0:12}-${GITHUB_RUN_ATTEMPT}"
+          args=(--project="$PROJECT" --region="$REGION" --quiet)
+          describe() { gcloud run services describe "$SERVICE" "${args[@]}" --format=json; }
+          traffic() {
+            jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'
+          }
+          describe > "$RUNNER_TEMP/service-before.json"
+          jq -e --arg account "$RUNTIME_ACCOUNT" '.spec.template.spec.serviceAccountName == $account' "$RUNNER_TEMP/service-before.json" >/dev/null
+          jq -e '
+            [.spec.template.spec.containers[0].env[]? | {key: .name, value: .value}] | from_entries
+            | .AMS_RUNTIME_ENV == "DEV"
+              and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true"
+              and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"
+          ' "$RUNNER_TEMP/service-before.json" >/dev/null
+          before=$(traffic < "$RUNNER_TEMP/service-before.json")
+          jq -e '[.status.traffic[] | .percent // 0] | add == 100' "$RUNNER_TEMP/service-before.json" >/dev/null
+          gcloud run deploy "$SERVICE" "${args[@]}" \
+            --source=cloudrun/transport-proof --no-traffic --tag="$tag" \
+            --update-labels="commit-sha=$GITHUB_SHA"
+          describe > "$RUNNER_TEMP/service-after.json"
+          after=$(traffic < "$RUNNER_TEMP/service-after.json")
+          if [[ "$before" != "$after" ]]; then
+            echo '::error::Regular traffic changed during the isolated deployment.'
+            exit 1
+          fi
+          jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | [.revisionName,.url] | @tsv' \
+            "$RUNNER_TEMP/service-after.json" > "$RUNNER_TEMP/tagged-revision.tsv"
+          IFS=$'\t' read -r revision url < "$RUNNER_TEMP/tagged-revision.tsv"
+          [[ -n "$revision" && "$url" == https://* ]]
+          deployed_sha=$(gcloud run revisions describe "$revision" "${args[@]}" --format='value(metadata.labels.commit-sha)')
+          [[ "$deployed_sha" == "$GITHUB_SHA" ]]
+          printf 'Revision: %s\nURL: %s\nCommit: %s\nRegular traffic: unchanged\n' "$revision" "$url" "$GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"

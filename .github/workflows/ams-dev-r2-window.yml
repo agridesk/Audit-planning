@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
@@ -36,3 +39,18 @@ jobs:
           [[ "$sha" == cc67f20e7c710d781f5fdd5515a7d6f6b4046672 ]]
           gcloud run revisions describe "$target" "${args[@]}" --format=json |
             jq -c '[.spec.containers[0].env[]? | select(.name | test("^AMS_SWAP20_(DIRECT_ROUTE|DIRECT_PROPOSAL_ENABLED|DIRECT_COMMIT_ENABLED|CANONICAL_CUTOVER_VERIFIED)$")) | {key:.name,value:(.value=="true")}] | from_entries'
+      - name: Verify SWAP source and Firestore parity without writes
+        working-directory: cloudrun/transport-proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence=$(mktemp)
+          trap 'rm -f "$evidence"' EXIT
+          status=0
+          node swap-dev-backfill-cli-20.mjs --verify >"$evidence" 2>&1 || status=$?
+          jq -Rc 'fromjson? | select(has("mode") or .result=="DEV_PARITY_VERIFIED") | del(.auditId,.operationId)' "$evidence"
+          if (( status != 0 )); then
+            grep -Eo 'SWAP_DEV_[A-Z0-9_]+|HTTP_[0-9]{3}' "$evidence" | sort -u || true
+            echo "::error::Read-only parity verification failed (exit $status)"
+            exit "$status"
+          fi

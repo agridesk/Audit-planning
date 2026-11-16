@@ -48,6 +48,6 @@ jobs:
           trap 'exit 143' TERM
           traffic "$target"
           [[ "$(current)" == "$target" ]]
-          echo "R3 SWAP committed proposal comparison window open for 5 minutes on $target"
-          sleep 300 &
+          echo "R3 SWAP committed proposal comparison retry window open for 10 minutes on $target"
+          sleep 600 &
           wait $!

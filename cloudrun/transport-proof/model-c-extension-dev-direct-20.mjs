@@ -38,7 +38,7 @@ const legacyWindowOffsets20=(base,from,to)=>{
 const col=i=>{let n=i+1,s='';while(n>0){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s};
 const index=(headers,name)=>{const i=headers.indexOf(name);if(i<0)throw Error('EXT_DEV_SCHEMA_MISSING_'+name);return i};
 const get=(row,head,name)=>row[index(head,name)];
-export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows,scopeRows,companyUid}={}){
+export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows,scopeRows,companyUid,sharedExpiryPairs=[]}={}){
  const arrays=[obligationRows,linkRows,planningRows,scopeRows];
  if(arrays.some(rows=>!Array.isArray(rows)||!Array.isArray(rows[0])||rows.length>2501))throw Error('EXT_DEV_SOURCE_INVALID');
  const [O,L,P,S]=arrays.map(rows=>({head:rows[0].map(t),rows:rows.slice(1)}));
@@ -52,7 +52,7 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
  for(let i=0;i<O.rows.length;i++){
   const row=O.rows[i],id=t(get(row,O.head,'Obligation_ID'));if(!id)continue;if(obligations.has(id))throw Error('EXT_DEV_DUPLICATE_OBLIGATION');
   const company=t(get(row,O.head,'Company_UID')),scopeCode=t(get(row,O.head,'ScopeCode')),auditId=byOb.get(id)||'';
-  const rec={obligationId:id,companyUid:company,scopeCode,auditId,auditIds:auditId?[auditId]:[],
+  const rec={obligationId:id,companyUid:company,scopeCode,cycleKey:t(row[O.head.indexOf('Cycle_Key')]),obligationState:norm(row[O.head.indexOf('Obligation_State')]),auditId,auditIds:auditId?[auditId]:[],
     auditStatuses:auditId?[{auditId,status:status.get(auditId)||'UNKNOWN'}]:[],
     triggerSource:t(get(row,O.head,'Trigger_Source')),extensionApplied:yes(get(row,O.head,'Extension_Applied')),
     extensionMetadata:t(get(row,O.head,'Extension_Metadata_JSON')),baseExpiry:iso(get(row,O.head,'Base_Expiry_Date')),
@@ -79,12 +79,65 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   if(!companyUid||company===companyUid)records.push(rec);
  }
  for(const [auditId,ids] of byAudit){if(!auditRows.has(auditId)||ids.some(id=>!obligations.has(id)))throw Error('EXT_DEV_ORPHAN_LINK')}
- return{records,obligations,byAudit,auditRows,planningHead:P.head,obligationHead:O.head,mode:'DEV_MODEL_C_DIRECT',canMutate:records.some(x=>x.canMutate)};
+ return{records,obligations,sharedExpiryPairs,byAudit,auditRows,planningHead:P.head,obligationHead:O.head,mode:'DEV_MODEL_C_DIRECT',canMutate:records.some(x=>x.canMutate)};
 }
 export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationId,command,requestId,actorUid}={}){
  if(!snapshot||!['apply','undo'].includes(command)||!t(auditId)||!t(companyUid)||!t(obligationId)||!t(requestId)||!t(actorUid)||t(requestId).length>180)throw Error('EXT_DEV_COMMAND_INVALID');
  const id=t(obligationId),rec=snapshot.obligations.get(id),ids=snapshot.byAudit.get(t(auditId))||[];
  if(!rec||rec.companyUid!==companyUid||rec.auditId!==auditId||!ids.includes(id)||ids.length>100||!(command==='apply'?rec.canApply:rec.canUndo))throw Error('EXT_DEV_SCOPE_NOT_ELIGIBLE');
+ const scopes=new Set([rec.scopeCode]);
+ for(const pair of snapshot.sharedExpiryPairs){
+  if(!pair.shareExpiry)continue;
+  if(pair.parentScopeCode===rec.scopeCode)scopes.add(pair.childScopeCode);
+  if(pair.childScopeCode===rec.scopeCode)scopes.add(pair.parentScopeCode);
+ }
+ let members=[rec];
+ if(scopes.size>1){
+  if(!rec.cycleKey)throw Error('EXT_DEV_SHARED_EXPIRY_CYCLE_REQUIRED');
+  members=[...snapshot.obligations.values()].filter(o=>o.companyUid===companyUid&&
+   o.cycleKey===rec.cycleKey&&scopes.has(o.scopeCode)&&
+   ['OPEN','LINKED_TO_VISIT'].includes(o.obligationState));
+  if(members.length!==scopes.size||new Set(members.map(o=>o.scopeCode)).size!==scopes.size||
+    members.some(o=>o.auditId!==auditId||!(command==='apply'?o.canApply:o.canUndo)))
+   throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');
+  if(new Set(members.map(o=>o.effectiveExpiry)).size!==1||
+    command==='undo'&&new Set(members.map(o=>o.extensionTransactionId)).size!==1)
+   throw Error('EXT_DEV_SHARED_EXPIRY_PROVENANCE_CONFLICT');
+ }
+ const changes=new Map(members.map(member=>[member.obligationId,
+  {record:member,after:planObligationExtension(member,{command,requestId,actorUid,ids})}]));
+ if(new Set([...changes.values()].map(change=>change.after.effectiveExpiry)).size!==1)
+  throw Error('EXT_DEV_SHARED_EXPIRY_RESULT_CONFLICT');
+ const after=changes.get(id).after;
+ const all=ids.map(k=>changes.has(k)?{...changes.get(k).record,...changes.get(k).after}:snapshot.obligations.get(k));
+ if(all.some(x=>!x||x.auditId!==auditId||x.companyUid!==companyUid))throw Error('EXT_DEV_AUDIT_LINEAGE_INVALID');
+ const active=all.filter(x=>x.triggerSource.toUpperCase()!=='ECAS'&&x.effectiveExpiry);
+ if(!active.length)throw Error('EXT_DEV_AGGREGATE_EMPTY');
+ const expiry=active.map(x=>x.effectiveExpiry).sort()[0];
+ const starts=active.map(x=>x.windowFrom).filter(Boolean),ends=active.map(x=>x.windowTo).filter(Boolean);
+ const from=starts.sort().at(-1)||'',to=ends.sort()[0]||'',joint=from&&to&&from<=to;
+ const audit=snapshot.auditRows.get(auditId);
+ if(!audit||norm(get(audit.row,snapshot.planningHead,'Status'))!=='PENDING_PLANNING')throw Error('EXT_DEV_AUDIT_STATUS_CONFLICT');
+ const updates=[],put=(sheet,head,row,name,value)=>updates.push({range:"'"+sheet+"'!"+col(index(head,name))+row,values:[[value]]});
+ const oh=snapshot.obligationHead,ph=snapshot.planningHead;
+ for(const {record:rec,after} of changes.values()){
+ put('Audit_Obligations',oh,rec.rowNumber,'Extension_Applied',after.extensionApplied?'Yes':'');
+ put('Audit_Obligations',oh,rec.rowNumber,'Extension_Metadata_JSON',after.extensionMetadata);
+ put('Audit_Obligations',oh,rec.rowNumber,'Effective_Expiry_Date',after.effectiveExpiry);
+ put('Audit_Obligations',oh,rec.rowNumber,'Planning_Window_From',after.windowFrom);
+ put('Audit_Obligations',oh,rec.rowNumber,'Planning_Window_To',after.windowTo);
+ }
+ put('Audit planning',ph,audit.rowNumber,'Extension applied',all.some(x=>x.extensionApplied)?'Yes':'');
+ put('Audit planning',ph,audit.rowNumber,'Extended Expiration Date',expiry);
+ put('Audit planning',ph,audit.rowNumber,'Planning window from',joint?from:'');
+ put('Audit planning',ph,audit.rowNumber,'Planning window to',joint?to:'');
+ return{updates,obligationChanges:[...changes].map(([obligationId,{after}])=>({obligationId,expected:after})),auditId,obligationId:id,scopeCode:rec.scopeCode,command,operationId:requestId,
+  expected:{...after,aggregateExpiry:expiry,aggregateApplied:all.some(x=>x.extensionApplied),planningWindowFrom:joint?from:'',planningWindowTo:joint?to:''},
+  patch:{auditId,extensionApplied:all.some(x=>x.extensionApplied),expiryZ:expiry,planningWindowFrom:joint?from:'',planningWindowTo:joint?to:'',requiresSeparatePlanning:!joint},
+  direct:true,projection:'PROJECTED'};
+}
+
+function planObligationExtension(rec,{command,requestId,actorUid,ids}){
  const reconciledLegacyUndo=command==='apply'&&rec.extensionMetadata
   &&rec.effectiveExpiry===rec.baseExpiry
   &&legacyWindowOffsets20(rec.baseExpiry,rec.windowFrom,rec.windowTo)!==null;
@@ -110,29 +163,5 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
    if(!after||!iso(after.effectiveExpiry)||!iso(after.windowFrom)||!iso(after.windowTo)||after.extensionApplied!==false||t(after.extensionMetadata))throw Error('EXT_DEV_UNDO_SNAPSHOT_INVALID');
   }
  }
- const changed={...rec,...after};
- const all=ids.map(k=>k===id?changed:snapshot.obligations.get(k));
- if(all.some(x=>!x||x.auditId!==auditId||x.companyUid!==companyUid))throw Error('EXT_DEV_AUDIT_LINEAGE_INVALID');
- const active=all.filter(x=>x.triggerSource.toUpperCase()!=='ECAS'&&x.effectiveExpiry);
- if(!active.length)throw Error('EXT_DEV_AGGREGATE_EMPTY');
- const expiry=active.map(x=>x.effectiveExpiry).sort()[0];
- const starts=active.map(x=>x.windowFrom).filter(Boolean),ends=active.map(x=>x.windowTo).filter(Boolean);
- const from=starts.sort().at(-1)||'',to=ends.sort()[0]||'',joint=from&&to&&from<=to;
- const audit=snapshot.auditRows.get(auditId);
- if(!audit||norm(get(audit.row,snapshot.planningHead,'Status'))!=='PENDING_PLANNING')throw Error('EXT_DEV_AUDIT_STATUS_CONFLICT');
- const updates=[],put=(sheet,head,row,name,value)=>updates.push({range:"'"+sheet+"'!"+col(index(head,name))+row,values:[[value]]});
- const oh=snapshot.obligationHead,ph=snapshot.planningHead;
- put('Audit_Obligations',oh,rec.rowNumber,'Extension_Applied',after.extensionApplied?'Yes':'');
- put('Audit_Obligations',oh,rec.rowNumber,'Extension_Metadata_JSON',after.extensionMetadata);
- put('Audit_Obligations',oh,rec.rowNumber,'Effective_Expiry_Date',after.effectiveExpiry);
- put('Audit_Obligations',oh,rec.rowNumber,'Planning_Window_From',after.windowFrom);
- put('Audit_Obligations',oh,rec.rowNumber,'Planning_Window_To',after.windowTo);
- put('Audit planning',ph,audit.rowNumber,'Extension applied',all.some(x=>x.extensionApplied)?'Yes':'');
- put('Audit planning',ph,audit.rowNumber,'Extended Expiration Date',expiry);
- put('Audit planning',ph,audit.rowNumber,'Planning window from',joint?from:'');
- put('Audit planning',ph,audit.rowNumber,'Planning window to',joint?to:'');
- return{updates,auditId,obligationId:id,scopeCode:rec.scopeCode,command,operationId:requestId,
-  expected:{...after,aggregateExpiry:expiry,aggregateApplied:all.some(x=>x.extensionApplied),planningWindowFrom:joint?from:'',planningWindowTo:joint?to:''},
-  patch:{auditId,extensionApplied:all.some(x=>x.extensionApplied),expiryZ:expiry,planningWindowFrom:joint?from:'',planningWindowTo:joint?to:'',requiresSeparatePlanning:!joint},
-  direct:true,projection:'PROJECTED'};
+ return after;
 }

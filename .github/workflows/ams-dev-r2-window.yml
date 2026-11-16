@@ -1,4 +1,4 @@
-name: AMS DEV R3 Self planning validation window
+name: AMS DEV R3 Single Save validation window
 on:
   push:
     branches: [dev]

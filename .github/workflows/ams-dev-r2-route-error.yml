@@ -1,0 +1,25 @@
+name: AMS DEV R2 route error
+on:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/ams-dev-r2-route-error.yml']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  validate:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Read R2 route error
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.revision_name="ams-fase12-dev-00122-nav" AND textPayload:"[AMS_ROUTE_ERROR]" AND textPayload:"/api/v1/manager/extension-obligation-command"' --project=audit-management-system-dev --freshness=30m --limit=5 --format=json |
+            jq -r '.[] | .textPayload | sub("^.*\\[AMS_ROUTE_ERROR\\] ";"") | fromjson? | .errorCode | capture("^(?<code>[A-Z][A-Z0-9_]{2,139})") | .code'

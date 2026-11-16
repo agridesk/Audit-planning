@@ -45,6 +45,12 @@ jobs:
           }
           describe > "$RUNNER_TEMP/service-before.json"
           jq -e --arg account "$RUNTIME_ACCOUNT" '.spec.template.spec.serviceAccountName == $account' "$RUNNER_TEMP/service-before.json" >/dev/null
+          jq -e '
+            [.spec.template.spec.containers[0].env[]? | {key: .name, value: .value}] | from_entries
+            | .AMS_RUNTIME_ENV == "DEV"
+              and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true"
+              and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"
+          ' "$RUNNER_TEMP/service-before.json" >/dev/null
           before=$(traffic < "$RUNNER_TEMP/service-before.json")
           jq -e '[.status.traffic[] | .percent // 0] | add == 100' "$RUNNER_TEMP/service-before.json" >/dev/null
           gcloud run deploy "$SERVICE" "${args[@]}" \

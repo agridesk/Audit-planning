@@ -1,3 +1,4 @@
+import {verifySwapDevRuntimeParity} from './swap-dev-backfill-cli-20.mjs';
 import {createSwapLegacyJournalArchive,classifySwapLegacyJournal} from './swap-legacy-journal-archive-20.mjs';
 /** AMS DEV Availability 2.0 entrypoint. All existing R12 routes are preserved by proxy.
  * Enable only after Firestore IAM/database preflight and DEV-only deployment approval.
@@ -2434,6 +2435,22 @@ http.createServer(async(req,res)=>{
    const started=Date.now(),result=await swap20Scheduler.previewCanonicalMigration();
    console.info('[SWAP20_PROPOSAL_MIGRATION_PREFLIGHT]',JSON.stringify({...result,ms:Date.now()-started}));
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/swap20/runtime-parity'){
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+   let result,status=200;
+   try{
+    const parity=await verifySwapDevRuntimeParity({getToken,project,spreadsheet});
+    result={ok:true,revision:process.env.K_REVISION||'UNAVAILABLE',...parity};
+   }catch(error){
+    status=503;
+    result={ok:false,revision:process.env.K_REVISION||'UNAVAILABLE',
+     code:/^SWAP_[A-Z0-9_]+/.exec(String(error?.message||''))?.[0]||'SWAP_RUNTIME_PARITY_FAILED'};
+   }
+   res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/runtime-readiness'){

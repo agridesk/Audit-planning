@@ -2043,7 +2043,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/batch-commit'&&runtime.isDev&&planningAtomicCommands){
    const actor=await session(req);
-   if(actor?.role!=='manager'||req.headers.origin!==runtime.origin){
+   if(actor?.role!=='manager'||req.headers.origin!=='https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'){
     res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
     res.end(JSON.stringify({ok:false,error:'DEV_MANAGER_SAME_ORIGIN_REQUIRED'}));return;
    }

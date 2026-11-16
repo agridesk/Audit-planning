@@ -17,6 +17,7 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/auditor/action',
  '/api/v1/manager/auditor-management/audit/transfer',
  '/api/v1/planning/commit-handoff',
+ '/api/v1/planning/batch-commit',
  '/api/v1/manager/self-planning-direct',
  '/api/v1/manager/extension-obligation-command',
  '/api/v1/internal/auditor/complete-direct',

@@ -8,7 +8,7 @@ const routeStart = server.indexOf("  if(req.method==='POST'&&u.pathname==='/api/
 const routeEnd = server.indexOf("  if(req.method==='POST'&&u.pathname==='/api/v1/planning/commit-handoff'", routeStart);
 assert.ok(routeStart >= 0 && routeEnd > routeStart);
 const route = server.slice(routeStart, routeEnd);
-const origin = 'https://ams-dev.example';
+const origin = 'https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 const items = ['A', 'B', 'C'].map(auditId => ({
   auditId, sourceRevision: 'abcdef0123456789abcdef01', auditorEmail: 'auditor@example.test',
   blocks: [{ date: '2027-02-10', start: '09:00', end: '13:00' }]

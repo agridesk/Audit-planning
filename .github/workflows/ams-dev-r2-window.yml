@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
-          target=ams-fase12-dev-00135-gom
+          target=ams-fase12-dev-00138-vas
           current() {
             gcloud run services describe ams-fase12-dev "${args[@]}" --format=json |
               jq -er '[.status.traffic[] | select((.percent // 0) > 0)] | if length == 1 and .[0].percent == 100 then .[0].revisionName else error("Expected one live revision") end'
@@ -33,7 +33,7 @@ jobs:
           before=$(current)
           [[ "$before" == ams-fase12-dev-00116-tib ]]
           sha=$(gcloud run revisions describe "$target" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-          [[ "$sha" == 8209e952dc258a32ecbb186704a803b1b377ed18 ]]
+          [[ "$sha" == 467e7cd6d2f5a0edb8718b69867eeb2a83069390 ]]
           traffic() {
             gcloud run services update-traffic ams-fase12-dev "${args[@]}" --to-revisions="$1=100"
           }

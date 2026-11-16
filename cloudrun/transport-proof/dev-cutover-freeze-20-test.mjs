@@ -45,7 +45,8 @@ console.log('DEV cutover write freeze: fail closed on all business methods and g
 const directSwap={atomicPlanningEnabled:true,swapDirectRouteEnabled:true};
 for(const path of [
  ...['preview','eligible','diagnose','canonical-grid-dates','list','status'].map(route=>'/api/v1/manager/swap20/'+route),
- '/api/v1/auditor/swap20/list'
+ '/api/v1/auditor/swap20/list',
+ '/api/v1/auditor/swap20/canonical-grid-dates'
 ]){
  assert.deepEqual(freeze('POST',path,directSwap),{allow:true});
  assert.equal(freeze('POST',path,{atomicPlanningEnabled:true}).allow,false);

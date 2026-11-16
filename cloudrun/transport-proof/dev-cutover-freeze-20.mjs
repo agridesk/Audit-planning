@@ -11,7 +11,8 @@ const swapReadOnlyRoutes=new Set([
  '/api/v1/manager/swap20/canonical-grid-dates',
  '/api/v1/manager/swap20/list',
  '/api/v1/manager/swap20/status',
- '/api/v1/auditor/swap20/list'
+ '/api/v1/auditor/swap20/list',
+ '/api/v1/auditor/swap20/canonical-grid-dates'
 ]);
 
 export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false}={}){

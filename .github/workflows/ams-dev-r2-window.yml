@@ -1,4 +1,4 @@
-name: AMS DEV R3 Multiple validation window
+name: AMS DEV R3 Together validation window
 on:
   push:
     branches: [dev]

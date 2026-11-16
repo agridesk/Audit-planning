@@ -7,6 +7,9 @@ on:
       - '.github/workflows/ams-dev-deploy.yml'
       - 'cloudrun/transport-proof/planning-atomic-extension-service-20.js'
       - 'cloudrun/transport-proof/planning-atomic-extension-writeset-20.mjs'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/server-r5.js'
+      - 'cloudrun/transport-proof/manager-portal.js'
   workflow_dispatch:
 
 permissions:

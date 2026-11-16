@@ -97,3 +97,6 @@ TEST_PENDING_APPROVAL_01, rij 98, MPS-GAP 8 uur: effectief venster eindigt op 20
 
 17. R3 LIVE SINGLE SAVE — 16 NOVEMBER 2026
 Poleplants DEV, rij 73: Florimark Tracecert, Leen Klaassen, 2027-02-10 09:00–13:00 HQ. De zachte waarschuwing voor naderende rotatielimiet is bevestigd. Manager Grid toont Pending acceptance en datum/auditor; Sheets toont Approved en één correct vieruursblok in Planning JSON. Gate vrij, nul onopgeloste operaties; één planningevent en één audit-trailregel in de gecontroleerde wachtrij. Onafhankelijke Firestore-documentreadback niet uitgevoerd. Testplanning staat nog in DEV. Verkeer geverifieerd terug op 00116-tib: https://github.com/agridesk/Audit-planning/actions/runs/43914949513. Volgende R3-stap: Multiple.
+
+18. R3 MULTIPLE — ROUTECONTROLE 16 NOVEMBER 2026
+De Manager Grid opent Plan multiple via selectionBatch → submitSelectionHandoff('batch') → POST /api/v1/manager/selection-handoff. Server R10 maakt een ondertekende handoff naar Apps Script (externalplanningworkspace). R15 weigert een atomaire commit-handoff met meer dan één audit-ID (PLANNING_MULTI_AUDIT_HANDOFF_ATOMIC_NOT_MIGRATED). Voor een geldige R3-test moet eerst worden vastgesteld of de Apps Script-workspace de geselecteerde audits afzonderlijk naar de atomaire route stuurt of als een gezamenlijke write. Geen audit gewijzigd.

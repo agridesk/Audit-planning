@@ -133,6 +133,80 @@ function selectionPdf(){
   var html="<!doctype html><html><head><meta charset=utf-8><title>"+esc(meta.title)+"</title><style>@page{size:A3 landscape;margin:12mm}body{font-family:Arial,sans-serif;color:#172033;font-size:9px}header{border-bottom:2px solid #17365d;padding-bottom:8px;margin-bottom:12px}h1{font-size:19px;color:#17365d;margin:0 0 5px}.meta{font-size:10px;color:#536579}table{border-collapse:collapse;width:100%;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th{background:#17365d;color:white}th,td{border:1px solid #cbd5e1;padding:5px;text-align:left;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f1f5f9}footer{margin-top:12px;border-top:1px solid #cbd5e1;padding-top:5px;font-size:9px;color:#536579}</style></head><body><header><h1>AgriQA | "+esc(meta.title)+"</h1><div class=meta>"+esc(meta.actor)+" | "+esc(meta.date)+" | "+meta.count+" audits</div></header><table><thead><tr>"+headers.map(function(h){return"<th>"+esc(h)+"</th>"}).join("")+"</tr></thead><tbody>"+rows.map(function(r){return"<tr>"+r.map(function(v,i){if(headers[i]==="GPS / Map"&&v){var href=String(v);return"<td><a href=\""+esc(href)+"\" target=\"_blank\" rel=\"noopener\">Open map</a></td>"}return"<td>"+esc(v==null?"":v)+"</td>"}).join("")+"</tr>"}).join("")+"</tbody></table><footer>AgriQA - Audit Management System | "+esc(meta.date)+"</footer></body></html>";
   w.document.write(html);w.document.close();setTimeout(function(){w.focus();w.print()},150)
 }
+function openDevMultiple20(){
+  const rows=selectionRows();
+  if(rows.length<2||rows.length>8||rows.some(row=>row.statusKey!=='PENDING_PLANNING'||!Array.isArray(row.scopes)||row.scopes.length!==1)){
+    window.alert('Select two to eight pending audits with one scope each.');
+    return;
+  }
+  if(document.getElementById('devMultiple20'))return;
+  const dialog=document.createElement('dialog');
+  dialog.id='devMultiple20';
+  const heading=document.createElement('h2');
+  heading.textContent='Plan multiple audits';
+  const list=document.createElement('ul');
+  const status=document.createElement('p');
+  status.setAttribute('role','status');
+  const save=document.createElement('button');
+  save.textContent='Save selected plans';
+  save.disabled=true;
+  const close=document.createElement('button');
+  close.textContent='Close';
+  const drafts=new Map(), children=new Map();
+  let busy=false;
+  function receive(event){
+    const body=event.data?.body;
+    const child=children.get(body?.auditId);
+    if(event.origin!==location.origin||event.source!==child?.window||event.data?.type!=='AMS_DEV_BATCH_DRAFT'||busy)return;
+    drafts.set(body.auditId,body);
+    child.button.textContent='Replace draft';
+    save.disabled=drafts.size!==rows.length;
+    status.textContent=drafts.size+' of '+rows.length+' drafts ready.';
+  }
+  for(const row of rows){
+    const item=document.createElement('li'),label=document.createElement('span'),button=document.createElement('button');
+    label.textContent=(row.company||row.auditId)+' ';
+    button.textContent='Prepare draft';
+    button.onclick=function(){
+      const url='/planning?batchDraft=1&auditId='+encodeURIComponent(row.auditId);
+      const child=window.open(url,'_blank');
+      if(child)children.set(row.auditId,{window:child,button});
+      else status.textContent='Allow pop-ups to open the planning editor.';
+    };
+    item.append(label,button);list.append(item);
+  }
+  dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+  dialog.addEventListener('close',()=>{
+    window.removeEventListener('message',receive);
+    for(const child of children.values())if(!child.window.closed)child.window.close();
+    dialog.remove();
+  });
+  close.onclick=()=>dialog.close();
+  save.onclick=async function(){
+    if(busy||drafts.size!==rows.length)return;
+    busy=true;save.disabled=true;close.disabled=true;
+    list.querySelectorAll('button').forEach(button=>{button.disabled=true;});
+    status.textContent='Saving plans in selection order…';
+    try{
+      const response=await fetch('/api/v1/planning/batch-commit',{
+        method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+        body:JSON.stringify({items:rows.map(row=>drafts.get(row.auditId))})
+      });
+      const result=await response.json();
+      if(!response.ok||!Array.isArray(result.outcomes))throw Error(result.error||'Batch response unavailable');
+      status.textContent=result.outcomes.map(outcome=>{
+        const row=rows.find(item=>item.auditId===outcome.auditId);
+        return (row?.company||outcome.auditId)+': '+({PROJECTED:'Saved',STOPPED:'Stopped — check audit status',NOT_ATTEMPTED:'Not attempted'}[outcome.state]||'Check audit status');
+      }).join(' · ');
+    }catch(error){status.textContent='Save outcome unavailable. Refresh the grid before trying again.';}
+    finally{busy=false;close.disabled=false;loadOpen();}
+  };
+  dialog.append(heading,list,status,save,close);
+  document.body.append(dialog);
+  window.addEventListener('message',receive);
+  dialog.showModal();
+}
+
 function submitSelectionHandoff(mode){
   if(mode!=="batch"&&mode!=="concept"){window.alert("Unsupported selection action");return}
   var ids=selectionIds();if(!ids.length)return;
@@ -1096,7 +1170,10 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
   await reload();
 };
 document.getElementById("selectionClear").onclick=selectionClear;
-document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};
+document.getElementById("selectionBatch").onclick=function(){
+ if(location.hostname==="ams-fase12-dev-zwtcar7xpa-ew.a.run.app")openDevMultiple20();
+ else submitSelectionHandoff("batch");
+};
 document.getElementById("selectionConcept").onclick=function(){submitSelectionHandoff("concept")};
 document.getElementById("selectionExport").onclick=function(){var f=document.getElementById("selectionExportFormat").value;f==="pdf"?selectionPdf():selectionExcel()};
 document.getElementById("gridExportVisible20").onclick=function(){document.getElementById("gridExportFormat20").value==="pdf"?selectionPdf():selectionExcel()};

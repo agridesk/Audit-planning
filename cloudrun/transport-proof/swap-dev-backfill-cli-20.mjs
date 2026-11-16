@@ -1,3 +1,4 @@
+import {pathToFileURL} from 'node:url';
 /**
  * DEV-only SWAP partial backfill CLI. Requires local gcloud ADC access token.
  * Default dry-run. --apply writes eligible accepted audits only, atomically,
@@ -11,30 +12,32 @@ import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
 import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
 import {createSwapReservationFenceReader} from './swap-reservation-fence-reader-20.mjs';
-async function main(){
+async function main({argv=process.argv,runtimeToken,report=console.log}={}){
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
-const apply=process.argv.includes('--apply');
-const verify=process.argv.includes('--verify');
-const coverage=process.argv.includes('--coverage');
-const exceptions=process.argv.includes('--exceptions');
-const liveTest=process.argv.includes('--live-test');
-const initFence=process.argv.includes('--init-fence');
-const syncDrift=process.argv.includes('--sync-drift');
-const deltaApply=process.argv.includes('--delta-apply');
-const inspectDelta=process.argv.includes('--inspect-delta');
-const inspectOrphans=process.argv.includes('--inspect-orphans');
-const proposalInventory=process.argv.includes('--proposal-inventory');
-const inspectAudit=process.argv.includes('--inspect-audit');
-const inspectAuditId=inspectAudit?process.argv[process.argv.indexOf('--inspect-audit')+1]:null;
-const repairAvailability=process.argv.includes('--repair-availability');
-const repairId=repairAvailability?process.argv[process.argv.indexOf('--repair-availability')+1]:null;
+const apply=argv.includes('--apply');
+const verify=argv.includes('--verify');
+const coverage=argv.includes('--coverage');
+const exceptions=argv.includes('--exceptions');
+const liveTest=argv.includes('--live-test');
+const initFence=argv.includes('--init-fence');
+const syncDrift=argv.includes('--sync-drift');
+const deltaApply=argv.includes('--delta-apply');
+const inspectDelta=argv.includes('--inspect-delta');
+const inspectOrphans=argv.includes('--inspect-orphans');
+const proposalInventory=argv.includes('--proposal-inventory');
+const inspectAudit=argv.includes('--inspect-audit');
+const inspectAuditId=inspectAudit?argv[argv.indexOf('--inspect-audit')+1]:null;
+const repairAvailability=argv.includes('--repair-availability');
+const repairId=repairAvailability?argv[argv.indexOf('--repair-availability')+1]:null;
 if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability,inspectAudit].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+let token=runtimeToken;
+if(runtimeToken===undefined){
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
-let token;
 try{token=(process.platform==='win32' ? execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',"& '"+executable.replace(/'/g,"''")+"' auth print-access-token"],{encoding:'utf8',timeout:30000}) : execFileSync(executable,['auth','print-access-token'],{encoding:'utf8',timeout:15000})).trim();}
 catch(e){throw Error('SWAP_DEV_GCLOUD_UNAVAILABLE: install Google Cloud CLI, run gcloud auth login, or set GCLOUD_CMD to its full path. Cause: '+(e.code||e.status||'AUTH_FAILED'));}
+}
 if(!token)throw Error('SWAP_DEV_TOKEN_MISSING');
 async function json(url,options={}){
  const r=await fetch(url,{...options,headers:{authorization:'Bearer '+token,...options.headers},signal:AbortSignal.timeout(30000)});
@@ -82,8 +85,8 @@ if(proposalInventory){
    journalAuditIdsMatch:journal?.auditA===p.auditA&&journal?.auditB===p.auditB,
    canonicalCommitVerified:p.canonicalCommitVerified===true};
  });
- console.log(JSON.stringify({result:'DEV_APPLIED_PROPOSAL_DETAILS_READ_ONLY',appliedDetails,cutoverAuthorized:false}));
- console.log(JSON.stringify({result:'DEV_PROPOSAL_JOURNAL_INVENTORY_READ_ONLY',
+ report(JSON.stringify({result:'DEV_APPLIED_PROPOSAL_DETAILS_READ_ONLY',appliedDetails,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_PROPOSAL_JOURNAL_INVENTORY_READ_ONLY',
   firestoreProposalDocuments:proposals.length,firestoreFullCanonicalProposalDocuments:full.length,
   firestoreIncompleteProposalDocuments:missingFull,proposalStatuses:statuses,
   firestoreJournalDocuments:journals.length,gasJournalRows:sheetRows.length,
@@ -113,7 +116,7 @@ if(inspectAudit){
  const avHeader=availabilityRows[0],indices=['Audit_ID_1','Audit_ID_2'].map(k=>avHeader.indexOf(k)),refs=availabilityRows.slice(1).filter(row=>indices.some(i=>i>=0&&String(row[i]||'').trim()===inspectAuditId)).length;
  const partition=partitionSwapSheetMigration({auditRows,availabilityRows}),eligible=partition.eligible.some(x=>x.auditId===inspectAuditId),reason=partition.quarantined.find(x=>x.auditId===inspectAuditId)?.reason||null;
  const blocks=audit?.data?.plannedBlocks||[];
- console.log(JSON.stringify({result:'DEV_AUDIT_SOURCE_INSPECTION',auditId:inspectAuditId,sheetMatches:matches.length,sheetAvailabilityReferences:refs,eligible,reason,firestoreAuditExists:!!audit,firestoreAvailabilityExists:!!availability,firestoreAuditStatus:audit?.data?.status||null,firestoreAuditBlocks:Array.isArray(blocks)?blocks.length:null,firestoreAvailabilityBlocks:Array.isArray(availability?.data?.reservations)?availability.data.reservations.length:null,firestoreAuditRevision:audit?.updateTime||null,readOnly:true}));
+ report(JSON.stringify({result:'DEV_AUDIT_SOURCE_INSPECTION',auditId:inspectAuditId,sheetMatches:matches.length,sheetAvailabilityReferences:refs,eligible,reason,firestoreAuditExists:!!audit,firestoreAvailabilityExists:!!availability,firestoreAuditStatus:audit?.data?.status||null,firestoreAuditBlocks:Array.isArray(blocks)?blocks.length:null,firestoreAvailabilityBlocks:Array.isArray(availability?.data?.reservations)?availability.data.reservations.length:null,firestoreAuditRevision:audit?.updateTime||null,readOnly:true}));
  return;
 }
 if(repairAvailability){
@@ -123,7 +126,7 @@ if(repairAvailability){
  const eligible=partition.eligible.find(x=>x.auditId===repairId);
  const quarantined=partition.quarantined.find(x=>x.auditId===repairId);
  if(!eligible){
-  console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIR_BLOCKED',auditId:repairId,reason:quarantined?.reason||'AUDIT_NOT_FOUND_IN_SOURCE',sourceMatches:auditRows.slice(1).filter(row=>String(row[auditRows[0].indexOf('Audit ID')]||'').trim()===repairId).length,availabilityReferences:availabilityRows.slice(1).reduce((n,row)=>n+[availabilityRows[0].indexOf('Audit_ID_1'),availabilityRows[0].indexOf('Audit_ID_2')].filter(i=>String(row[i]||'').trim()===repairId).length,0),writePerformed:false}));
+  report(JSON.stringify({result:'DEV_AVAILABILITY_REPAIR_BLOCKED',auditId:repairId,reason:quarantined?.reason||'AUDIT_NOT_FOUND_IN_SOURCE',sourceMatches:auditRows.slice(1).filter(row=>String(row[auditRows[0].indexOf('Audit ID')]||'').trim()===repairId).length,availabilityReferences:availabilityRows.slice(1).reduce((n,row)=>n+[availabilityRows[0].indexOf('Audit_ID_1'),availabilityRows[0].indexOf('Audit_ID_2')].filter(i=>String(row[i]||'').trim()===repairId).length,0),writePerformed:false}));
   return;
  }
  const root='projects/'+project+'/databases/(default)/documents/';
@@ -146,7 +149,7 @@ if(repairAvailability){
  if(!audit||audit.fields?.payload?.stringValue!==planned.update.fields.payload.stringValue)
   throw Error('SWAP_DEV_REPAIR_AUDIT_SOURCE_MISMATCH');
  if(slot){
-  console.log(JSON.stringify({result:'DEV_AVAILABILITY_ALREADY_EXISTS',auditId:repairId,sourceParity:slot.fields?.payload?.stringValue===reservation.update.fields.payload.stringValue,writePerformed:false}));
+  report(JSON.stringify({result:'DEV_AVAILABILITY_ALREADY_EXISTS',auditId:repairId,sourceParity:slot.fields?.payload?.stringValue===reservation.update.fields.payload.stringValue,writePerformed:false}));
   return;
  }
  if(!results.some(x=>x.missing===availabilityName))throw Error('SWAP_DEV_REPAIR_MISSING_NOT_CONFIRMED');
@@ -159,7 +162,7 @@ if(repairAvailability){
  const verify=await json(base+'/ams_swap20_dev_availability/'+encodeURIComponent(repairId));
  if(verify.fields?.payload?.stringValue!==reservation.update.fields.payload.stringValue)
   throw Error('SWAP_DEV_REPAIR_READBACK_MISMATCH');
- console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIRED',auditId:repairId,writePerformed:true,sourceVerified:true}));
+ report(JSON.stringify({result:'DEV_AVAILABILITY_REPAIRED',auditId:repairId,writePerformed:true,sourceVerified:true}));
  return;
 }
 if(inspectOrphans){
@@ -181,23 +184,23 @@ if(inspectOrphans){
  }
  const valid=slot=>slot.owner.includes('@')&&/^\d{4}-\d{2}-\d{2}$/.test(slot.date)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.start)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.end)&&slot.start<slot.end;
  const impacts=orphanSlots.map(slot=>({sheetRow:slot.row,valid:valid(slot),affectedAudits:valid(slot)?partition.eligible.filter(a=>a.assignedTo===slot.owner&&a.reservations.some(r=>r.date===slot.date&&r.start<slot.end&&slot.start<r.end)).map(a=>a.auditId):[]}));
- console.log(JSON.stringify({result:'DEV_ORPHAN_IMPACT',orphanCount:partition.orphanReservations.length,slotsAnalyzed:orphanSlots.length,impacts,unresolved:true,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_ORPHAN_IMPACT',orphanCount:partition.orphanReservations.length,slotsAnalyzed:orphanSlots.length,impacts,unresolved:true,cutoverAuthorized:false}));
  return;
 }
 if(exceptions){
  const p=partitionSwapSheetMigration({auditRows,availabilityRows});
  const accepted=p.quarantined.filter(x=>x.reason!=='NOT_ACCEPTED'&&x.reason!=='LEGACY_STATUS_UNRESOLVED').map(x=>({sheetRow:x.row,reason:x.reason}));
- console.log(JSON.stringify({result:'DEV_ACCEPTED_EXCEPTION_REVIEW',accepted,legacyApproved:p.quarantined.filter(x=>x.reason==='LEGACY_STATUS_UNRESOLVED').length,orphans:p.orphanReservations.map(x=>({sheetRow:x.row,reason:x.kind})),safeAutomaticRepairs:0,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_ACCEPTED_EXCEPTION_REVIEW',accepted,legacyApproved:p.quarantined.filter(x=>x.reason==='LEGACY_STATUS_UNRESOLVED').length,orphans:p.orphanReservations.map(x=>({sheetRow:x.row,reason:x.kind})),safeAutomaticRepairs:0,cutoverAuthorized:false}));
  return;
 }
 if(coverage){
  const p=partitionSwapSheetMigration({auditRows,availabilityRows});
  const reasons={};for(const row of p.quarantined)reasons[row.reason]=(reasons[row.reason]||0)+1;
  const statusIndex=auditRows[0].indexOf('Status');const statuses={};for(const row of auditRows.slice(1)){const status=String(row[statusIndex]||'').trim();if(status)statuses[status]=(statuses[status]||0)+1;}
- console.log(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
  return;
 }
-console.log(JSON.stringify({mode:deltaApply?'DELTA_APPLY':apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
+report(JSON.stringify({mode:deltaApply?'DELTA_APPLY':apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
 if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
 if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');
 const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
@@ -206,13 +209,13 @@ if(initFence){
  const name='projects/'+project+'/databases/(default)/documents/ams_swap20_dev_meta/reservation_fence';
  const url=base+'/ams_swap20_dev_meta/reservation_fence';
  const response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
- if(response.ok){const doc=await response.json();console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_ALREADY_EXISTS',revision:doc.updateTime,cutoverAuthorized:false}));return;}
+ if(response.ok){const doc=await response.json();report(JSON.stringify({result:'DEV_RESERVATION_FENCE_ALREADY_EXISTS',revision:doc.updateTime,cutoverAuthorized:false}));return;}
  if(response.status!==404)throw Error('SWAP_DEV_FENCE_PREFLIGHT_HTTP_'+response.status);
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:[{update:{name,fields:{payload:{stringValue:JSON.stringify({operationId:'DEV_INITIALIZATION',now:new Date().toISOString()})}}},currentDocument:{exists:false}}]})});
  if(result.writeResults?.length!==1)throw Error('SWAP_DEV_FENCE_INIT_RECEIPT_INVALID');
  const after=await json(url);
  if(!after.updateTime)throw Error('SWAP_DEV_FENCE_INIT_READBACK_INVALID');
- console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));return;
+ report(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));return;
 }
 
 const read=async()=>{
@@ -237,7 +240,7 @@ if(inspectDelta){
   return {collection:w.update.name.split('/').at(-2),auditId:w.update.name.split('/').pop(),
    changedFields:[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k]))};
  });
- console.log(JSON.stringify({result:'DEV_DELTA_INSPECTION',existing:existing.size,missing:missing.length,drift:summary,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_DELTA_INSPECTION',existing:existing.size,missing:missing.length,drift:summary,cutoverAuthorized:false}));
  return;
 }
 if(deltaApply){
@@ -263,7 +266,7 @@ if(deltaApply){
    const allowed=write.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations';
    if(fields.length!==1||fields[0]!==allowed)throw Error('SWAP_DEV_DELTA_DRIFT_FIELDS_UNVERIFIED');
   }
-  console.log(JSON.stringify({result:'SWAP_DEV_DELTA_APPLIED_PAIR_PRESERVED',operationId:proposal.operationId,documents:stale.length,readOnlyVerification:true}));
+  report(JSON.stringify({result:'SWAP_DEV_DELTA_APPLIED_PAIR_PRESERVED',operationId:proposal.operationId,documents:stale.length,readOnlyVerification:true}));
  }
  const missing=plan.writes.filter(w=>!existing.has(w.update.name));
  if(missing.length%2!==0||missing.length>100)throw Error('SWAP_DEV_DELTA_INCOMPLETE_AUDIT_PAIR');
@@ -283,14 +286,14 @@ if(deltaApply){
  const expected=new Set(names);
  if([...auditDocs,...availabilityDocs].some(d=>!expected.has(d.name)))throw Error('SWAP_DEV_DELTA_UNEXPECTED_DOCUMENT');
  if(auditDocs.length!==availabilityDocs.length||auditDocs.length!==existing.size/2)throw Error('SWAP_DEV_DELTA_EXISTING_COLLECTION_MISMATCH');
- if(missing.length===0){console.log(JSON.stringify({result:'SWAP_DEV_DELTA_ALREADY_COMPLETE',documents:existing.size,cutoverAuthorized:false}));return;}
+ if(missing.length===0){report(JSON.stringify({result:'SWAP_DEV_DELTA_ALREADY_COMPLETE',documents:existing.size,cutoverAuthorized:false}));return;}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_DELTA_SOURCE_CHANGED');
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:missing})});
  if(result.writeResults?.length!==missing.length)throw Error('SWAP_DEV_DELTA_WRITE_RECEIPT_INVALID');
  const after=await read();
  if(after.size!==names.length||plan.writes.some(w=>!expectedDriftPaths.has(w.update.name)&&after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue)||stale.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==existing.get(w.update.name)?.fields?.payload?.stringValue))throw Error('SWAP_DEV_DELTA_READBACK_OR_PARITY_FAILED');
- console.log(JSON.stringify({result:'SWAP_DEV_DELTA_VERIFIED',addedAudits:byAudit.size,addedDocuments:missing.length,totalAudits:plan.eligibleCount,totalDocuments:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'SWAP_DEV_DELTA_VERIFIED',addedAudits:byAudit.size,addedDocuments:missing.length,totalAudits:plan.eligibleCount,totalDocuments:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  return;
 }
 if(syncDrift){
@@ -300,7 +303,7 @@ if(syncDrift){
  const missingRevision=delta.filter(w=>!existing.get(w.update.name)?.updateTime);
  const unexpectedFields=delta.filter(w=>{try{const before=JSON.parse(existing.get(w.update.name).fields.payload.stringValue),after=JSON.parse(w.update.fields.payload.stringValue);const keys=[...new Set([...Object.keys(before),...Object.keys(after)])].filter(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]));return keys.length!==1||keys[0]!== (w.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations');}catch{return true;}});
  if(unexpected.length||missingRevision.length||unexpectedFields.length||delta.length>4)throw Error('DEV_SYNC_UNEXPECTED_DELTA '+JSON.stringify({count:delta.length,unexpected:unexpected.map(w=>w.update.name.split('/').pop()),missingRevision:missingRevision.map(w=>w.update.name.split('/').pop()),unexpectedFields:unexpectedFields.map(w=>w.update.name.split('/').pop())}));
- if(delta.length===0){console.log(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));return;}
+ if(delta.length===0){report(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));return;}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('DEV_SYNC_SOURCE_CHANGED');
  const writes=delta.map(w=>({update:w.update,currentDocument:{updateTime:existing.get(w.update.name).updateTime}}));
@@ -308,7 +311,7 @@ if(syncDrift){
  if(result.writeResults?.length!==writes.length)throw Error('DEV_SYNC_RECEIPT_INVALID');
  const after=await read();
  if(plan.writes.filter(w=>existing.has(w.update.name)).some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
- console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:writes.length,audits:new Set(delta.map(w=>w.update.name.split('/').pop())).size,cutoverAuthorized:false}));
+ report(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:writes.length,audits:new Set(delta.map(w=>w.update.name.split('/').pop())).size,cutoverAuthorized:false}));
  return;
 }
 if(verify||liveTest){
@@ -321,7 +324,7 @@ if(verify||liveTest){
    let actual=null,expected=null;
    try{actual=JSON.parse(found?.fields?.payload?.stringValue||'null');expected=JSON.parse(write.update.fields.payload.stringValue);}catch{}
    const changed=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k])):['PAYLOAD_INVALID'];
-   console.log(JSON.stringify({result:'DEV_SOURCE_DRIFT',auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed,storedManifest:'3b680d9e4f00bf8fd9b2a639db8c6c5a5a9c96673cb639f937ce1b5be2241630',currentManifest:manifest.manifestHash,cutoverAuthorized:false}));
+   report(JSON.stringify({result:'DEV_SOURCE_DRIFT',auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed,storedManifest:'3b680d9e4f00bf8fd9b2a639db8c6c5a5a9c96673cb639f937ce1b5be2241630',currentManifest:manifest.manifestHash,cutoverAuthorized:false}));
    if(!liveTest)throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
    drift.push({auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed});
   }
@@ -362,13 +365,13 @@ if(verify||liveTest){
   }
   let fence='NOT_READY';
   try{const result=await createSwapReservationFenceReader({project,getToken:async()=>token})();fence=result.revision?'READY':'INVALID';}catch(e){fence='BLOCKED_'+String(e.message||e).slice(0,90);}
-  console.log(JSON.stringify({result:'DEV_RUNTIME_READINESS',canonicalPairsTested:Math.floor(auditIds.length/2),reservationFence:fence,gridCutoverAuthorized:false}));
-  console.log(JSON.stringify({result:drift.length?'DEV_LIVE_FIRESTORE_SCOPE_PASS_WITH_SOURCE_DRIFT':'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,verifiedDocuments:existing.size,parityDocuments:existing.size-drift.length,driftCount:drift.length,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
- }else console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+  report(JSON.stringify({result:'DEV_RUNTIME_READINESS',canonicalPairsTested:Math.floor(auditIds.length/2),reservationFence:fence,gridCutoverAuthorized:false}));
+  report(JSON.stringify({result:drift.length?'DEV_LIVE_FIRESTORE_SCOPE_PASS_WITH_SOURCE_DRIFT':'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,verifiedDocuments:existing.size,parityDocuments:existing.size-drift.length,driftCount:drift.length,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+ }else report(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  return;
 }
 if(existing.size)throw Error('SWAP_DEV_EXISTING_CANONICAL_DOCS_'+existing.size);
-if(!apply){console.log('SWAP_DEV_DRY_RUN_OK; use --apply only after review');return;}
+if(!apply){report('SWAP_DEV_DRY_RUN_OK; use --apply only after review');return;}
 const freshManifest=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
 if(freshManifest.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_SOURCE_CHANGED');
 const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:plan.writes})});
@@ -379,7 +382,21 @@ for(const write of plan.writes){
  const found=after.get(write.update.name);
  if(found?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)throw Error('SWAP_DEV_READBACK_MISMATCH');
 }
-console.log(JSON.stringify({result:'DEV_BACKFILL_VERIFIED',documents:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+report(JSON.stringify({result:'DEV_BACKFILL_VERIFIED',documents:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
 
 }
-await main();
+export async function verifySwapDevRuntimeParity({getToken,project,spreadsheet}){
+ if(project!=='audit-management-system-dev'||spreadsheet!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')
+  throw Error('SWAP_RUNTIME_PARITY_SOURCE_UNVERIFIED');
+ const runtimeToken=await getToken();
+ if(!runtimeToken)throw Error('SWAP_DEV_TOKEN_MISSING');
+ let evidence;
+ await main({argv:['--verify'],runtimeToken,report:line=>{
+  const result=JSON.parse(line);
+  if(result.result==='DEV_PARITY_VERIFIED')evidence=result;
+ }});
+ if(!evidence)throw Error('SWAP_RUNTIME_PARITY_EVIDENCE_MISSING');
+ return evidence;
+}
+
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();

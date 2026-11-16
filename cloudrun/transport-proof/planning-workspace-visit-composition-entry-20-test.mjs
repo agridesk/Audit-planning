@@ -22,7 +22,7 @@ assert.match(existingWorkspace,/function renderScopePlanning20\(/);
 assert.match(existingWorkspace,/function scopePlanningValid20\(/);
 assert.match(existingWorkspace,/multiScopePlanningParity20\.toString\(\)/);
 assert.match(existingWorkspace,/function saveScopePlanning20\(/);
-const start=existingWorkspace.indexOf('function planningHtml(auditId,identity,batchDraft=false){');
+const start=existingWorkspace.indexOf('function planningHtml(auditId,identity){');
 const end=existingWorkspace.indexOf('\nasync function handlePlanning(',start);
 assert.ok(start>=0&&end>start);
 const standaloneHtml={clean:x=>String(x||'').trim(),multiScopePlanningParity20};

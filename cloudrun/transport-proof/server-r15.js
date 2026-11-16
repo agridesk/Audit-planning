@@ -2441,16 +2441,16 @@ http.createServer(async(req,res)=>{
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
-   let result,status=200;
+   let result;
    try{
     const parity=await verifySwapDevRuntimeParity({getToken,project,spreadsheet});
     result={ok:true,revision:process.env.K_REVISION||'UNAVAILABLE',...parity};
    }catch(error){
-    status=503;
     result={ok:false,revision:process.env.K_REVISION||'UNAVAILABLE',
      code:/^SWAP_[A-Z0-9_]+/.exec(String(error?.message||''))?.[0]||'SWAP_RUNTIME_PARITY_FAILED'};
+    console.error('[SWAP_RUNTIME_PARITY_ERROR]',JSON.stringify({revision:result.revision,code:result.code}));
    }
-   res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/runtime-readiness'){

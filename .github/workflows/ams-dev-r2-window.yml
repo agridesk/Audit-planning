@@ -1,4 +1,4 @@
-name: AMS DEV R3 Separately validation window
+name: AMS DEV R3 Succulent Valley Separately validation window
 on:
   push:
     branches: [dev]

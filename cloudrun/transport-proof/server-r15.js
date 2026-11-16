@@ -2041,6 +2041,39 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/batch-commit'&&runtime.isDev&&planningAtomicCommands){
+   const actor=await session(req);
+   if(actor?.role!=='manager'||req.headers.origin!==runtime.origin){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'DEV_MANAGER_SAME_ORIGIN_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('PLANNING_BATCH_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw);}catch{throw Error('PLANNING_BATCH_BODY_INVALID');}
+   const items=body?.items;
+   if(!Array.isArray(items)||items.length<2||items.length>8||
+      items.some(item=>typeof item?.auditId!=='string'||!item.auditId.trim()||
+       item.auditId!==item.auditId.trim()||!(/^[a-f0-9]{24}$/.test(item.sourceRevision||''))||
+       typeof item.auditorEmail!=='string'||!item.auditorEmail.trim()||
+       !Array.isArray(item.blocks)||!item.blocks.length||
+       item.visitAuditIds||item.visitMembers||item.composition)||
+      new Set(items.map(item=>item.auditId)).size!==items.length)
+    throw Error('PLANNING_BATCH_ITEMS_INVALID');
+   const outcomes=[];
+   let stopped=false;
+   for(const item of items){
+    if(stopped){outcomes.push({auditId:item.auditId,state:'NOT_ATTEMPTED'});continue;}
+    try{
+     const result=await planningAtomicCommands.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body:item});
+     outcomes.push({auditId:item.auditId,state:result.projection,operationId:result.operationId});
+    }catch(error){
+     console.error('[AMS_DEV_BATCH_COMMIT_ERROR]',String(error?.message||'UNKNOWN').slice(0,140));
+     outcomes.push({auditId:item.auditId,state:'STOPPED'});
+     stopped=true;
+    }finally{planningCache.invalidate();}
+   }
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({ok:!stopped,outcomes}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){

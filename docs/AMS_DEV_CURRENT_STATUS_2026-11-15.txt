@@ -100,3 +100,6 @@ Poleplants DEV, rij 73: Florimark Tracecert, Leen Klaassen, 2027-02-10 09:00–1
 
 18. R3 MULTIPLE — ROUTECONTROLE 16 NOVEMBER 2026
 De Manager Grid opent Plan multiple via selectionBatch → submitSelectionHandoff('batch') → POST /api/v1/manager/selection-handoff. Server R10 maakt een ondertekende handoff naar Apps Script (externalplanningworkspace). R15 weigert een atomaire commit-handoff met meer dan één audit-ID (PLANNING_MULTI_AUDIT_HANDOFF_ATOMIC_NOT_MIGRATED). Voor een geldige R3-test moet eerst worden vastgesteld of de Apps Script-workspace de geselecteerde audits afzonderlijk naar de atomaire route stuurt of als een gezamenlijke write. Geen audit gewijzigd.
+
+19. R3 MULTIPLE — SAVE-KETEN BEVESTIGD
+PlanningWorkspaceBatchCommit.js.html stuurt één GAS RPC met alle geselecteerde concepten. PlanningWorkspaceRpc.js → PlanningWorkspaceService.js → PlanningBatchCommitService.js verwerkt de items sequentieel. Elke audit gaat afzonderlijk naar PlanningCanonicalCommitService.js. Die route reserveert availability en roept PlanningCanonicalRowWriter_execute aan. De route gebruikt de Cloud Run commit-handoff niet. De Cloud Run-blokkade op meerdere audit-ID’s is dus niet de directe oorzaak. Voor R3 moet Multiple per audit via dezelfde atomaire schrijver als Single Save lopen, met preflight en afzonderlijke uitkomsten. Geen live batch-save uitgevoerd.

@@ -62,7 +62,8 @@ export function buildAtomicExtensionWriteset20({plan,source,cbEvent,cbEvents=[cb
   obligationId:plan.obligationId,command:plan.command,requestId:plan.operationId,
   expectedSourceRevision:sourceRevision,
   canonicalSnapshot:{auditId:plan.auditId,sourceRow:sourceRow.i+1,
-   headers:audit[0],row:afterRow,status:'Pending Planning',sourceRevision:nextRevision,
+   // Match the header representation used by the Firestore planning backfill.
+   headers:audit[0].map(clean),row:afterRow,status:'Pending Planning',sourceRevision:nextRevision,
    scopeExtension:{obligationId:plan.obligationId,command:plan.command,expected:plan.expected,obligationChanges:changes}},
   sourceRowBefore:beforeRow,projectionWrites:writes,projectionPreconditions:preconditions,
   appendIntents:[{range:'CB_Extension_Outbox!A:P',values:cbEvents.map(event=>event.values)}],

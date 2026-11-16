@@ -48,6 +48,6 @@ jobs:
           trap 'exit 143' TERM
           traffic "$target"
           [[ "$(current)" == "$target" ]]
-          echo "R3 Extend retest window open for 5 minutes on $target"
+          echo "R3 Ibero Plant Single retest window open for 5 minutes on $target"
           sleep 300 &
           wait $!

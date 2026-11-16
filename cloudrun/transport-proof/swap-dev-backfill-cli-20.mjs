@@ -233,15 +233,55 @@ const read=async()=>{
 const existing=await read();
 if(inspectDelta&&runtimeToken!==undefined){
  const collections={};
+ const drift=[];
  for(const write of plan.writes){
   const name=write.update.name;
   const collection=name.split('/').at(-2);
   const counts=collections[collection]??={expected:0,missing:0,drift:0};
   counts.expected++;
   if(!existing.has(name))counts.missing++;
-  else if(existing.get(name)?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)counts.drift++;
+  else if(existing.get(name)?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue){
+   counts.drift++;
+   drift.push({name,collection,expected:write.update.fields.payload.stringValue});
+  }
  }
- report(JSON.stringify({result:'DEV_RUNTIME_PARITY_INVENTORY',collections,
+ const linkedAudits=new Set();
+ if(drift.length){
+  const proposalCollection=base+'/ams_swap20_dev_proposals';
+  let cursor='',pages=0;
+  do{
+   if(++pages>5)throw Error('SWAP_RUNTIME_PROPOSAL_INVENTORY_TRUNCATED');
+   const query=new URLSearchParams({pageSize:'100'});
+   if(cursor)query.set('pageToken',cursor);
+   const proposals=await json(proposalCollection+'?'+query);
+   for(const doc of proposals.documents||[]){
+    const p=JSON.parse(doc.fields?.payload?.stringValue||'null');
+    if(p?.status!=='APPLIED'||p.canonicalCommitVerified!==true||
+       !/^[A-Za-z0-9_-]{8,100}$/.test(p.operationId||'')||
+       !drift.some(item=>[p.auditA,p.auditB].includes(item.name.split('/').pop())))continue;
+    const journal=await json(base+'/ams_swap20_dev_journal/'+encodeURIComponent(p.operationId));
+    const entry=JSON.parse(journal.fields?.payload?.stringValue||'null');
+    if(entry?.stage==='COMMITTED'&&entry.auditA===p.auditA&&entry.auditB===p.auditB){
+     linkedAudits.add(p.auditA);
+     linkedAudits.add(p.auditB);
+    }
+   }
+   cursor=proposals.nextPageToken||'';
+  }while(cursor);
+ }
+ const driftGroups=new Map();
+ for(const item of drift){
+  const actual=JSON.parse(existing.get(item.name)?.fields?.payload?.stringValue||'null');
+  const expected=JSON.parse(item.expected);
+  const fields=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])]
+   .filter(key=>JSON.stringify(actual[key])!==JSON.stringify(expected[key])).sort():['PAYLOAD_INVALID'];
+  const hasCommittedSwapJournal=linkedAudits.has(item.name.split('/').pop());
+  const key=JSON.stringify([item.collection,fields,hasCommittedSwapJournal]);
+  const group=driftGroups.get(key)||{collection:item.collection,fields,hasCommittedSwapJournal,documents:0};
+  group.documents++;
+  driftGroups.set(key,group);
+ }
+ report(JSON.stringify({result:'DEV_RUNTIME_PARITY_INVENTORY',collections,driftGroups:[...driftGroups.values()],
   orphanReferences:plan.orphanCount,quarantined:plan.quarantinedCount,cutoverAuthorized:false}));
  return;
 }

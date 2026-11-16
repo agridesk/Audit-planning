@@ -94,3 +94,6 @@ Plantec Canary, auditrij 45, DEV-revisie 00128-xac: No → Yes → No. Beide waa
 
 16. R3 SINGLE SAVE FIXTURE-CHECK — 16 NOVEMBER 2026
 TEST_PENDING_APPROVAL_01, rij 98, MPS-GAP 8 uur: effectief venster eindigt op 2026-11-27, vroegste uitvoeringsdatum wegens minimuminterval is 2026-12-20. Bevestigd in Planning Toolkit voor elk van de drie aangeboden auditors. De overige Pending Planning TEST_-rijen hebben meerdere scopes. Geen planning opgeslagen. DEV-notificatiemodus in System_Config is TEST_TO_SELF. R3 Single Save heeft een synthetische audit met één scope en geldig uitvoeringsvenster nodig.
+
+17. R3 LIVE SINGLE SAVE — 16 NOVEMBER 2026
+Poleplants DEV, rij 73: Florimark Tracecert, Leen Klaassen, 2027-02-10 09:00–13:00 HQ. De zachte waarschuwing voor naderende rotatielimiet is bevestigd. Manager Grid toont Pending acceptance en datum/auditor; Sheets toont Approved en één correct vieruursblok in Planning JSON. Gate vrij, nul onopgeloste operaties; één planningevent en één audit-trailregel in de gecontroleerde wachtrij. Onafhankelijke Firestore-documentreadback niet uitgevoerd. Testplanning staat nog in DEV. Verkeer geverifieerd terug op 00116-tib: https://github.com/agridesk/Audit-planning/actions/runs/43914949513. Volgende R3-stap: Multiple.

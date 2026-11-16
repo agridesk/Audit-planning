@@ -40,8 +40,22 @@ jobs:
           gcloud iam service-accounts sign-jwt "$RUNNER_TEMP/claims.json" "$RUNNER_TEMP/iap.jwt" --iam-account="$ACCOUNT" --project=audit-management-system-dev
           token=$(cat "$RUNNER_TEMP/iap.jwt")
           echo "::add-mask::$token"
-          code=$(curl --silent --show-error --max-time 25 --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' --header "Authorization: Bearer $token" "$url")
+          code=$(curl --silent --show-error --max-time 25 --dump-header "$RUNNER_TEMP/health.headers" --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' --header "Authorization: Bearer $token" "$url")
           echo "Tagged health endpoint HTTP status: $code"
-          [[ "$code" == 200 ]]
+          if [[ "$code" != 200 ]]; then
+            python - "$RUNNER_TEMP/health.headers" <<'PY'
+          import sys
+          from urllib.parse import urlsplit
+          with open(sys.argv[1]) as response:
+              for line in response:
+                  name, _, value = line.partition(":")
+                  if name.lower() == "location":
+                      hostname = urlsplit(value.strip()).hostname
+                      print("Redirect destination host:", hostname or "(same origin)")
+                  if name.lower() == "x-goog-iap-generated-response":
+                      print("IAP-generated response header present")
+          PY
+            exit 1
+          fi
           jq -e '{success,dev,readonly,safeToPlan,locked:.gate.locked,unresolved:.outbox.unresolved}' "$RUNNER_TEMP/health.json" | tee -a "$GITHUB_STEP_SUMMARY"
           jq -e '.success == true and .dev == true and .readonly == true and .safeToPlan == true and .gate.locked == false and .outbox.unresolved == 0' "$RUNNER_TEMP/health.json" >/dev/null

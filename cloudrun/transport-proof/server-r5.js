@@ -603,7 +603,8 @@ async function handlePlanning(req,res,u){
   const identity=await sessionIdentity(req);if(!identity){const next=safeLoginDestination(u.pathname+u.search,'Manager');res.writeHead(303,{'location':'/?next='+encodeURIComponent(next),'cache-control':'no-store'});return res.end();}if(!['manager','auditor'].includes(clean(identity.role).toLowerCase()))return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
   const auditId=clean(u.searchParams.get('auditId'));if(!auditId)return sendJson(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});const batchDraft=u.searchParams.get('batchDraft')==='1';
   if(batchDraft&&(RUNTIME_ENV!=='DEV'||process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED!=='true'||clean(identity.role).toLowerCase()!=='manager'))return sendJson(res,403,{ok:false,error:'DEV_MANAGER_BATCH_REQUIRED'});
-  return sendHtml(res,200,planningHtml(auditId,identity,batchDraft));
+  if(batchDraft)return sendHtml(res,200,planningHtml(auditId,identity,true));
+  return sendHtml(res,200,planningHtml(auditId,identity));
 }
 function proxy(req,res){
   const options={hostname:'127.0.0.1',port:INNER_PORT,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:'+INNER_PORT}};

@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
-          target=ams-fase12-dev-00181-bos
+          target=ams-fase12-dev-ams-fase12-dev-00184-ged
           current() {
             gcloud run services describe ams-fase12-dev "${args[@]}" --format=json |
               jq -er '[.status.traffic[] | select((.percent // 0) > 0)] | if length == 1 and .[0].percent == 100 then .[0].revisionName else error("Expected one live revision") end'
@@ -33,7 +33,7 @@ jobs:
           before=$(current)
           [[ "$before" == ams-fase12-dev-00116-tib ]]
           sha=$(gcloud run revisions describe "$target" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-          [[ "$sha" == 5b6121e997df2311296ebf1c5ad485377ba3fecd ]]
+          [[ "$sha" == bd60f789678cbc5e3acf1cbd6bb10da4ac1cd724 ]]
           traffic() {
             gcloud run services update-traffic ams-fase12-dev "${args[@]}" --to-revisions="$1=100"
           }
@@ -48,6 +48,6 @@ jobs:
           trap 'exit 143' TERM
           traffic "$target"
           [[ "$(current)" == "$target" ]]
-          echo "R3 SWAP runtime parity window open for 5 minutes on $target"
+          echo "R3 SWAP parity inventory window open for 5 minutes on $target"
           sleep 300 &
           wait $!

@@ -75,9 +75,17 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const second=await inspect(plan);
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
-  const payload={valueInputOption:'USER_ENTERED',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
-  await request(base+'/values:batchUpdate','POST',payload);
-  await verifyFence({operationId,gateToken});
+  const entered=[],literalDates=[];
+  for(const change of changes){
+   const literalDate=plan.scopeExtension&&/^Audit_Obligations!([K-M])\d+(?::\1\d+)?$/.test(change.range)&&
+    typeof change.values[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(change.values[0]);
+   (literalDate?literalDates:entered).push({range:change.range,values:[change.values]});
+  }
+  for(const [valueInputOption,data] of [['USER_ENTERED',entered],['RAW',literalDates]]){
+   if(!data.length)continue;
+   await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:false});
+   await verifyFence({operationId,gateToken});
+  }
   // USER_ENTERED can reinterpret Last_Updated as a localized Sheets date.
   // Preserve the canonical timestamp as literal text, without changing the
   // existing numeric/date/formula behavior of all other cells.

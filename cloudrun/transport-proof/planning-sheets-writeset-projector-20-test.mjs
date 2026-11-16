@@ -102,3 +102,26 @@ assert.equal(typeof rendered.allFormattedBefore,'boolean');
 assert.ok(!JSON.stringify(rendered).includes('auditor@example.test'));
 assert.ok(!JSON.stringify(rendered).includes('alternate-auditor'));
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');
+
+const extensionDate='Audit_Obligations!K151:K151';
+let dateValue='2027-06-19';
+const dateWrites=[];
+const dateProjector=createPlanningSheetsWritesetProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
+ fetchImpl:async(url,init={})=>{
+  const payload=init.body&&JSON.parse(init.body);
+  if(payload){
+   dateWrites.push(payload.valueInputOption);
+   dateValue=payload.valueInputOption==='RAW'?payload.data[0].values[0][0]:'19/06/2028';
+  }
+  return {ok:true,json:async()=>url.includes('values:batchGet')?
+   {valueRanges:[{values:[[dateValue]]}]}:
+   {sheets:[{properties:{title:'Audit_Obligations',sheetId:3,gridProperties:{rowCount:200}}}]}};
+ }
+});
+const extensionPlan={scopeExtension:{},
+ projectionWrites:[{range:extensionDate,values:[['2028-06-19']]}],
+ projectionPreconditions:[{range:extensionDate,before:['2027-06-19']}]};
+assert.equal((await dateProjector.apply({operationId:'ext',gateToken:'held',plan:extensionPlan})).projected,true);
+assert.deepEqual(dateWrites,['RAW']);
+assert.equal((await dateProjector.inspect(extensionPlan)).state,'MATCH');

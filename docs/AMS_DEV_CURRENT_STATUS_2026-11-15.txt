@@ -106,3 +106,6 @@ PlanningWorkspaceBatchCommit.js.html stuurt één GAS RPC met alle geselecteerde
 
 20. R3 MULTIPLE — CLOUD RUN-CONTRACT
 Concept-PR #125 bevat de DEV-batchroute over de bestaande Single Save-schrijver. Routecontract lokaal groen: Manager en same-origin vereist, PROD uitgesloten, dubbele audit-ID's en GAS-revisies afgewezen, revisies ongewijzigd doorgegeven; bij conflict stopt verwerking en blijft per audit zichtbaar wat is uitgevoerd. Nog open: Cloud Run-revisie vastleggen bij conceptaanmaak, de workspace op de route aansluiten en live DEV-readback. Geen batch opgeslagen. TOGETHER, SEPARATELY en SWAP blijven open onder R3.
+
+21. R3 MULTIPLE — LIVE DEV POGING
+PR #125 gemerged na vier groene CI-runs. Op 00135-gom zijn Corma en Islaplant via de Manager Grid geselecteerd en als twee Cloud Run-drafts toegevoegd. De batch-save gaf geen resultaat; beide Sheets-rijen bleven Pending Planning, zonder toegewezen auditor. De batchroute ontbrak in de atomaire cutover-allowlist. PR #126 neemt de route daarin op, test dat de legacy-freeze van kracht blijft en toont de foutreden in de grid. Drie CI-runs groen, gemerged. Eerste testvenster teruggeschakeld naar 00116-tib (https://github.com/agridesk/Audit-planning/actions/runs/43923581092). R3 Multiple blijft open tot hertest na uitrol van #126 en readback.

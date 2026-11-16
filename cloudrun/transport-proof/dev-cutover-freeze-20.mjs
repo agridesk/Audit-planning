@@ -10,6 +10,9 @@ export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,back
  if(['GET','HEAD','OPTIONS'].includes(verb))return {allow:true};
  if(verb==='POST'&&new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']).has(path))
   return {allow:true};
+ // SWAP preview is a read-only calculation submitted as POST.
+ if(atomicPlanningEnabled===true&&verb==='POST'&&path==='/api/v1/manager/swap20/preview')
+  return {allow:true};
  // In atomic mode, only explicitly owned R15 POST routes can write.
  // Fail closed on the legacy proxy, unclassified operations and other verbs.
  if(atomicPlanningEnabled===true&&verb==='POST'&&

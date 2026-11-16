@@ -1,4 +1,4 @@
-name: AMS DEV R2 validation window
+name: AMS DEV R3 Self planning validation window
 on:
   push:
     branches: [dev]
@@ -48,6 +48,6 @@ jobs:
           trap 'exit 143' TERM
           traffic "$target"
           [[ "$(current)" == "$target" ]]
-          echo "R2 validation window open for 3 minutes on $target"
-          sleep 180 &
+          echo "R2 validation window open for 5 minutes on $target"
+          sleep 300 &
           wait $!

@@ -198,7 +198,7 @@ function openDevMultiple20(){
         const row=rows.find(item=>item.auditId===outcome.auditId);
         return (row?.company||outcome.auditId)+': '+({PROJECTED:'Saved',STOPPED:'Stopped — check audit status',NOT_ATTEMPTED:'Not attempted'}[outcome.state]||'Check audit status');
       }).join(' · ');
-    }catch(error){status.textContent='Save outcome unavailable. Refresh the grid before trying again.';}
+    }catch(error){status.textContent=(error.message||'Save outcome unavailable')+'. Refresh the grid before trying again.';}
     finally{busy=false;close.disabled=false;loadOpen();}
   };
   dialog.append(heading,list,status,save,close);

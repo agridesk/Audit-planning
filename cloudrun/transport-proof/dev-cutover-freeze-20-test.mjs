@@ -42,8 +42,17 @@ assert.match(r15,/u\.pathname==='\/api\/v1\/planning\/atomic-self-planning-rescu
 assert.equal(freeze('POST','/api/v1/planning/atomic-self-planning-rescue').allow,false);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');
 
-const swapPreview='/api/v1/manager/swap20/preview';
-assert.equal(freeze('POST',swapPreview).allow,false);
-assert.deepEqual(freeze('POST',swapPreview,{atomicPlanningEnabled:true}),{allow:true});
-for(const route of ['propose','withdraw','commit'])
- assert.equal(freeze('POST','/api/v1/manager/swap20/'+route,{atomicPlanningEnabled:true}).allow,false);
+const directSwap={atomicPlanningEnabled:true,swapDirectRouteEnabled:true};
+for(const path of [
+ ...['preview','eligible','diagnose','canonical-grid-dates','list','status'].map(route=>'/api/v1/manager/swap20/'+route),
+ '/api/v1/auditor/swap20/list'
+]){
+ assert.deepEqual(freeze('POST',path,directSwap),{allow:true});
+ assert.equal(freeze('POST',path,{atomicPlanningEnabled:true}).allow,false);
+ assert.equal(freeze('POST',path,{swapDirectRouteEnabled:true}).allow,false);
+ for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,path,directSwap).allow,false);
+}
+for(const path of ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/withdraw',
+ '/api/v1/manager/swap20/commit','/api/v1/auditor/swap20/respond','/api/v1/manager/swap20/preview/'])
+ assert.equal(freeze('POST',path,directSwap).allow,false);
+assert.match(r15.slice(gatePos),/swapDirectRouteEnabled:swap20DirectRouteEnabled/);

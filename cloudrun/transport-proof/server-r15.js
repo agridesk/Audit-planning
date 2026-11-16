@@ -1562,7 +1562,8 @@ http.createServer(async(req,res)=>{
    method:req.method,path:u.pathname,
    backfillWriteEnabled:process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED==='true',
    legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true',
-   atomicPlanningEnabled:planningAtomicEnabled
+   atomicPlanningEnabled:planningAtomicEnabled,
+   swapDirectRouteEnabled:swap20DirectRouteEnabled
   });
   if(!cutoverFreeze.allow){
    res.writeHead(cutoverFreeze.status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

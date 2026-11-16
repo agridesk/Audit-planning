@@ -149,7 +149,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return {ok:true,readOnly:true,source:'firestore-canonical',rows:[...rows.values()]};
  };
  const list=async({actor}={})=>{
-  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
+  if(canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
  const getProposal=async({operationId,actor}={})=>{

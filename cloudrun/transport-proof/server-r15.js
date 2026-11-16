@@ -1124,7 +1124,7 @@ async function swap20ManagerRequest(req,res,operation){
  }
  // Exclusive DEV ownership: never fall back to GAS if direct route was requested
  // but its safety preconditions are not fulfilled.
- if(operation!=='canonicalGridDates'&&swap20DirectRequested&&!swap20DirectRouteEnabled){
+ if(operation!=='canonicalGridDates'&&operation!=='listPending'&&swap20DirectRequested&&!swap20DirectRouteEnabled){
   res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));
   return;
@@ -1137,7 +1137,7 @@ async function swap20ManagerRequest(req,res,operation){
    :operation==='canonicalGridDates'
    ?await swap20DirectTransport.canonicalGridDates({actor})
    :operation==='listPending'
-  ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
+  ?(swap20GridReadEnabled?await swap20DirectTransport.list({actor}):planningAtomicEnabled||swap20DirectRequested?{ok:false,code:'SWAP_DIRECT_LIST_DISABLED'}:await swap20ReadList(actor))
   :operation==='preview'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.preview(data):(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data))
    :operation==='propose'&&swap20DirectRouteEnabled
@@ -1185,13 +1185,13 @@ async function swap20AuditorRequest(req,res,operation){
    res.writeHead(400);res.end('INVALID_AUDITOR_SWAP_RESPONSE');return;
   }
  }
- if(swap20DirectRequested&&!swap20DirectRouteEnabled){
+ if(operation!=='listPending'&&swap20DirectRequested&&!swap20DirectRouteEnabled){
   res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));return;
  }
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
-  ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
+  ?(swap20GridReadEnabled?await swap20DirectTransport.list({actor}):planningAtomicEnabled||swap20DirectRequested?{ok:false,code:'SWAP_DIRECT_LIST_DISABLED'}:await swap20ReadList(actor))
   :operation==='respond'&&swap20DirectRouteEnabled
    ?await swap20DirectTransport.respond({...data,actor})
    :await swap20GasOperation(actor,operation,data);

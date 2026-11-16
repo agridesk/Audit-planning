@@ -5,6 +5,11 @@
 import {createHash} from 'node:crypto';
 const str=x=>String(x??'').trim();
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+const normalizedHeaders=headers=>{
+ const normalized=headers.map(str);
+ while(normalized.length&&normalized.at(-1)==='')normalized.pop();
+ return normalized;
+};
 export function createAtomicExtensionService20({store,gate,preflight,projector,appendProjector}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||
     typeof store?.commit!=='function'||typeof store?.markProjected!=='function'||
@@ -52,7 +57,9 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_IDENTITY');
    if(proof.expectedSourceRevision!==previous.snapshot.sourceRevision)
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_REVISION');
-   if(JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
+   if(!Array.isArray(proof.canonicalSnapshot.headers)||
+      JSON.stringify(normalizedHeaders(proof.canonicalSnapshot.headers))!==
+      JSON.stringify(normalizedHeaders(previous.snapshot.headers)))
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_HEADERS');
    if(JSON.stringify(proof.sourceRowBefore)!==JSON.stringify(previous.snapshot.row))
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_ROW');

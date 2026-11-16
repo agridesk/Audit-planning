@@ -131,3 +131,17 @@ const pairedProof=buildAtomicExtensionWriteset20({
  assert.ok(!events.includes('marked'));
 }
 console.log('Shared expiry atomic service: commit and incomplete projection fencing PASS');
+
+for(const preflight of [proof,pairedProof]){
+ const old={...previous,snapshot:{...previous.snapshot,headers:[...sheetsHeaders,'',' ']}};
+ const {instance,events}=setup({preflight,old});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+}
+{
+ const old={...previous,snapshot:{...previous.snapshot,headers:['Audit ID','Different column',...ph.slice(2)]}};
+ const {instance,events}=setup({old});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_HEADERS/);
+ assert.ok(!events.includes('commit'));
+ assert.ok(events.includes('gateRelease'));
+}

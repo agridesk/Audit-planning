@@ -6,7 +6,8 @@ const ph=['Audit ID','Status','Extension applied','Extended Expiration Date','Pl
  oh=['Obligation_ID','Extension_Applied','Extension_Metadata_JSON','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To'];
 const before=['audit-1','Pending Planning','','2027-01-01','2026-12-01','2027-03-01'];
 const obligation=['ob-1','','','2027-01-01','2026-12-01','2027-03-01'];
-const source={planningRows:[ph,before],obligationRows:[oh,obligation]};
+const sheetsHeaders=ph.map(header=>header==='Status'?' Status ':header);
+const source={planningRows:[sheetsHeaders,before],obligationRows:[oh,obligation]};
 const values=['Yes','{"source":"AMS_DEV_MODEL_C_SCOPE_EXTENSION_20"}','2028-01-01','2027-12-01','2028-03-01'];
 const updates=[
  ...[1,2,3,4,5].map((col,i)=>({range:"'Audit_Obligations'!"+'ABCDEF'[col]+'2',values:[[values[i]]]})),
@@ -24,6 +25,7 @@ assert.equal(proof.projectionPreconditions.length,9);
 assert.equal(proof.expectedSourceRevision,'old-rev');
 assert.equal(proof.canonicalSnapshot.sourceRevision,'new-rev');
 assert.deepEqual(proof.sourceRowBefore,before);
+assert.deepEqual(proof.canonicalSnapshot.headers,ph);
 assert.equal(proof.appendIntents[0].range,'CB_Extension_Outbox!A:P');
 assert.throws(()=>buildAtomicExtensionWriteset20({plan:{...plan,updates:updates.slice(1)},source,cbEvent,revisionOf:rev}),
  /SOURCE_INCOMPLETE/);

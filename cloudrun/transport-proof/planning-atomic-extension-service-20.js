@@ -47,17 +47,21 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
    if(proof?.success!==true||proof?.authorityPreflight!==true||
       proof.auditId!==auditId||proof.obligationId!==obligationId||
       proof.command!==command||proof.requestId!==requestId||
-      proof.expectedSourceRevision!==previous.snapshot.sourceRevision||
       proof.canonicalSnapshot?.auditId!==auditId||
-      proof.canonicalSnapshot?.status!=='Pending Planning'||
-      !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==4+5*count||
+      proof.canonicalSnapshot?.status!=='Pending Planning')
+    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_IDENTITY');
+   if(proof.expectedSourceRevision!==previous.snapshot.sourceRevision)
+    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_REVISION');
+   if(JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
+    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_HEADERS');
+   if(JSON.stringify(proof.sourceRowBefore)!==JSON.stringify(previous.snapshot.row))
+    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_ROW');
+   if(!Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==4+5*count||
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==4+5*count||
       !Array.isArray(proof.appendIntents)||proof.appendIntents.length!==1||
       proof.appendIntents[0]?.range!=='CB_Extension_Outbox!A:P'||
-      (count>1&&proof.appendIntents[0]?.values?.length!==count)||
-      JSON.stringify(proof.sourceRowBefore)!==JSON.stringify(previous.snapshot.row)||
-      JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
-    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');
+      (count>1&&proof.appendIntents[0]?.values?.length!==count))
+    throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_PROJECTION');
    const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
     scopeExtension:{...proof.canonicalSnapshot.scopeExtension,patch:proof.patch,
      cbNotification:proof.cbNotification},

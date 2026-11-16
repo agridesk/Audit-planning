@@ -44,6 +44,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          token=$(gcloud auth print-access-token)
+          curl -sS -o /dev/null -w 'Sheets HTTP %{http_code}\n' -H "Authorization: Bearer $token" 'https://sheets.googleapis.com/v4/spreadsheets/1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs/values/A1'
+          curl -sS -o /dev/null -w 'Firestore HTTP %{http_code}\n' -H "Authorization: Bearer $token" 'https://firestore.googleapis.com/v1/projects/audit-management-system-dev/databases/(default)/documents/ams_swap20_dev_audits?pageSize=1'
+          unset token
           evidence=$(mktemp)
           trap 'rm -f "$evidence"' EXIT
           status=0

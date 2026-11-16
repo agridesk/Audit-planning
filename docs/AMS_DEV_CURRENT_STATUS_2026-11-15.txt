@@ -103,3 +103,6 @@ De Manager Grid opent Plan multiple via selectionBatch → submitSelectionHandof
 
 19. R3 MULTIPLE — SAVE-KETEN BEVESTIGD
 PlanningWorkspaceBatchCommit.js.html stuurt één GAS RPC met alle geselecteerde concepten. PlanningWorkspaceRpc.js → PlanningWorkspaceService.js → PlanningBatchCommitService.js verwerkt de items sequentieel. Elke audit gaat afzonderlijk naar PlanningCanonicalCommitService.js. Die route reserveert availability en roept PlanningCanonicalRowWriter_execute aan. De route gebruikt de Cloud Run commit-handoff niet. De Cloud Run-blokkade op meerdere audit-ID’s is dus niet de directe oorzaak. Voor R3 moet Multiple per audit via dezelfde atomaire schrijver als Single Save lopen, met preflight en afzonderlijke uitkomsten. Geen live batch-save uitgevoerd.
+
+20. R3 MULTIPLE — CLOUD RUN-CONTRACT
+Concept-PR #125 bevat de DEV-batchroute over de bestaande Single Save-schrijver. Routecontract lokaal groen: Manager en same-origin vereist, PROD uitgesloten, dubbele audit-ID's en GAS-revisies afgewezen, revisies ongewijzigd doorgegeven; bij conflict stopt verwerking en blijft per audit zichtbaar wat is uitgevoerd. Nog open: Cloud Run-revisie vastleggen bij conceptaanmaak, de workspace op de route aansluiten en live DEV-readback. Geen batch opgeslagen. TOGETHER, SEPARATELY en SWAP blijven open onder R3.

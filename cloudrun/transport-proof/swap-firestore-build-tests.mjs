@@ -6,6 +6,7 @@ import './swap-firestore-canonical-reader-20-test.mjs';
 import './swap-pair-diagnosis-20-test.mjs';
 import './swap-firestore-schedule-guard-20-test.mjs';
 import './swap-firestore-migration-parity-20-test.mjs';
+import './swap-runtime-parity-details-20-test.mjs';
 import './swap-firestore-reservation-planner-20-test.mjs';
 import './swap-reservation-fence-20-test.mjs';
 import './swap-index-coverage-test.mjs';

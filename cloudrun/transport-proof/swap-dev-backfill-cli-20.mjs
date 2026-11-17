@@ -13,6 +13,34 @@ import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
 import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
 import {createSwapReservationFenceReader} from './swap-reservation-fence-reader-20.mjs';
+export function buildSwapRuntimeParityDetails(writes,existing){
+ const collections={};
+ const missingDocuments=[];
+ const drift=[];
+ for(const write of writes){
+  const name=write.update.name;
+  const [collection,auditId]=[name.split('/').at(-2),name.split('/').at(-1)];
+  const counts=collections[collection]??={expected:0,missing:0,drift:0};
+  counts.expected++;
+  const stored=existing.get(name);
+  if(!stored){
+   counts.missing++;
+   missingDocuments.push({collection,auditId});
+   continue;
+  }
+  const actualPayload=stored.fields?.payload?.stringValue;
+  const expectedPayload=write.update.fields.payload.stringValue;
+  if(actualPayload===expectedPayload)continue;
+  counts.drift++;
+  let actual,expected;
+  try{actual=JSON.parse(actualPayload);expected=JSON.parse(expectedPayload);}
+  catch{throw Error('SWAP_RUNTIME_PARITY_PAYLOAD_INVALID');}
+  const changedFields=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])]
+   .filter(key=>JSON.stringify(actual[key])!==JSON.stringify(expected[key])).sort():['PAYLOAD_INVALID'];
+  drift.push({name,collection,auditId,changedFields});
+ }
+ return {collections,missingDocuments,drift};
+}
 async function main({argv=process.argv,runtimeToken,report=console.log}={}){
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
@@ -233,19 +261,7 @@ const read=async()=>{
 };
 const existing=await read();
 if(inspectDelta&&runtimeToken!==undefined){
- const collections={};
- const drift=[];
- for(const write of plan.writes){
-  const name=write.update.name;
-  const collection=name.split('/').at(-2);
-  const counts=collections[collection]??={expected:0,missing:0,drift:0};
-  counts.expected++;
-  if(!existing.has(name))counts.missing++;
-  else if(existing.get(name)?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue){
-   counts.drift++;
-   drift.push({name,collection,expected:write.update.fields.payload.stringValue});
-  }
- }
+ const {collections,missingDocuments,drift}=buildSwapRuntimeParityDetails(plan.writes,existing);
  const committedByAudit=new Map();
  if(drift.length){
   const proposalCollection=base+'/ams_swap20_dev_proposals';
@@ -277,10 +293,8 @@ if(inspectDelta&&runtimeToken!==undefined){
  const driftGroups=new Map();
  for(const item of drift){
   const actual=JSON.parse(existing.get(item.name)?.fields?.payload?.stringValue||'null');
-  const expected=JSON.parse(item.expected);
-  const fields=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])]
-   .filter(key=>JSON.stringify(actual[key])!==JSON.stringify(expected[key])).sort():['PAYLOAD_INVALID'];
-  const auditId=item.name.split('/').pop();
+  const fields=item.changedFields;
+  const auditId=item.auditId;
   const candidates=committedByAudit.get(auditId)||[];
   const hasCommittedSwapJournal=candidates.length>0;
   const blocks=candidates[0];
@@ -302,11 +316,13 @@ if(inspectDelta&&runtimeToken!==undefined){
    }
   }
   const key=JSON.stringify([item.collection,fields,hasCommittedSwapJournal,matchesCommittedProposal]);
-  const group=driftGroups.get(key)||{collection:item.collection,fields,hasCommittedSwapJournal,matchesCommittedProposal,documents:0};
+  const group=driftGroups.get(key)||{collection:item.collection,fields,hasCommittedSwapJournal,matchesCommittedProposal,documents:0,auditIds:[]};
   group.documents++;
+  group.auditIds.push(auditId);
   driftGroups.set(key,group);
  }
  report(JSON.stringify({result:'DEV_RUNTIME_PARITY_INVENTORY',collections,driftGroups:[...driftGroups.values()],
+  missingDocuments,driftDocuments:drift.map(({collection,auditId,changedFields})=>({collection,auditId,changedFields})),
   orphanReferences:plan.orphanCount,quarantined:plan.quarantinedCount,cutoverAuthorized:false}));
  return;
 }

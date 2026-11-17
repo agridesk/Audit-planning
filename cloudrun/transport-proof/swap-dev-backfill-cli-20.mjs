@@ -494,4 +494,31 @@ export async function verifySwapDevRuntimeParity({getToken,project,spreadsheet})
  return evidence;
 }
 
+export function validateSwapRuntimeAuditIds(auditIds){
+ if(!Array.isArray(auditIds)||auditIds.length===0||auditIds.length>12||
+    new Set(auditIds).size!==auditIds.length||
+    auditIds.some(id=>typeof id!=='string'||!/^AUD_[^/\u0000-\u001f\u007f]{1,135}$/.test(id)))
+  throw Error('SWAP_RUNTIME_AUDIT_IDS_INVALID');
+ return auditIds;
+}
+
+export async function inspectSwapDevAuditSources({getToken,project,spreadsheet,auditIds}){
+ if(project!=='audit-management-system-dev'||spreadsheet!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')
+  throw Error('SWAP_RUNTIME_PARITY_SOURCE_UNVERIFIED');
+ const ids=validateSwapRuntimeAuditIds(auditIds);
+ const runtimeToken=await getToken();
+ if(!runtimeToken)throw Error('SWAP_DEV_TOKEN_MISSING');
+ const audits=[];
+ for(const auditId of ids){
+  let evidence;
+  await main({argv:['--inspect-audit',auditId],runtimeToken,report:line=>{
+   const result=JSON.parse(line);
+   if(result.result==='DEV_AUDIT_SOURCE_INSPECTION')evidence=result;
+  }});
+  if(!evidence)throw Error('SWAP_RUNTIME_AUDIT_SOURCE_EVIDENCE_MISSING');
+  audits.push(evidence);
+ }
+ return {result:'DEV_AUDIT_SOURCE_RECONCILIATION',audits,readOnly:true,cutoverAuthorized:false};
+}
+
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();

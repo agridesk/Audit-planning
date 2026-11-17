@@ -144,8 +144,14 @@ if(inspectAudit){
  const index=auditRows[0].indexOf('Audit ID'),matches=auditRows.slice(1).filter(row=>String(row[index]||'').trim()===inspectAuditId);
  const avHeader=availabilityRows[0],indices=['Audit_ID_1','Audit_ID_2'].map(k=>avHeader.indexOf(k)),refs=availabilityRows.slice(1).filter(row=>indices.some(i=>i>=0&&String(row[i]||'').trim()===inspectAuditId)).length;
  const partition=partitionSwapSheetMigration({auditRows,availabilityRows}),eligible=partition.eligible.some(x=>x.auditId===inspectAuditId),reason=partition.quarantined.find(x=>x.auditId===inspectAuditId)?.reason||null;
+ const rootDoc='projects/'+project+'/databases/(default)/documents/';
+ const auditWrite=plan.writes.find(w=>w.update.name===rootDoc+'ams_swap20_dev_audits/'+inspectAuditId);
+ const availabilityWrite=plan.writes.find(w=>w.update.name===rootDoc+'ams_swap20_dev_availability/'+inspectAuditId);
+ if(eligible&&(!auditWrite||!availabilityWrite))throw Error('SWAP_INSPECT_AUDIT_PLAN_INCOMPLETE');
+ const previewReason=!eligible?'AUDIT_NOT_ELIGIBLE':audit||availability?'DOCUMENT_ALREADY_EXISTS':null;
+ const proposedDocuments=previewReason?[]:[auditWrite.update,availabilityWrite.update].map(({name,fields})=>({name,fields}));
  const blocks=audit?.data?.plannedBlocks||[];
- report(JSON.stringify({result:'DEV_AUDIT_SOURCE_INSPECTION',auditId:inspectAuditId,sheetMatches:matches.length,sheetAvailabilityReferences:refs,eligible,reason,firestoreAuditExists:!!audit,firestoreAvailabilityExists:!!availability,firestoreAuditStatus:audit?.data?.status||null,firestoreAuditBlocks:Array.isArray(blocks)?blocks.length:null,firestoreAvailabilityBlocks:Array.isArray(availability?.data?.reservations)?availability.data.reservations.length:null,firestoreAuditRevision:audit?.updateTime||null,readOnly:true}));
+ report(JSON.stringify({result:'DEV_AUDIT_SOURCE_INSPECTION',auditId:inspectAuditId,sheetMatches:matches.length,sheetAvailabilityReferences:refs,eligible,reason,firestoreAuditExists:!!audit,firestoreAvailabilityExists:!!availability,firestoreAuditStatus:audit?.data?.status||null,firestoreAuditBlocks:Array.isArray(blocks)?blocks.length:null,firestoreAvailabilityBlocks:Array.isArray(availability?.data?.reservations)?availability.data.reservations.length:null,firestoreAuditRevision:audit?.updateTime||null,payloadPreview:{status:previewReason?'BLOCKED':'READY',reason:previewReason,proposedDocuments,createOnly:true,writeAuthorized:false,executionAuthorized:false,writePerformed:false},readOnly:true,writeAuthorized:false}));
  return;
 }
 if(repairAvailability){
@@ -518,7 +524,7 @@ export async function inspectSwapDevAuditSources({getToken,project,spreadsheet,a
   if(!evidence)throw Error('SWAP_RUNTIME_AUDIT_SOURCE_EVIDENCE_MISSING');
   audits.push(evidence);
  }
- return {result:'DEV_AUDIT_SOURCE_RECONCILIATION',audits,readOnly:true,cutoverAuthorized:false};
+ return {result:'DEV_AUDIT_SOURCE_RECONCILIATION',audits,readOnly:true,writeAuthorized:false,cutoverAuthorized:false};
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();

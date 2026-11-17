@@ -25,29 +25,5 @@ jobs:
         run: |
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
-          target=ams-fase12-dev-00195-keg
-          current() {
-            gcloud run services describe ams-fase12-dev "${args[@]}" --format=json |
-              jq -er '[.status.traffic[] | select((.percent // 0) > 0)] | if length == 1 and .[0].percent == 100 then .[0].revisionName else error("Expected one live revision") end'
-          }
-          before=$(current)
-          [[ "$before" == ams-fase12-dev-00116-tib ]]
-          sha=$(gcloud run revisions describe "$target" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-          [[ "$sha" == b899cc9b9f9781af8fccc2199c468535ac1240fa ]]
-          traffic() {
-            gcloud run services update-traffic ams-fase12-dev "${args[@]}" --to-revisions="$1=100"
-          }
-          rollback() {
-            live=$(current) || return 1
-            if [[ "$live" == "$target" ]]; then traffic "$before" || return 1; fi
-            [[ "$(current)" == "$before" ]] || return 1
-            echo "Verified restoration to $before"
-          }
-          trap rollback EXIT
-          trap 'exit 130' INT
-          trap 'exit 143' TERM
-          traffic "$target"
-          [[ "$(current)" == "$target" ]]
-          echo "R3 SWAP committed proposal diagnostic error capture window open for 10 minutes on $target"
-          sleep 600 &
-          wait $!
+          gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.revision_name="ams-fase12-dev-00195-keg" AND timestamp>="2026-11-16T22:26:30Z" AND timestamp<="2026-11-16T22:36:39Z" AND (textPayload:"SWAP_RUNTIME_PARITY_ERROR" OR httpRequest.requestUrl:"/api/v1/manager/swap20/runtime-parity")' --project=audit-management-system-dev --limit=50 --format=json |
+            jq -c 'map({timestamp,status:.httpRequest.status,code: ((.textPayload // "") | [scan("SWAP_[A-Z0-9_]+")] | last)})'

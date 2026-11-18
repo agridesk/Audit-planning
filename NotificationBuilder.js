@@ -283,7 +283,43 @@ function NB_queueNotification_(recipientEmail, eventType, data) {
   var tz = NB_getTz_(ss);
   var hash = NB_hashQueueRow_(recipientEmail, eventCode, payload, built);
 
-  var duplicate = NB_recentQueueDuplicate_(sh, hash, eventCode, recipientEmail, payload.auditId);
+  // Serialize check + append so concurrent invocations with the same hash
+  // cannot both pass the duplicate check (issue #111).
+  var queueLock = null;
+  try {
+    queueLock = LockService.getScriptLock();
+    queueLock.waitLock(10000);
+  } catch (eLock) {
+    queueLock = null;
+  }
+
+  var duplicate;
+  var effectiveRecipient = cfg.sendEmail && !cfg.logOnly ? NB_clean_(recipientEmail) : '';
+  var initialStatus = cfg.sendEmail && !cfg.logOnly ? 'PENDING' : 'AUDIT_TRAIL';
+  try {
+    duplicate = NB_recentQueueDuplicate_(sh, hash, eventCode, recipientEmail, payload.auditId);
+    if (!duplicate.found) {
+      sh.appendRow([
+        Utilities.formatDate(now, tz, 'yyyy-MM-dd HH:mm'),
+        initialStatus,
+        eventCode,
+        effectiveRecipient,
+        NB_clean_(payload.auditId),
+        NB_clean_(payload.company),
+        built.subject,
+        built.body,
+        0,
+        '',
+        hash,
+        '',
+        JSON.stringify({ payload: payload })
+      ]);
+      SpreadsheetApp.flush();
+    }
+  } finally {
+    if (queueLock) { try { queueLock.releaseLock(); } catch (eRelease) {} }
+  }
+
   if (duplicate.found) {
     return {
       success:true,
@@ -297,25 +333,6 @@ function NB_queueNotification_(recipientEmail, eventType, data) {
       duplicateMatch:duplicate.match
     };
   }
-
-  var effectiveRecipient = cfg.sendEmail && !cfg.logOnly ? NB_clean_(recipientEmail) : '';
-  var initialStatus = cfg.sendEmail && !cfg.logOnly ? 'PENDING' : 'AUDIT_TRAIL';
-
-  sh.appendRow([
-    Utilities.formatDate(now, tz, 'yyyy-MM-dd HH:mm'),
-    initialStatus,
-    eventCode,
-    effectiveRecipient,
-    NB_clean_(payload.auditId),
-    NB_clean_(payload.company),
-    built.subject,
-    built.body,
-    0,
-    '',
-    hash,
-    '',
-    JSON.stringify({ payload: payload })
-  ]);
 
   return {
     success:true,

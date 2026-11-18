@@ -54,6 +54,14 @@ for(const path of [
 for(const path of ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/withdraw',
  '/api/v1/manager/swap20/commit','/api/v1/auditor/swap20/respond','/api/v1/manager/swap20/preview/'])
  assert.equal(freeze('POST',path,directSwap).allow,false);
+const directSwapWrites={...directSwap,swapDirectWriteRoutesEnabled:true};
+for(const path of ['/api/v1/manager/swap20/withdraw','/api/v1/manager/swap20/commit','/api/v1/auditor/swap20/respond']){
+ assert.deepEqual(freeze('POST',path,directSwapWrites),{allow:true});
+ assert.equal(freeze('POST',path,{swapDirectRouteEnabled:true,swapDirectWriteRoutesEnabled:true}).allow,false);
+ assert.equal(freeze('PUT',path,directSwapWrites).allow,false);
+}
+assert.equal(freeze('POST','/api/v1/manager/swap20/preview/',directSwapWrites).allow,false);
+assert.match(r15.slice(gatePos),/swapDirectWriteRoutesEnabled:process\.env\.AMS_SWAP20_DIRECT_WRITE_ROUTES_ENABLED==='true'/);
 assert.match(r15.slice(gatePos),/swapDirectRouteEnabled:swap20DirectRouteEnabled/);
 
 for(const path of ["/api/v1/manager/swap20/canonical-grid-dates","/api/v1/auditor/swap20/canonical-grid-dates","/api/v1/manager/swap20/list","/api/v1/auditor/swap20/list"]){

@@ -889,7 +889,13 @@ const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_EN
 // reintroducing full GAS latency on every direct Firestore mutation.
 let swap20AuthorityUntil=0,swap20AuthorityInflight=null;
 async function swap20VerifyGasWriteAuthority(){
- if(Date.now()<swap20AuthorityUntil)return true;
+ if(Date.now()<swap20AuthorityUntil){
+  if(Date.now()>swap20AuthorityUntil-60000&&!swap20AuthorityInflight)swap20RefreshGasWriteAuthority().catch(()=>false);
+  return true;
+ }
+ return swap20RefreshGasWriteAuthority();
+}
+async function swap20RefreshGasWriteAuthority(){
  if(swap20AuthorityInflight)return swap20AuthorityInflight;
  const roster=await swapRoster();
  const manager=roster.find(row=>row.role==='manager'&&row.active&&/^\S+@\S+\.\S+$/.test(row.email||''));
@@ -899,7 +905,7 @@ async function swap20VerifyGasWriteAuthority(){
   const reply=await notificationGasCall({role:'manager',email},'writeAuthority',{},'externalswap20');
   if(reply?.ok!==true||reply.authority!=='FIRESTORE'||reply.firestoreExclusive!==true)
    return false;
-  swap20AuthorityUntil=Date.now()+10000;
+  swap20AuthorityUntil=Date.now()+120000;
   return true;
  })().catch(()=>false).finally(()=>{swap20AuthorityInflight=null;});
  return swap20AuthorityInflight;

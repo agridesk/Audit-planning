@@ -72,7 +72,21 @@ async function accessToken(){
   const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');
   accessTokenCache={token:j.access_token,expiresAt:now+(Number(j.expires_in)||300)*1000};return accessTokenCache.token;
 }
-async function sheetsBatchGet(ranges,serialDates=false){
+function sheetsBatchGet(ranges,serialDates=false){
+  return (async()=>{
+    let last;
+    for(let attempt=0;attempt<3;attempt++){
+      try{return await sheetsBatchGetOnce(ranges,serialDates)}
+      catch(error){
+        last=error;
+        if(!/^SHEETS_API_(429|500|502|503|504)\b/.test(String(error?.message||''))||attempt===2)throw error;
+        await new Promise(resolve=>setTimeout(resolve,(attempt+1)*700+Math.floor(Math.random()*300)));
+      }
+    }
+    throw last;
+  })();
+}
+async function sheetsBatchGetOnce(ranges,serialDates=false){
   const token=await accessToken(),u=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchGet');
   for(const range of ranges)u.searchParams.append('ranges',range);
   u.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');u.searchParams.set('dateTimeRenderOption',serialDates?'SERIAL_NUMBER':'FORMATTED_STRING');

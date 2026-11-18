@@ -9,6 +9,8 @@ assert.match(transport,/p\.canonicalCommitVerified!==true/);
 assert.match(transport,/journal\?\.stage!=='COMMITTED'/);
 assert.match(transport,/reader\.readPair\(\[p\.auditA,p\.auditB\]\)/);
 assert.match(transport,/readOnly:true,source:'firestore-canonical'/);
+assert.ok(!transport.includes('MULTIPLE_APPLIED_CHANGES_REQUIRES_REVIEW'),'repeat swaps of one audit must not disable the overlay');
+assert.match(transport,/String\(prev\.createdAt\|\|''\)>=String\(p\.createdAt\|\|''\)\)continue/);
 assert.match(portal,/var enrichment=loadOpenEnrichment\(seq\);var canonical=loadSwap20CanonicalGridDates\(seq\)/);
 assert.match(portal,/enrichment\.then\(function\(\)\{return loadSwap20CanonicalGridDates\(seq\)\}\)/);
 assert.match(server,/u\.pathname==='\/api\/v1\/auditor\/swap20\/canonical-grid-dates'/);

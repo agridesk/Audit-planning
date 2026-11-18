@@ -141,12 +141,12 @@ export function createSwapFirestoreDevTransport(options={}){
     if(audit?.canonical?.status!=='Accepted'||!Array.isArray(audit.canonical.plannedBlocks)||!audit.canonical.plannedBlocks.length)
      throw Error('SWAP_DIRECT_GRID_CANONICAL_AUDIT_INVALID');
     const prev=rows.get(audit.auditId);
-    if(prev&&prev.operationId!==p.operationId)throw Error('SWAP_DIRECT_GRID_MULTIPLE_APPLIED_CHANGES_REQUIRES_REVIEW');
+    if(prev&&prev.operationId!==p.operationId&&String(prev.createdAt||'')>=String(p.createdAt||''))continue;
     rows.set(audit.auditId,{auditId:audit.auditId,operationId:p.operationId,plannedBlocks:audit.canonical.plannedBlocks,
-      revision:audit.updateTime});
+      revision:audit.updateTime,createdAt:p.createdAt});
    }
   }
-  return {ok:true,readOnly:true,source:'firestore-canonical',rows:[...rows.values()]};
+  return {ok:true,readOnly:true,source:'firestore-canonical',rows:[...rows.values()].map(({createdAt,...row})=>row)};
  };
  const list=async({actor}={})=>{
   if(canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};

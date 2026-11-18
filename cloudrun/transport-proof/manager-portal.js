@@ -901,7 +901,6 @@ function swap20PaintManagerGridAlerts(){
     var id=String(tr.getAttribute('data-audit-id')||'');
     var existing=tr.querySelector('.swap20-grid-alert');
     if(existing)existing.remove();
-    if(String(actorRole).toLowerCase()!=='manager')return;
     var cases=swap20ManagerGridCases.get(id)||[];
     if(!cases.length)return;
     var target=tr.querySelector('td.alerts-cell, td.alert-cell')||tr.querySelector('td.company-cell')||tr.querySelector('td');
@@ -910,20 +909,34 @@ function swap20PaintManagerGridAlerts(){
     alert.type='button';alert.className='swap20-grid-alert';
     var seenPairs=new Set();
     var pairs=cases.filter(function(p){var key=swap20PairKey(p);if(!key||seenPairs.has(key))return false;seenPairs.add(key);return true});
-    alert.textContent=pairs.map(function(p){return '⇄ '+swap20PairDisplayNumbers.get(swap20PairKey(p))}).join(', ');
+    function pairNo(p){return p.pairNo||swap20PairDisplayNumbers.get(swap20PairKey(p))}
+    var allApplied=pairs.every(function(p){return String(p.status||'').toUpperCase()==='APPLIED'});
+    alert.textContent=pairs.map(function(p){return '⇄ '+pairNo(p)}).join(', ');
     alert.title=pairs.map(function(p){
       var first=all.find(function(r){return String(r.auditId)===String(p.auditA)})||{};
       var second=all.find(function(r){return String(r.auditId)===String(p.auditB)})||{};
-      return '⇄ '+swap20PairDisplayNumbers.get(swap20PairKey(p))+' · '+String(first.company||'Company not in current grid')+' ↔ '+String(second.company||'Company not in current grid')+' · '+String(p.status||'');
+      return '⇄ '+pairNo(p)+' · '+String(first.company||'Company not in current grid')+' ↔ '+String(second.company||'Company not in current grid')+' · '+String(p.status||'');
     }).join('; ');
     alert.setAttribute('aria-label','Open SWAP case for this audit');
-    alert.style.cssText='margin-left:6px;padding:2px 6px;border:1px solid #b91c1c;border-radius:5px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;cursor:pointer';
-    alert.onclick=function(){document.getElementById('managerSwapInbox20')?.click()};
+    alert.style.cssText='margin-left:6px;padding:2px 6px;    border:1px solid '+(allApplied?'#94a3b8':'#b91c1c')+';border-radius:5px;background:'+(allApplied?'#f1f5f9':'#fee2e2')+';color:'+(allApplied?'#475569':'#991b1b')+';font-size:11px;font-weight:700;cursor:pointer';
+        alert.onclick=function(){document.getElementById(String(actorRole).toLowerCase()==='manager'?'managerSwapInbox20':'auditorSwapInbox20')?.click()};
     target.appendChild(alert);
   });
 }
-function swap20SetManagerGridCases(items){
+function swap20SetManagerGridCases(items,markers){
   var next=new Map();
+  if(Array.isArray(markers)){
+    markers.forEach(function(p){
+      [p.auditA,p.auditB].forEach(function(id){
+        id=String(id||'').trim();if(!id)return;
+        if(!next.has(id))next.set(id,[]);
+        next.get(id).push(p);
+      });
+    });
+    swap20ManagerGridCases=next;
+    swap20PaintManagerGridAlerts();
+    return;
+  }
   (Array.isArray(items)?items:[]).forEach(function(p){
     if(!['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].includes(String(p.status||'').toUpperCase()))return;
     [p.auditA,p.auditB].forEach(function(id){
@@ -958,7 +971,7 @@ async function swap20RefreshAttentionOnce(){
     // Badge polling must not reuse the inbox's local 12-second snapshot.
     var result=await swap20GridFetch(role,"list",{});
     var items=Array.isArray(result.items)?result.items:[];
-    if(role==="manager")swap20SetManagerGridCases(items);
+    if(role==="manager"||Array.isArray(result.pairMarkers))swap20SetManagerGridCases(items,result.pairMarkers);
     var count=role==="manager"?items.filter(function(p){return ["AWAITING_ACKNOWLEDGEMENT","ESCALATED","CONFIRMED","DECLINED"].includes(p.status);}).length:
       items.filter(function(p){return !p.acknowledged;}).length;
     // The server's total may include records beyond the paginated inbox.
@@ -986,7 +999,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
     try{
       var result=await swap20GridRequest("manager","list",{});
       var proposals=(Array.isArray(result.items)?result.items:[]).filter(function(p){return !swap20CommitConfirmed20.has(String(p.operationId||''))});
-      swap20SetManagerGridCases(proposals);
+      swap20SetManagerGridCases(proposals,result.pairMarkers);
       swap20BadgeUpdate("manager",result.attentionCount||0);
       var managerActions=proposals.filter(function(p){return p.status==="CONFIRMED"&&p.commitEnabled!==false;}).length;
       status.textContent=proposals.length+" open date change request(s); "+managerActions+" ready for manager action.";

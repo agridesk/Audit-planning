@@ -128,7 +128,12 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
       createdAt:p.createdAt||'',afterA:p.blocksA||[],afterB:p.blocksB||[],
       ecasComment:p.ecasComment||'',dateChanged:p.dateChanged===true,
       acknowledged:p.acknowledgedAuditorUids.includes(uid)});
-  return {ok:true,readOnly:true,source:'firestore-canonical',items,
+  const markerCutoff=new Date(Date.now()-7*24*3600*1000).toISOString();
+  const markerSource=all.filter(p=>p.migrationVerified!==false&&p.migrationState!=='STAGED_FROM_GAS')
+   .filter(p=>(['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED'].includes(p.status)||(actor.role==='manager'&&p.status==='DECLINED')||(p.status==='APPLIED'&&String(p.createdAt||'')>=markerCutoff))&&(actor.role==='manager'||p.requiredAuditorUids.includes(uid)));
+  markerSource.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.operationId).localeCompare(String(b.operationId)));
+  const pairMarkers=markerSource.slice(-100).map((p,i)=>({operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,status:p.status,pairNo:i+1}));
+  return {ok:true,readOnly:true,source:'firestore-canonical',items,pairMarkers,
    attentionCount:actor.role==='manager'?relevant.length:relevant.filter(p=>!p.acknowledgedAuditorUids.includes(uid)).length};
  }
  async function respond({operationId,decision,actor,authorizeAuditor}={}){

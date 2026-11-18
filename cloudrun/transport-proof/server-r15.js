@@ -20,6 +20,7 @@ import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
 import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
+import {resolveSwapExpectedAvailabilityDocuments} from './swap-expected-availability-count-20.mjs';
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 
 import {URL} from 'node:url';
@@ -903,7 +904,7 @@ async function swap20VerifyGasWriteAuthority(){
  })().catch(()=>false).finally(()=>{swap20AuthorityInflight=null;});
  return swap20AuthorityInflight;
 }
-const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',proposalEnabled:process.env.AMS_SWAP20_DIRECT_PROPOSAL_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:27,verifySourceFreeze:swap20VerifyGasWriteAuthority,
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',proposalEnabled:process.env.AMS_SWAP20_DIRECT_PROPOSAL_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:resolveSwapExpectedAvailabilityDocuments(process.env),verifySourceFreeze:swap20VerifyGasWriteAuthority,
  authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId),
  resolveCanonicalAuditorUids:async({owners})=>{
   const roster=await swapRoster();

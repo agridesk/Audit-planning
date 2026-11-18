@@ -693,7 +693,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       '<p id="swap20Feedback" role="status" aria-live="polite"></p>'+
       '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
       '<button type="button" id="swap20CreateProposal" hidden>Submit date change request</button>'+
-      '<button type="button" id="swap20RefreshStatus" hidden>Refresh request status</button>'+
+      '<button type="button" id="swap20RefreshStatus" hidden style="display:none">Refresh request status</button>'+
       '<button type="button" id="swap20Apply" hidden>Apply date exchange</button>'+
       '<button type="button" id="swap20Withdraw" hidden>Withdraw request</button>'+
       '<button type="button" id="swap20Close">Close</button></div>';
@@ -795,7 +795,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
     finally{busy=false;refresh.disabled=false;}
   };
   apply.onclick=async function(){
-    if(busy||!submitted||apply.hidden||!window.confirm("Apply this SWAP in DEV? Both Accepted audits will exchange time slots."))return;
+    if(busy||!submitted||apply.hidden)return;
     busy=true;apply.disabled=true;feedback.textContent="Verifying and committing the paired SWAP...";
     try{
       var outcome=await swapRequest("commit",{operationId:requestId});
@@ -912,6 +912,8 @@ function swap20PaintManagerGridAlerts(){
     var seenPairs=new Set();
     var pairs=cases.filter(function(p){var key=swap20PairKey(p);if(!key||seenPairs.has(key))return false;seenPairs.add(key);return true});
     function pairNo(p){return p.pairNo||swap20PairDisplayNumbers.get(swap20PairKey(p))}
+    pairs.sort(function(a,b){return Number(pairNo(b))-Number(pairNo(a))});
+    pairs=pairs.slice(0,1);
     var allApplied=pairs.every(function(p){return String(p.status||'').toUpperCase()==='APPLIED'});
     alert.textContent=pairs.map(function(p){return '⇄ '+pairNo(p)}).join(', ');
     alert.title=pairs.map(function(p){
@@ -920,7 +922,7 @@ function swap20PaintManagerGridAlerts(){
       return '⇄ '+pairNo(p)+' · '+String(first.company||'Company not in current grid')+' ↔ '+String(second.company||'Company not in current grid')+' · '+String(p.status||'');
     }).join('; ');
     alert.setAttribute('aria-label','Open SWAP case for this audit');
-    alert.style.cssText='margin-left:6px;padding:2px 6px;    border:1px solid '+(allApplied?'#94a3b8':'#b91c1c')+';border-radius:5px;background:'+(allApplied?'#f1f5f9':'#fee2e2')+';color:'+(allApplied?'#475569':'#991b1b')+';font-size:11px;font-weight:700;cursor:pointer';
+    alert.style.cssText='margin-left:6px;white-space:nowrap;display:inline-block;padding:2px 6px;    border:1px solid '+(allApplied?'#94a3b8':'#b91c1c')+';border-radius:5px;background:'+(allApplied?'#f1f5f9':'#fee2e2')+';color:'+(allApplied?'#475569':'#991b1b')+';font-size:11px;font-weight:700;cursor:pointer';
         alert.onclick=function(){document.getElementById(String(actorRole).toLowerCase()==='manager'?'managerSwapInbox20':'auditorSwapInbox20')?.click()};
     target.appendChild(alert);
   });
@@ -1018,7 +1020,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         info("Operation ID:",p.operationId);info("Auditor confirmations:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
         info("Internal reason:",p.internalReason);info("Explanation for participants:",p.ecasComment);
         if(p.status==="CONFIRMED"){
-          var inspect=document.createElement("button");inspect.type="button";inspect.textContent="Inspect journal (read-only)";inspect.style.marginLeft="8px";inspect.onclick=async function(){inspect.disabled=true;try{var v=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent="Canonical: "+String(v.status||"UNKNOWN")+" | Journal: "+String(v.journalStage||"UNAVAILABLE (GAS bridge not updated)")+" | Sequence: "+String(v.journalSequence??"unavailable")+" | Manual review: "+String(v.journalRequiresManualReview==null?"unknown":v.journalRequiresManualReview===true)+" | Commit enabled: "+String(v.commitEnabled===true);}catch(e){status.textContent="Journal inspection failed: "+String(e&&e.message||e).slice(0,120);}finally{inspect.disabled=false;}};card.appendChild(inspect);
+          var inspect=document.createElement("button");inspect.type="button";inspect.textContent="Inspect journal (read-only)";inspect.style.marginLeft="8px";inspect.onclick=async function(){inspect.disabled=true;try{var v=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent="Canonical: "+String(v.status||"UNKNOWN")+" | Journal: "+String(v.journalStage||"UNAVAILABLE (GAS bridge not updated)")+" | Sequence: "+String(v.journalSequence??"unavailable")+" | Manual review: "+String(v.journalRequiresManualReview==null?"unknown":v.journalRequiresManualReview===true)+" | Commit enabled: "+String(v.commitEnabled===true);}catch(e){status.textContent="Journal inspection failed: "+String(e&&e.message||e).slice(0,120);}finally{inspect.disabled=false;}};
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange";
           apply.style.marginLeft="8px";
           if(swap20CommitAttempted20.has(String(p.operationId))){apply.disabled=true;apply.title="Previous commit outcome uncertain. Inspect canonical journal; do not retry in this session.";}
@@ -1034,7 +1036,6 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               }
             }catch(precheckError){status.textContent="Date exchange blocked: read-only journal verification failed ("+String(precheckError&&precheckError.message||precheckError).slice(0,100)+").";return;}
             finally{apply.disabled=false;}
-            if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
             swap20CommitAttempted20.add(String(p.operationId));
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
             var committed=false,commitProblem="",commitPerformance=null;

@@ -1572,7 +1572,8 @@ http.createServer(async(req,res)=>{
    legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true',
    atomicPlanningEnabled:planningAtomicEnabled,
    swapDirectRouteEnabled:swap20DirectRouteEnabled,
-   swapProposalRouteEnabled:swap20ProposalRouteEnabled
+   swapProposalRouteEnabled:swap20ProposalRouteEnabled,
+  swapDirectWriteRoutesEnabled:process.env.AMS_SWAP20_DIRECT_WRITE_ROUTES_ENABLED==='true'
   });
   if(!cutoverFreeze.allow){
    res.writeHead(cutoverFreeze.status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

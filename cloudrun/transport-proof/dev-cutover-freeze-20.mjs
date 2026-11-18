@@ -6,6 +6,8 @@ import {planningAtomicOwnedHttpRoutes20} from './planning-atomic-cutover-guard-2
 
 const swapDirectReadRoutes=new Set(["/api/v1/manager/swap20/canonical-grid-dates","/api/v1/auditor/swap20/canonical-grid-dates","/api/v1/manager/swap20/list","/api/v1/auditor/swap20/list"]);
 
+const swapDirectWriteRoutes=new Set(['/api/v1/manager/swap20/withdraw','/api/v1/manager/swap20/commit','/api/v1/auditor/swap20/respond']);
+
 const swapReadOnlyRoutes=new Set([
  '/api/v1/manager/swap20/preview',
  '/api/v1/manager/swap20/eligible',
@@ -15,7 +17,7 @@ const swapReadOnlyRoutes=new Set([
 
 ]);
 
-export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false,swapProposalRouteEnabled=false}={}){
+export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,backfillWriteEnabled,legacyWritersFrozen,atomicPlanningEnabled=false,swapDirectRouteEnabled=false,swapProposalRouteEnabled=false,swapDirectWriteRoutesEnabled=false}={}){
  if(isDev!==true||freezeEnabled!==true)return {allow:true};
  const verb=String(method||'').toUpperCase();
  if(['GET','HEAD','OPTIONS'].includes(verb))return {allow:true};
@@ -24,6 +26,8 @@ export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,back
  if(atomicPlanningEnabled===true&&verb==='POST'&&swapDirectReadRoutes.has(path))return {allow:true};
  if(atomicPlanningEnabled===true&&swapProposalRouteEnabled===true&&verb==='POST'&&
     ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/status'].includes(path))return {allow:true};
+ if(atomicPlanningEnabled===true&&swapDirectRouteEnabled===true&&swapDirectWriteRoutesEnabled===true&&verb==='POST'&&
+    swapDirectWriteRoutes.has(path))return {allow:true};
  // These POSTs are reads through the direct Firestore transport.
  if(atomicPlanningEnabled===true&&swapDirectRouteEnabled===true&&verb==='POST'&&swapReadOnlyRoutes.has(path))
   return {allow:true};

@@ -10,7 +10,7 @@ vm.runInNewContext(src.slice(first,last)+'\nthis.inspect=function(items){swap20A
 const items=[{auditA:'A',auditB:'B'},{auditA:'D',auditB:'C'},{auditA:'B',auditB:'A'}];
 assert.deepEqual(Array.from(sandbox.inspect(items)),[1,2,1]);
 assert.deepEqual(Array.from(sandbox.inspect([items[2],items[1],items[0]])),[1,2,1]);
-assert(src.includes("return '⇄ '+swap20PairDisplayNumbers.get"),'Per-pair indicator');
+assert(src.includes("function pairNo(p){return p.pairNo||swap20PairDisplayNumbers.get(swap20PairKey(p))}"),'Per-pair indicator');
 assert(src.includes("String(first.company||'Company not in current grid')"),'Hover identifies first company');
 assert(src.includes("String(second.company||'Company not in current grid')"),'Hover identifies second company');
 assert(!src.includes("alert.textContent='SWAP '+cases.length"),'Old per-audit count removed');

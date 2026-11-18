@@ -140,6 +140,8 @@ assert.equal(managerInbox.items[0].internalReason,'Controlled DEV fixture');
 const auditorInbox=await liveIsolated.list({actor:{role:'auditor',email:'a@example.test'}});
 assert.equal(auditorInbox.ok,true);
 assert.equal(auditorInbox.items.length,0,'Confirmed proposals must not remain in auditor pending inbox');
+assert.deepEqual(managerInbox.pairMarkers.map(m=>[m.auditA,m.auditB,m.pairNo,m.status]),[['A','B',1,'CONFIRMED']]);
+assert.deepEqual(auditorInbox.pairMarkers.map(m=>[m.pairNo]),[[1]],'Auditor sees markers for own pairs');
 assert.deepEqual(await disabledTransport.list({actor:{role:'manager',email:'manager@example.test'}}),{ok:false,code:'SWAP_DIRECT_LIST_DISABLED'});
 const directStatus=await liveIsolated.getProposal({operationId:'test_direct_12345678',actor:{role:'manager',email:'manager@example.test'}});
 assert.equal(directStatus.status,'CONFIRMED');

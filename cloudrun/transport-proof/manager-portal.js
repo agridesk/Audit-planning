@@ -803,6 +803,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       showStatus(outcome);
       selectionClear();
       await loadOpen();
+      setTimeout(function(){try{panel.close()}catch(_){}},1800);
     }catch(error){feedback.textContent="SWAP not confirmed: "+String(error.message||error);}
     finally{busy=false;apply.disabled=true;}
   };
@@ -813,6 +814,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       var result=await swapRequest("withdraw",{operationId:requestId});
       feedback.textContent="Date change request withdrawn. The audit dates have not been changed.";
       refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;
+      setTimeout(function(){try{panel.close()}catch(_){}},1800);
     }catch(error){feedback.textContent=String(error.message||error);withdraw.disabled=false;}
     finally{busy=false;}
   };
@@ -1068,6 +1070,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               status.textContent=refreshProblems.length
                 ?"Date exchange committed. Refresh unavailable ("+refreshProblems.join(", ")+"); reload the overview. Do not repeat the exchange."
                 :"Date exchange committed. The audit grid has been refreshed.";
+              if(!refreshProblems.length)setTimeout(function(){try{panel.close()}catch(_){}},1800);
               if(commitPerformance){
                 var metrics=["total","availabilityWrite","canonicalWrite","verification"].map(function(k){return k+"="+String(commitPerformance[k]??"?")+"ms";});
                 var swapLiveStatus=document.getElementById("status");
@@ -1165,6 +1168,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
               message.textContent="Response saved: "+String(outcome.status||"");
               swap20RefreshAttention();
               await reload();
+              if(!items.childElementCount)setTimeout(function(){try{panel.close()}catch(_){}},1800);
             }catch(error){
               message.textContent="Your response could not be confirmed. Refresh the request before trying again.";
               ack.disabled=false;decline.disabled=false;

@@ -20,7 +20,16 @@ const project={async apply(){if(failed)throw Error('PROJECTOR_TIMEOUT')},async i
 const append={async apply(){appendCount++},async inspect(){appendInspectStarted=true;return {state:'MATCH',count:1}}};
 const service=createPlanningLifecycleAtomicService({atomicStore:state,gate,projector:project,appendProjector:append,preflight:async()=>{await Promise.resolve();assert.equal(auditReadStarted,true,'preflight and audit read start together');return preview},roster:async()=>[{auditorId:'uid1',email:'aud@example.test',role:'auditor'}]});
 const req={actor:{role:'manager',auditorId:'manager1'},body:{auditId:'a1',expectedRevision:'oldrev'},action:'ACCEPT'};
-const first=await service.commit(req);
+let committedReceipt;
+const first=await service.commit({...req,onCommitted(receipt){
+ committedReceipt={...receipt,state:outbox.get(receipt.operationId)?.state,appendCount,gateHeld:Boolean(lock)};
+ throw Error('BROWSER_CONNECTION_LOST');
+}});
+assert.equal(committedReceipt.state,'PENDING');
+assert.equal(committedReceipt.status,'ACCEPTED');
+assert.equal(committedReceipt.appendCount,0);
+assert.equal(committedReceipt.gateHeld,true);
+assert.equal(first.sourceRevision,'newrev');
 assert.equal(first.success,true);assert.equal(writes,1);assert.equal(appendCount,1);assert.equal(lock,null);
 assert.equal((await service.commit(req)).idempotent,true);
 assert.equal(writes,1);

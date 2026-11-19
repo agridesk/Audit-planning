@@ -27,3 +27,12 @@ export function resolveManagerApprovalRecipient20({assigned='',assignedUid='',au
   if(!emailValid(recipient))throw Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
   return recipient;
 }
+
+export function managerApprovalBlocks20(raw){
+  let plan;
+  try{plan=JSON.parse(raw);}catch{return [];}
+  const blocks=Array.isArray(plan)?plan:(plan?.blocks??plan?.days);
+  if(!Array.isArray(blocks)||!blocks.length)return [];
+  const time=value=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+  return blocks.every(b=>/^\d{4}-\d{2}-\d{2}$/.test(b?.date)&&time(b?.start)&&time(b?.end)&&b.end>b.start)?blocks:[];
+}

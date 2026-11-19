@@ -29,7 +29,7 @@ assert.match(r4,/appendIntents:\[\{range:'Diagnostics_Log!A:K',values:\[\[stamp,
 assert.match(r15,/createPlanningMultiLifecycleService\(/);
 assert.match(r15,/createPlanningAtomicTransferService\(/);
 assert.match(r15,/planningAtomicTransfer\.commit\(/);
-assert.match(r15,/\['COMPLETE','REJECT'\]\.includes\(action\)\?await planningMultiLifecycle\.commit/);
+assert.match(r15,/\['COMPLETE','REJECT'\]\.includes\(action\)\?planningMultiLifecycle:planningAtomicLifecycle/);
 assert.match(r15,/validatePlanningAtomicRuntime20\(/);
 assert.match(r15,/\/api\/v1\/planning\/atomic-claims-parity/);
 assert.match(r15,/\/api\/v1\/planning\/atomic-cutover-evidence/);

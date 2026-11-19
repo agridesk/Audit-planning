@@ -477,10 +477,11 @@ const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomi
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body,action})=>{
-  const route=actor.role==='auditor'&&action==='ACCEPT'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  const route=actor.role==='auditor'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
   if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
   const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}: {})},body:JSON.stringify(body)});
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}: {})},
+   body:JSON.stringify(actor.role==='auditor'?{...body,action}:body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
@@ -517,6 +518,32 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
   return data;
  }
 }):null;
+async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
+ const service=['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
+ const stream=runtime.isDev&&req.headers.accept==='application/x-ndjson'
+  &&['/api/v1/manager/action','/api/v1/auditor/action'].includes(String(req.url||'').split('?')[0]);
+ let receiptSent=false;
+ const result=await service.commit({actor,body,action,onCommitted:stream?receipt=>{
+  if(res.destroyed)return;
+  res.writeHead(200,{'content-type':'application/x-ndjson; charset=utf-8','cache-control':'no-store'});
+  receiptSent=true;
+  res.write(JSON.stringify({type:'COMMITTED',...receipt})+'\n');
+ }:undefined}).catch(error=>{
+  if(!receiptSent)throw error;
+  console.error('[AMS_LIFECYCLE_PROJECTION_ERROR]',JSON.stringify({action,errorCode:String(error?.message||'UNKNOWN').slice(0,140)}));
+  if(!res.destroyed)res.end(JSON.stringify({type:'SYNC_UNCONFIRMED'})+'\n');
+  return null;
+ });
+ if(!result)return;
+ planningCache.invalidate();
+ if(res.destroyed)return;
+ if(receiptSent){
+  res.end(JSON.stringify({type:'PROJECTED',result})+'\n');
+ }else{
+  res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify(result));
+ }
+}
 const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferService({
  store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body})=>{
@@ -1691,9 +1718,7 @@ http.createServer(async(req,res)=>{
    const action=String(body.action||'').toUpperCase();
    if(!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
    const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
-   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:actorCtx,body,action});return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&(atomicLifecyclePaths[u.pathname]||u.pathname==='/api/v1/manager/action')){
    const actor=await session(req);
@@ -1703,9 +1728,7 @@ http.createServer(async(req,res)=>{
    const action=atomicLifecyclePaths[u.pathname]||(u.pathname==='/api/v1/manager/action'?String(body?.action||'').trim().toUpperCase():null);
    if(!['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_ACTION_NOT_MIGRATED');
    const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
-   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:actorCtx,body,action});return;
   }
   if(req.method==='POST'&&planningAtomicTransfer&&u.pathname==='/api/v1/manager/auditor-management/audit/transfer'){
    const actor=await session(req);

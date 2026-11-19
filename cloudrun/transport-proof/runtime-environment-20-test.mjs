@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {resolveAmsRuntimeConfig as resolve,canonicalDevEntry20} from './runtime-environment-20.mjs';
 const dev='audit-management-system-dev';
 const base={DEV_SSOT_SPREADSHEET_ID:'dev-sheet'};
-assert.deepEqual(resolve(base,dev),{mode:'DEV',project:dev,spreadsheet:'dev-sheet',isDev:true});
+assert.deepEqual(resolve(base,dev),{mode:'DEV',project:dev,spreadsheet:'dev-sheet',isDev:true,origin:'https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'});
 assert.throws(()=>resolve(base,'other'),/DEV_PROJECT_ONLY/);
 assert.throws(()=>resolve({},dev),/DEV_SHEET_REQUIRED/);
 assert.throws(()=>resolve({...base,AMS_RUNTIME_ENV:'UNEXPECTED'},dev),/RUNTIME_ENV_INVALID/);

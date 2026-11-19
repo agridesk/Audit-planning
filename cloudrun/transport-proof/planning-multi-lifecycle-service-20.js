@@ -9,7 +9,7 @@ const str=x=>String(x??'').trim();
 const norm=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
 export function createPlanningMultiLifecycleService({atomicStore,gate,projector,appendProjector,preflight}={}){
  if(typeof atomicStore?.commitMulti!=='function'||typeof atomicStore?.readAudit!=='function'||typeof atomicStore?.readOutbox!=='function'||typeof atomicStore?.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof preflight!=='function')throw Error('PLANNING_MULTI_SERVICE_CONFIG_INVALID');
- async function commit({actor,body,action}){
+ async function commit({actor,body,action,onCommitted}){
   action=norm(action);
   if(actor?.role!=='manager'&&actor?.role!=='auditor'||action!=='COMPLETE'&&action!=='REJECT'||actor.role==='auditor'&&action!=='COMPLETE'||!str(actor.auditorId)||!str(body?.auditId))throw Error('PLANNING_MULTI_ACTION_FORBIDDEN');
   const auditId=str(body.auditId),operationId=digest({auditId,action,body,actorId:actor.auditorId});
@@ -45,6 +45,11 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
    const accepted=await measure('commitMs',()=>atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan}));
    committed=true;
    if(accepted.replayed)throw Error('PLANNING_MULTI_UNEXPECTED_REPLAY');
+   // The receipt is observational. A lost client connection cannot interrupt projection.
+   if(onCommitted){
+    try{onCommitted({auditId,operationId,action,status:expectedStatus});}
+    catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
+   }
    await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan}));
    await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:plan.appendIntents}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([projector.inspect(plan),appendProjector.inspect(plan.appendIntents)]));

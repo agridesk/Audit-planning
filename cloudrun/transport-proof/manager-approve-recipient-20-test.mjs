@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {resolveManagerApprovalRecipient20 as resolve} from './manager-approve-recipient-20.mjs';
+import {managerApprovalBlocks20,resolveManagerApprovalRecipient20 as resolve} from './manager-approve-recipient-20.mjs';
 const headers=['Auditor_UID','E-mail','Name'];
 const rows=[headers,['uid-1','new@example.test','Auditor One'],['uid-2','other@example.test','Auditor Two']];
 assert.equal(resolve({assigned:'old@example.test',assignedUid:'uid-1',auditorValues:rows}),'new@example.test');
@@ -17,10 +17,15 @@ const source=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const start=source.indexOf('async function directManagerApprove('),end=source.indexOf('let directAcceptSheetIdsCache20=',start);
 assert.ok(start>=0&&end>start);
 const handler=source.slice(start,end);
-assert.match(source,/import \{resolveManagerApprovalRecipient20\} from '\.\/manager-approve-recipient-20\.mjs'/);
+assert.match(source,/import \{[^}]*\bresolveManagerApprovalRecipient20\b[^}]*\} from '\.\/manager-approve-recipient-20\.mjs'/);
 assert.match(handler,/resolveManagerApprovalRecipient20\(/);
 assert.match(handler,/beforeKey!=='PENDING_APPROVAL'/);
 assert.match(handler,/set\(\['Status'\],'Accepted'\)/);
 assert.match(handler,/recipientEmail,resultStatus:'Accepted'/);
 assert.ok(handler.indexOf('resolveManagerApprovalRecipient20(')<handler.indexOf("set(['Status'],'Accepted')"));
 console.log('Manager approve recipient behavior + integration contract PASS (16)');
+
+const slot={date:'2026-12-01',start:'09:00',end:'12:00'};
+assert.deepEqual(managerApprovalBlocks20(JSON.stringify({blocks:[slot]})),[slot]);
+assert.deepEqual(managerApprovalBlocks20(JSON.stringify({formalHours:9})),[]);
+assert.deepEqual(managerApprovalBlocks20(JSON.stringify({blocks:[{...slot,end:'08:00'}]})),[]);

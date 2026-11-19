@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
@@ -67,3 +69,37 @@ const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
 if(failed.length)process.exit(1);
 console.log('manager-action-micro-refresh-test passed');
+
+const transportStart=manager.indexOf('async function runActionViaCloudRun(');
+const transportEnd=manager.indexOf('function removeCompletedRowInPlace',transportStart);
+assert.ok(transportStart>=0&&transportEnd>transportStart);
+const transport=manager.slice(transportStart,transportEnd);
+const encode=new TextEncoder();
+const committed={type:'COMMITTED',auditId:'a1',action:'ACCEPT',status:'ACCEPTED',operationId:'op'};
+const projected={type:'PROJECTED',result:{success:true,auditId:'a1',action:'ACCEPT',projection:'PROJECTED'}};
+const firstFrame=JSON.stringify(committed)+'\n';
+function transportTest(finalFrame){
+ let notifications=0, reads=0, released=false;
+ const chunks=[firstFrame.slice(0,11),firstFrame.slice(11),finalFrame];
+ const ctx=vm.createContext({actorRole:'Manager',performance,TextDecoder,
+  fetch:async(_url,options)=>{
+   assert.equal(options.headers.accept,'application/x-ndjson');
+   return {ok:true,headers:new Headers({'content-type':'application/x-ndjson'}),
+    body:{getReader(){return {async read(){
+     if(reads===2)assert.equal(notifications,1,'Commit acknowledgement arrives before projection');
+     return reads<chunks.length?{value:encode.encode(chunks[reads++])}:{done:true};
+    },releaseLock(){released=true;}};}}};
+  }});
+ vm.runInContext(transport,ctx);
+ const response=ctx.runActionViaCloudRun('a1','accept',{},receipt=>{
+  notifications++;
+  assert.equal(receipt.operationId,'op');
+ });
+ return {response,didRelease:()=>released};
+}
+const successful=transportTest(JSON.stringify(projected)+'\n');
+assert.equal((await successful.response).result.projection,'PROJECTED');
+assert.equal(successful.didRelease(),true);
+const syncFailure=transportTest('{"type":"SYNC_UNCONFIRMED"}\n');
+await assert.rejects(syncFailure.response,/LIFECYCLE_SYNC_UNCONFIRMED/);
+assert.equal(syncFailure.didRelease(),true);

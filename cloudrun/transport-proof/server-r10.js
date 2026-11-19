@@ -1,3 +1,4 @@
+import {managerApprovalBlocks20,resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
 import http from 'node:http';
 import {URL} from 'node:url';
 import crypto from 'node:crypto';
@@ -150,7 +151,21 @@ async function enrichManagerOpen(obj,datasets){const rows=obj?.rows;if(!Array.is
    r.extLinkedObligationCount=linked.length;
    r.extDirectActionAvailable=linked.length===1&&records.length===1&&(records[0].canApply||records[0].canUndo);
    r.extDossierAvailable=linked.length>0&&records.length===linked.length;
-  }const extMonths=managerExtensionMonthsForAudit(h,source.row,extensionCatalog);r.extMonths=extMonths;r.extensionMonths=extMonths;r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId));if(r.statusKey==='PENDING_PLANNING'){r.hoursPlanned='';r.plannedHours='';hoursEnriched++;continue;}const j=parseJson(val(source.row,cp)),formal=formalHours(j,r.requiredHours);if(formal!=null){r.hoursPlanned=Math.round(formal*100)/100;r.plannedHours=r.hoursPlanned;}hoursEnriched++;}obj.hoursSemantics={build:BUILD,enriched:hoursEnriched,formalField:'hoursPlanned',planningTarget:'formalHours'};obj.actionCommunication={build:BUILD,enriched:commentsEnriched,canonicalFields:['Manager comment (last)','Auditor comment (last)']};return obj;}
+  }const extMonths=managerExtensionMonthsForAudit(h,source.row,extensionCatalog);r.extMonths=extMonths;r.extensionMonths=extMonths;r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId));if(r.statusKey==='PENDING_PLANNING'){r.hoursPlanned='';r.plannedHours='';hoursEnriched++;continue;}const rawPlanning=val(source.row,cp);
+  const plannedDate=dateOnly(val(source.row,col(h,['Date - Planned','Date – Planned','Date planned','Date Planned'])));
+  const hasSavedPlan=Boolean(plannedDate&&managerApprovalBlocks20(rawPlanning).length);
+  const formal=hasSavedPlan?formalHours(parseJson(rawPlanning),r.requiredHours):null;
+  r.hoursPlanned=formal==null?'':Math.round(formal*100)/100;
+  r.plannedHours=r.hoursPlanned;
+  if(!auditorMode&&r.allowedActions.includes('APPROVE')){
+   try{
+    if(!hasSavedPlan)throw Error('APPROVE_SAVED_PLANNING_REQUIRED');
+    resolveManagerApprovalRecipient20({assigned:val(source.row,col(h,['Assigned to','Assigned auditor','Assigned'])),
+     assignedUid:val(source.row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID'])),auditorValues:audValues});
+   }catch{r.allowedActions=r.allowedActions.filter(action=>action!=='APPROVE');}
+  }
+  hoursEnriched++;
+ }obj.hoursSemantics={build:BUILD,enriched:hoursEnriched,formalField:'hoursPlanned',planningTarget:'formalHours'};obj.actionCommunication={build:BUILD,enriched:commentsEnriched,canonicalFields:['Manager comment (last)','Auditor comment (last)']};return obj;}
 async function readAuditPatch(auditId,sourceRow){const started=Date.now(),[headerRows,scopeValues,audValues]=await Promise.all([sheetValues('Audit planning!A1:BW1'),sheetValues('Config_Scopes!A1:Z128'),sheetValues('Auditors!A1:Z256')]),header=headerRows[0]||[];let row=[],rowNo=Number(sourceRow)||0;const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(rowNo>1){row=(await sheetValues('Audit planning!A'+rowNo+':BW'+rowNo))[0]||[];if(val(row,ci)!==auditId){row=[];rowNo=0;}}if(!row.length){const rows=await sheetValues('Audit planning!A2:BW483');for(let i=0;i<rows.length;i++){if(val(rows[i],ci)===auditId){row=rows[i];rowNo=i+2;break;}}}if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-started,build:BUILD};const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=normalizeStatus(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'));let planningJson=g(['Planning JSON','Planning_JSON']),j=parseJson(planningJson),formal=formalHours(j,required),assigned=g(['Assigned to','Assigned auditor','Auditor']),display=managerAuditorDisplayMap(audValues).get(clean(assigned).toLowerCase())||assigned;if(k==='PENDING_PLANNING'){planningJson='';formal=null;assigned='';display='';}return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,assignedToDisplayName:display,auditorDisplayName:display,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:formal==null?'':Math.round(formal*100)/100,plannedHours:formal==null?'':Math.round(formal*100)/100,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-started,build:BUILD};}
 async function callGasBridge(identity,route,payload){
   const started=Date.now();

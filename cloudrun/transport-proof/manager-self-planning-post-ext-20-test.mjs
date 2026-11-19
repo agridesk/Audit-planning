@@ -10,12 +10,12 @@ const body=src.slice(a,b);
 const auditId='AUD_POST_EXT';
 const run=async ({freshRevision='rev-after-extension',freshValue='No',status='PENDING_PLANNING',writeOk=true,missing=false}={})=>{
  const calls=[],alerts=[],patches=[],button={disabled:false,getAttribute:k=>k==='data-audit-id'?auditId:k==='data-next'?'true':''};
- const ctx={button,all:[{auditId,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
+ const ctx={button,URLSearchParams,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
   busyAudits:new Set(),window:{alert:t=>alerts.push(t)},
   mergeRowInPlace:(id,p)=>patches.push({id,...p}),
   fetch:async (url,options)=>{
    calls.push({url,options});
-   if(url==='/api/v1/manager/open')return {ok:true,json:async()=>({success:true,rows:[{auditId,statusKey:status,sourceRevision:missing?'':freshRevision,allowSelfPlanning:freshValue}]})};
+   if(url.startsWith('/api/v1/manager/self-planning-state?'))return {ok:true,json:async()=>({success:true,auditId,statusKey:status,sourceRevision:missing?'':freshRevision,allowSelfPlanning:freshValue})};
    if(url==='/api/v1/manager/self-planning-direct')return {ok:writeOk,json:async()=>writeOk?({success:true,sourceRevision:'rev-next',allowSelfPlanning:true}):({success:false,error:'CAS_CONFLICT'})};
    throw Error('Unexpected URL');
   }};
@@ -26,7 +26,7 @@ const run=async ({freshRevision='rev-after-extension',freshValue='No',status='PE
 const good=await run();
 assert.equal(good.alerts.length,0);
 assert.equal(good.calls.length,2);
-assert.equal(good.calls[0].url,'/api/v1/manager/open');
+assert.equal(good.calls[0].url,'/api/v1/manager/self-planning-state?auditId=AUD_POST_EXT&sourceRow=42');
 assert.equal(JSON.parse(good.calls[1].options.body).expectedRevision,'rev-after-extension');
 assert.equal(good.patches[0].sourceRevision,'rev-next');
 assert.equal(good.button.disabled,false);

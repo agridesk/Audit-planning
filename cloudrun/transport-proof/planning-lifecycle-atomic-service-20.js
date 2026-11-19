@@ -11,7 +11,7 @@ const norm=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
 const actions=new Set(['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE']);
 export function createPlanningLifecycleAtomicService({atomicStore,gate,projector,appendProjector,preflight,roster}={}){
  if(typeof atomicStore?.commit!=='function'||typeof atomicStore?.readAudit!=='function'||typeof atomicStore?.markProjected!=='function'||typeof atomicStore?.readOutbox!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof preflight!=='function'||typeof roster!=='function')throw Error('LIFECYCLE_ATOMIC_CONFIG_INVALID');
- async function commit({actor,body,action}){
+ async function commit({actor,body,action,onCommitted}){
   action=norm(action);
   if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
   if(['REJECT','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED');
@@ -21,7 +21,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   const replay=await measure('priorMs',()=>atomicStore.readOutbox(operationId));
   if(replay){
    if(replay.auditId!==auditId||replay.actorId!==actor.auditorId||replay.action!==action)throw Error('LIFECYCLE_ATOMIC_REPLAY_IDENTITY_CONFLICT');
-   if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,action,authority:'FIRESTORE',projection:'PROJECTED'};
+   if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,action,sourceRevision:replay.snapshot?.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED'};
    throw Error('LIFECYCLE_ATOMIC_RECOVERY_REQUIRED');
   }
   let lock=null,attempted=false,committed=false,projected=false;
@@ -62,6 +62,11 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
    if(receipt.replayed)throw Error('LIFECYCLE_ATOMIC_UNEXPECTED_REPLAY');
+   // The receipt is observational. A lost client connection cannot interrupt projection.
+   if(onCommitted){
+    try{onCommitted({auditId,operationId,action,status:status});}
+    catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
+   }
    await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
    await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
@@ -73,7 +78,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    projected=true;
    await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_FIRESTORE_AND_SHEETS_VERIFIED'}));
    lock=null;
-   return {success:true,action,auditId,operationId,revision:receipt.revision,authority:'FIRESTORE',projection:'PROJECTED'};
+   return {success:true,action,auditId,operationId,revision:receipt.revision,sourceRevision:snapshot.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED'};
   }finally{
    console.info('[PLANNING_LIFECYCLE_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,projected}));
    if(lock){

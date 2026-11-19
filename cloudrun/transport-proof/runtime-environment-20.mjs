@@ -1,4 +1,5 @@
 import {resolveProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
+const DEV_PORTAL_HOST='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 // Deployment configuration for the shared AMS 2.0 runtime.
 // PROD is opt-in and must be configured independently from DEV.
 export function resolveAmsRuntimeConfig(env, projectId) {
@@ -10,7 +11,7 @@ export function resolveAmsRuntimeConfig(env, projectId) {
   const spreadsheet=String(env.DEV_SSOT_SPREADSHEET_ID||'').trim();
   if(!spreadsheet)throw Error('AVAILABILITY_DEV_SHEET_REQUIRED');
   if(env.AMS_PROD_RELEASE_ENABLED==='true')throw Error('AMS_PROD_RELEASE_FLAG_IN_DEV');
-  return Object.freeze({mode,project,spreadsheet,isDev:true});
+  return Object.freeze({mode,project,spreadsheet,isDev:true,origin:'https://'+DEV_PORTAL_HOST});
  }
  // An explicit release switch, exact project binding and independent sheet prevent DEV data reaching PROD.
  if(env.AMS_PROD_RELEASE_ENABLED!=='true')throw Error('AMS_PROD_NOT_AUTHORIZED');
@@ -44,7 +45,7 @@ export function resolveAmsRuntimeConfig(env, projectId) {
 export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflightReadOnly=false}={}){
  if(isDev!==true||service!=='ams-fase12-dev')return {action:'PASS'};
  const requestHost=String(host||'').toLowerCase().replace(/:443$/,'');
- const canonical='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+ const canonical=DEV_PORTAL_HOST;
  const tagged=/^[a-z0-9-]+---ams-fase12-dev-zwtcar7xpa-ew\.a\.run\.app$/;
  if(!tagged.test(requestHost))return {action:'PASS'};
  const verb=String(method||'').toUpperCase();

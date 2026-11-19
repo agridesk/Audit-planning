@@ -18,6 +18,10 @@ const sheetsFetch=async(url,opts={})=>{
  if(method==='GET'&&path.endsWith('/values:batchGet')){
   const data=u.searchParams.getAll('ranges').map(range=>{
    const match=/^([^!]+)![A-Z]+(\d+):[A-Z]+\d+$/.exec(range);
+   if(Number(match[2])===1&&range.endsWith('5000')){
+    const values=[...(tabRows.get(match[1])?.entries()||[])].sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+    return {range,values};
+   }
    const row=tabRows.get(match[1])?.get(Number(match[2]))||[];
    return {range,values:row.length?[row]:[]};
   });return result({valueRanges:data});

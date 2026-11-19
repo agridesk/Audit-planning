@@ -135,3 +135,66 @@ await assert.rejects(dateProjector.prepareExtensionDateRecovery(extensionPlan),/
 serialValue--;
 await dateProjector.apply({operationId:'ext',gateToken:'held',plan:recoveryPlan});
 assert.equal((await dateProjector.inspect(extensionPlan)).state,'MATCH');
+
+// Lifecycle projections must not re-enter unrelated company data as formulas.
+const companyBefore=Array(25).fill('');
+companyBefore[0]='Example';
+companyBefore[4]='+31-123456789';
+companyBefore[18]='Yes';
+const companyAfter=[...companyBefore];
+companyAfter[18]='No';
+let companyRow=[...companyBefore];
+const companyWrites=[];
+const companyProjector=createPlanningSheetsWritesetProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
+ fetchImpl:async(url,init={})=>{
+  const u=new URL(url),method=init.method||'GET';
+  if(method==='GET'&&u.pathname.endsWith('/values:batchGet'))
+   return {ok:true,json:async()=>({valueRanges:[{values:[companyRow]}]})};
+  if(method==='GET')
+   return {ok:true,json:async()=>({sheets:[{properties:{title:'Companies',sheetId:4,gridProperties:{rowCount:100}}}]})};
+  if(u.pathname.endsWith('/values:batchUpdate')){
+   const body=JSON.parse(init.body);
+   companyWrites.push(body);
+   for(const item of body.data){
+    const match=/^Companies!([A-Z]+)84:([A-Z]+)84$/.exec(item.range);
+    assert.ok(match);
+    const start=[...match[1]].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)-1;
+    for(let i=0;i<item.values[0].length;i++)companyRow[start+i]=item.values[0][i];
+   }
+   return {ok:true,json:async()=>({})};
+  }
+  throw Error('UNEXPECTED_COMPANY_PROJECTOR_HTTP');
+ }
+});
+const companyPlan={projectionWrites:[{range:'Companies!A84:Y84',values:[companyAfter]}],
+ projectionPreconditions:[{range:'Companies!A84:Y84',before:companyBefore}]};
+await companyProjector.apply({operationId:'reject',gateToken:'held',plan:companyPlan});
+assert.equal(companyRow[4],'+31-123456789');
+assert.equal(companyRow[18],'No');
+assert.deepEqual(companyWrites.map(x=>x.data.map(y=>y.range)),[['Companies!S84:S84']]);
+assert.equal((await companyProjector.inspect(companyPlan)).state,'MATCH');
+await companyProjector.apply({operationId:'reject',gateToken:'held',plan:companyPlan});
+assert.equal(companyWrites.length,1);
+
+companyRow=[...companyBefore];
+const multipleAfter=[...companyBefore];
+multipleAfter[0]='';
+multipleAfter[1]='Inactive';
+multipleAfter[18]='No';
+const multiplePlan={projectionWrites:[{range:'Companies!A84:Y84',values:[multipleAfter]}],
+ projectionPreconditions:[{range:'Companies!A84:Y84',before:companyBefore}]};
+await companyProjector.apply({operationId:'reject-2',gateToken:'held',plan:multiplePlan});
+assert.deepEqual(companyWrites[1].data.map(x=>x.range),['Companies!A84:B84','Companies!S84:S84']);
+assert.equal(companyRow[0],'');
+assert.equal(companyRow[4],'+31-123456789');
+assert.equal((await companyProjector.inspect(multiplePlan)).state,'MATCH');
+
+companyRow=[...companyBefore,'','before'];
+const widerAfter=[...companyBefore,'','after'];
+const widerPlan={projectionWrites:[{range:'Companies!A84:AA84',values:[widerAfter]}],
+ projectionPreconditions:[{range:'Companies!A84:AA84',before:[...companyRow]}]};
+await companyProjector.apply({operationId:'reject-3',gateToken:'held',plan:widerPlan});
+assert.deepEqual(companyWrites[2].data.map(x=>x.range),['Companies!AA84:AA84']);
+assert.equal(companyRow[4],'+31-123456789');
+assert.equal((await companyProjector.inspect(widerPlan)).state,'MATCH');

@@ -54,6 +54,7 @@ import {createPlanningAtomicForwardRecovery20} from './planning-atomic-forward-r
 import {createVisitCompositionForwardRecovery20} from './visit-composition-forward-recovery-20.js';
 import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-rescue-20.js';
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
+import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
@@ -530,6 +531,64 @@ const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferS
 const planningAtomicRecovery=planningAtomicEnabled?createPlanningAtomicRecovery({
  store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  gate:planningGlobalGate,availabilityService:service
+}):null;
+const rejectPhoneOperation='45b4763f8c3300eac8f6b82dad15efd41438ae119df815bb8e05d8d30e5048cb';
+async function readRejectPhone(){
+ const read=async render=>{
+  const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchGet');
+  url.searchParams.set('valueRenderOption',render);
+  url.searchParams.append('ranges','Companies!E1');
+  url.searchParams.append('ranges','Companies!E84');
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('REJECT_PHONE_READ_HTTP_'+response.status);
+  const ranges=(await response.json()).valueRanges;
+  if(!Array.isArray(ranges)||ranges.length!==2)throw Error('REJECT_PHONE_READ_INCOMPLETE');
+  return ranges.map(x=>x.values?.[0]?.[0]);
+ };
+ const formula=await read('FORMULA'),value=await read('UNFORMATTED_VALUE');
+ const gridUrl=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet));
+ gridUrl.searchParams.append('ranges','Companies!E84');
+ gridUrl.searchParams.set('fields','sheets(data(rowData(values(userEnteredValue))))');
+ const gridResponse=await fetch(gridUrl,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!gridResponse.ok)throw Error('REJECT_PHONE_GRID_HTTP_'+gridResponse.status);
+ const grid=await gridResponse.json();
+ const entered=grid.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values?.[0]?.userEnteredValue;
+ if(formula[0]!==value[0])throw Error('REJECT_PHONE_HEADER_CHANGED');
+ return {header:formula[0],formula:formula[1],value:value[1],entered};
+}
+const planningRejectPhoneRecovery=runtime.isDev&&planningAtomicRecovery?createRejectPhoneRecovery20({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,recovery:planningAtomicRecovery,
+ appendProjector:createPlanningSheetsAppendProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('REJECT_PHONE_APPEND_FENCE_LOST');
+  }}),
+ readPhone:readRejectPhone,
+ writePhone:async({operationId,token,value})=>{
+  if(operationId!==rejectPhoneOperation||typeof value!=='string'||!/^\+\d{1,3}-\d{3,15}$/.test(value))
+   throw Error('REJECT_PHONE_WRITE_SCOPE_INVALID');
+  const verify=async()=>{
+   const holder=(await planningGlobalGate.read()).holder;
+   if(holder?.operationId!==operationId||holder.token!==token||holder.state!=='RECOVERING')
+    throw Error('REJECT_PHONE_WRITE_FENCE_LOST');
+  };
+  await verify();
+  const current=await readRejectPhone(),parts=/^\+(\d+)-(\d+)$/.exec(value);
+  if(current.header!=='Contactperson phone'||![value,'='+value].includes(current.formula)||
+     ![value,'='+value].includes(current.entered?.formulaValue)||
+     current.value!==Number(parts[1])-Number(parts[2]))throw Error('REJECT_PHONE_WRITE_SOURCE_CHANGED');
+  await verify();
+  const cell='Companies!E84';
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(cell)+'?valueInputOption=RAW';
+  const response=await fetch(url,{method:'PUT',headers:{authorization:'Bearer '+await getToken(),'content-type':'application/json'},
+   body:JSON.stringify({range:cell,majorDimension:'ROWS',values:[[value]]})});
+  if(!response.ok)throw Error('REJECT_PHONE_WRITE_HTTP_'+response.status);
+  const receipt=await response.json();
+  if(Number(receipt.updatedCells)!==1||![cell,"'Companies'!E84"].includes(receipt.updatedRange))
+   throw Error('REJECT_PHONE_WRITE_ACK_INVALID');
+  await verify();
+ }
 }):null;
 const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicForwardRecovery20({
  store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,availabilityService:service,
@@ -1672,6 +1731,27 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,state:changed.state,operationId,quarantinedAt:changed.uncertainAt,
     note:'No unlock performed. Independent Sheets evidence and 30-minute UNCERTAIN quarantine still required.'}));return;
+  }
+  if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/planning/reject-phone-recovery'){
+   if(!runtime.isDev||!planningRejectPhoneRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   let result;
+   if(req.method==='GET')result=await (u.searchParams.get('diagnose')==='1'?
+    planningRejectPhoneRecovery.diagnose({operationId:rejectPhoneOperation}):
+    planningRejectPhoneRecovery.preview({operationId:rejectPhoneOperation}));
+   else{
+    const origin=String(req.headers.origin||'');
+    if(!origin||new URL(origin).host!==String(req.headers.host||'')||
+       new URL(origin).protocol!=='https:')throw Error('REJECT_PHONE_ORIGIN_DENIED');
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('REJECT_PHONE_BODY_TOO_LARGE');}
+    const input=JSON.parse(raw||'{}');
+    if(input.confirm!=='RECOVER_VERIFIED_REJECT_PHONE')throw Error('REJECT_PHONE_CONFIRMATION_REQUIRED');
+    result=await planningRejectPhoneRecovery.commit({operationId:rejectPhoneOperation});
+    planningCache.invalidate();
+   }
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   // Explicit one-operation, DEV-only RAW repair of two Last_Updated cells.
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-partial-repair'){

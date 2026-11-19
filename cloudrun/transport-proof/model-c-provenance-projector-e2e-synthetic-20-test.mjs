@@ -15,7 +15,7 @@ const sheetRows=[headers],calls=[];
 const mockFetch=async(url,init={})=>{
  const u=new URL(url),method=init.method||'GET';calls.push({method,url:u.toString()});
  if(method==='GET'&&u.pathname.endsWith('/spreadsheets/fixture'))return {ok:true,json:async()=>({sheets:[{properties:{sheetId:7,title:'Audit_Obligations'}}]})};
- if(method==='GET')return {ok:true,json:async()=>({values:structuredClone(sheetRows)})};
+ if(method==='GET')return {ok:true,json:async()=>({valueRanges:[{values:structuredClone(sheetRows)}]})};
  if(method==='POST'){
   const append=JSON.parse(init.body).requests?.[0]?.appendCells;
   assert.equal(append.sheetId,7);

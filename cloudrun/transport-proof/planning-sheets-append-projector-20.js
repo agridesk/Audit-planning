@@ -54,11 +54,17 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
  async function inspect(intents){
   const items=validate(intents);
   if(!items.length)return {state:'MATCH',missing:[],count:0};
-  const sources=new Map();
-  for(const sheet of new Set(items.map(x=>x.sheet))){
+  const sheets=[...new Set(items.map(x=>x.sheet))],url=new URL(base+'/values:batchGet');
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  for(const sheet of sheets){
    const width=items.find(x=>x.sheet===sheet).range.split(':')[1],range=sheet+'!A1:'+width+'5000';
-   const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=UNFORMATTED_VALUE';
-   const data=await request(u);
+   url.searchParams.append('ranges',range);
+  }
+  const response=await request(url.toString()),results=response?.valueRanges;
+  if(!Array.isArray(results)||results.length!==sheets.length)throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
+  const sources=new Map();
+  for(const [index,sheet] of sheets.entries()){
+   const data=results[index];
    if(!data||!Object.prototype.hasOwnProperty.call(data,'values'))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
    const rows=data.values;
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
@@ -108,20 +114,21 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const before=await inspect(intents);
   if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
   await verifyFence({operationId,gateToken});
-  for(const missing of before.missing){
+  const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');
+  // Recheck all logical identities immediately before the atomic batch.
+  const fresh=await inspect(intents);
+  if(fresh.state!=='MATCH'){
+   const groups=new Map();
+   for(const missing of fresh.missing){
+    const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
+    if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
+    const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
+    if(!groups.has(target.properties.sheetId))groups.set(target.properties.sheetId,[]);
+    groups.get(target.properties.sheetId).push({values});
+   }
+   const requests=[...groups].map(([sheetId,rows])=>({appendCells:{sheetId,rows,fields:'userEnteredValue'}}));
    await verifyFence({operationId,gateToken});
-   // A previous append or another writer may have materialized this row since
-   // the initial scan. Reconcile again before issuing an irreversible append.
-   const fresh=await inspect([{range:missing.range,values:[missing.row]}]);
-   if(fresh.state==='MATCH')continue;
-   await verifyFence({operationId,gateToken});
-   // values.append guesses a table boundary and can place data in a later column.
-   // appendCells always starts at column A, preserving RAW scalar types.
-   const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');
-   const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
-   if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
-   const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
-   await request(base+':batchUpdate','POST',{requests:[{appendCells:{sheetId:target.properties.sheetId,rows:[{values}],fields:'userEnteredValue'}}]});
+   await request(base+':batchUpdate','POST',{requests});
    await verifyFence({operationId,gateToken});
   }
   const after=await inspect(intents);

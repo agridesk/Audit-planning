@@ -13,7 +13,9 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
   action=norm(action);
   if(actor?.role!=='manager'&&actor?.role!=='auditor'||action!=='COMPLETE'&&action!=='REJECT'||actor.role==='auditor'&&action!=='COMPLETE'||!str(actor.auditorId)||!str(body?.auditId))throw Error('PLANNING_MULTI_ACTION_FORBIDDEN');
   const auditId=str(body.auditId),operationId=digest({auditId,action,body,actorId:actor.auditorId});
-  const prior=await atomicStore.readOutbox(operationId);
+  const started=Date.now(),timings={};
+  async function measure(name,fn){const t=Date.now();try{return await fn();}finally{timings[name]=Date.now()-t;}}
+  const prior=await measure('priorMs',()=>atomicStore.readOutbox(operationId));
   if(prior){
    if(prior.auditId!==auditId||prior.action!==action||prior.actorId!==actor.auditorId)throw Error('PLANNING_MULTI_REPLAY_IDENTITY_CONFLICT');
    if(prior.state==='PROJECTED')return {success:true,replayed:true,action,auditId,operationId};
@@ -21,10 +23,10 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
   }
   let lock=null,attempted=false,committed=false,verified=false;
   try{
-   lock=await gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_MULTI_'+action});
-   const preview=await preflight({actor,body:{...body,authorityPreflight:true},action});
+   lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_MULTI_'+action}));
+   const preview=await measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action}));
    if(preview?.success!==true||preview?.authorityPreflight!==true||preview?.auditId!==auditId||!Array.isArray(preview.removedSourceRows)||preview.removedSourceRows.length!==1||!Array.isArray(preview.successorSnapshots)||!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!Array.isArray(preview.appendIntents))throw Error('PLANNING_MULTI_PREFLIGHT_INCOMPLETE');
-   const parent=await atomicStore.readAudit(auditId);
+   const parent=await measure('parentMs',()=>atomicStore.readAudit(auditId));
    if(!parent||parent.pendingOperationId||parent.snapshot?.sourceRevision!==preview.expectedSourceRevision||parent.snapshot?.legacyUnverified)throw Error('PLANNING_MULTI_PARENT_REVISION_INVALID');
    if(actor.role==='auditor'&&(norm(parent.snapshot?.status)!=='ACCEPTED'||parent.auditorId!==actor.auditorId))throw Error('PLANNING_MULTI_AUDITOR_OWNERSHIP_INVALID');
    const expectedStatus=action==='COMPLETE'?'COMPLETED':'REJECTED';
@@ -38,19 +40,20 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
     ...snapshots.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,auditorId:null,blocks:[],nextSnapshot:x}))
    ];
    attempted=true;
-   const accepted=await atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan});
+   const accepted=await measure('commitMs',()=>atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan}));
    committed=true;
    if(accepted.replayed)throw Error('PLANNING_MULTI_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan});
-   await appendProjector.apply({operationId,gateToken:lock.token,intents:plan.appendIntents});
-   const rows=await projector.inspect(plan),appends=await appendProjector.inspect(plan.appendIntents);
+   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan}));
+   await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:plan.appendIntents}));
+   const [rows,appends]=await measure('verifyMs',()=>Promise.all([projector.inspect(plan),appendProjector.inspect(plan.appendIntents)]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('PLANNING_MULTI_PROJECTION_NOT_VERIFIED');
-   await atomicStore.markProjected({auditId,operationId,proof:{verified:true,auditId,rowHash:digest({rows:rows.detail,appends:appends.count})}});
+   await measure('markProjectedMs',()=>atomicStore.markProjected({auditId,operationId,proof:{verified:true,auditId,rowHash:digest({rows:rows.detail,appends:appends.count})}}));
    verified=true;
-   await gate.release({token:lock.token,verified:true,proof:'MULTI_ENTITIES_FIRESTORE_SHEETS_VERIFIED'});
+   await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'MULTI_ENTITIES_FIRESTORE_SHEETS_VERIFIED'}));
    lock=null;
    return {success:true,authority:'FIRESTORE',projection:'PROJECTED',auditId,action,operationId,successorAuditIds:snapshots.map(x=>x.auditId),entities:accepted.entities};
   }finally{
+   console.info('[PLANNING_MULTI_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,verified}));
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'MULTI_PREFLIGHT_FAILED_BEFORE_WRITE'});
     else if(verified)await gate.release({token:lock.token,verified:true,proof:'MULTI_PROJECTED_RELEASE_FAILED'});

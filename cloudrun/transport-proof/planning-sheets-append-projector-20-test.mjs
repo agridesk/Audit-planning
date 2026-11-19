@@ -1,26 +1,26 @@
 import assert from 'node:assert/strict';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']], 'Audit_Obligations':[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']]};
-let appended=0,fenceChecks=0,deny=false,loseFenceAfterAppend=false;
+let appended=0,fenceChecks=0,deny=false,loseFenceAfterAppend=false,batchReads=0,batchWrites=0;
 const ok=result=>({ok:true,status:200,async json(){return structuredClone(result)}});
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
- if(method==='GET'&&path.includes('/values/')){
+ if(method==='GET'&&path.endsWith('/values:batchGet')){
   assert.equal(u.searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');
-  const range=path.split('/values/')[1],sheet=range.split('!')[0];
-  return ok({values:rows[sheet]});
+  batchReads++;
+  return ok({valueRanges:u.searchParams.getAll('ranges').map(range=>({values:rows[range.split('!')[0]]}))});
  }
  if(method==='GET'&&path.endsWith('/spreadsheets/dev-sheet')){
   return ok({sheets:Object.keys(rows).map((title,sheetId)=>({properties:{title,sheetId}}))});
  }
  if(method==='POST'&&path.endsWith(':batchUpdate')){
   const body=JSON.parse(init.body);
-  const request=body.requests?.[0]?.appendCells;
-  assert.equal(body.requests.length,1);
-  assert.equal(request.fields,'userEnteredValue');
-  const sheet=Object.keys(rows)[request.sheetId];
-  assert.ok(sheet,'appendCells must target an existing sheet');
-  for(const row of request.rows){
+  batchWrites++;
+  for(const {appendCells:request} of body.requests){
+   assert.equal(request.fields,'userEnteredValue');
+   const sheet=Object.keys(rows)[request.sheetId];
+   assert.ok(sheet,'appendCells must target an existing sheet');
+   for(const row of request.rows){
    const values=row.values.map(cell=>{
     const v=cell.userEnteredValue;
     if(v.stringValue!==undefined)return v.stringValue;
@@ -28,8 +28,9 @@ const fetchImpl=async(url,init={})=>{
     if(v.boolValue!==undefined)return v.boolValue;
     return '';
    });
-   rows[sheet].push(values);
-   appended++;
+    rows[sheet].push(values);
+    appended++;
+   }
   }
   if(loseFenceAfterAppend)deny=true;
   return ok({replies:[{}]});
@@ -162,10 +163,10 @@ let scanCount=0,lateWrites=0;
 const lateRows={'Notification Queue':[['Stamp','State','Event']]};
 const lateFetch=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname);
- if(path.includes('/values/')){
+ if(path.endsWith('/values:batchGet')){
   scanCount++;
   if(scanCount===2)lateRows['Notification Queue'].push(['now','PENDING','EVENT','','VIS-LATE','','','','','','hash-late']);
-  return ok({values:lateRows['Notification Queue']});
+  return ok({valueRanges:[{values:lateRows['Notification Queue']}]});
  }
  if(path.endsWith('/spreadsheets/dev-sheet'))return ok({sheets:[{properties:{title:'Notification Queue',sheetId:1}}]});
  if(path.endsWith(':batchUpdate')){lateWrites++;return ok({replies:[{}]});}
@@ -177,6 +178,18 @@ const lateIntent=[{range:'Notification Queue!A:M',values:[['now','PENDING','EVEN
 assert.equal((await lateProjector.apply({operationId:'late',gateToken:'fence',intents:lateIntent})).confirmed,true);
 assert.equal(lateWrites,0);
 assert.ok(scanCount>=3);
+// Multiple rows and tabs require one atomic append request and three batched reads.
+const groupedIntents=[
+ {range:'Rejected audits!A:Z',values:[['batch-1','Rejected'],['batch-2','Rejected']]},
+ {range:'Notification Queue!A:M',values:[['now','PENDING','EVENT','','VIS-BATCH','','','','','','hash-batch']]}
+];
+const readsBeforeBatch=batchReads,writesBeforeBatch=batchWrites,rowsBeforeBatch=appended;
+assert.equal((await service.apply({operationId:'op-batch',gateToken:'token',intents:groupedIntents})).confirmed,true);
+assert.equal(batchReads-readsBeforeBatch,3);
+assert.equal(batchWrites-writesBeforeBatch,1);
+assert.equal(appended-rowsBeforeBatch,3);
+assert.equal((await service.apply({operationId:'op-batch',gateToken:'token',intents:groupedIntents})).replayed,true);
+assert.equal(appended-rowsBeforeBatch,3);
 // NotificationSender clears Reserved (M) after delivery. This must not
 // cause a false hash conflict on recovery; conflicting payloads still fail.
 const deliveredIntent=[{range:'Notification Queue!A:M',values:[['2026-11-15','PENDING','PLANNED','','VIS-D','','subject','body',0,'','hash-delivered','',JSON.stringify({payload:{auditId:'VIS-D'}})]]}];

@@ -15,19 +15,19 @@ const ok=x=>({ok:true,status:200,json:async()=>structuredClone(x)});
 const httpError=status=>({ok:false,status,json:async()=>({})});
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname);
- if(path.includes('/values/')){
-  const sheet=path.split('/values/')[1].split('!')[0];
-  return ok({values:sheets[sheet]});
+ if(path.endsWith('/values:batchGet')){
+  return ok({valueRanges:u.searchParams.getAll('ranges').map(range=>({values:sheets[range.split('!')[0]]}))});
  }
  if(path.endsWith('/spreadsheets/dev-sheet'))return ok({sheets:Object.entries(ids).map(([title,sheetId])=>({properties:{title,sheetId}}))});
  if(path.endsWith(':batchUpdate')){
   if(failStatus)return httpError(failStatus);
-  const req=JSON.parse(init.body).requests[0].appendCells;
-  const sheet=Object.keys(ids).find(k=>ids[k]===req.sheetId);
-  assert.ok(sheet);
-  for(const item of req.rows){
-   sheets[sheet].push(item.values.map(({userEnteredValue:v})=>v.stringValue??v.numberValue??v.boolValue??''));
-   writes++;
+  for(const {appendCells:req} of JSON.parse(init.body).requests){
+   const sheet=Object.keys(ids).find(k=>ids[k]===req.sheetId);
+   assert.ok(sheet);
+   for(const item of req.rows){
+    sheets[sheet].push(item.values.map(({userEnteredValue:v})=>v.stringValue??v.numberValue??v.boolValue??''));
+    writes++;
+   }
   }
   if(failAfterWrite){failAfterWrite=false;throw Error('NETWORK_TIMEOUT_AFTER_COMMIT');}
   return ok({replies:[{}]});
@@ -35,17 +35,18 @@ const fetchImpl=async(url,init={})=>{
  throw Error('UNEXPECTED_HTTP');
 };
 const projector=createPlanningSheetsAppendProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl,verifyFence:async()=>{}});
-// One row committed before an ambiguous transport failure.
+// A legacy partial append exists; the remaining batch commits before a timeout.
+sheets['Audit_Visit_Obligations'].push(['VIS-A','OB-A']);
 failAfterWrite=true;
 await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents}),/NETWORK_TIMEOUT_AFTER_COMMIT/);
-assert.equal(writes,1);
-assert.equal((await projector.inspect(intents)).missing.length,3);
-// Resume must append only the remaining three, not duplicate the first.
+assert.equal(writes,3);
+assert.equal((await projector.inspect(intents)).missing.length,0);
+// Resume must recognize the committed batch without duplicating any row.
 assert.equal((await projector.apply({operationId:'op',gateToken:'fence',intents})).confirmed,true);
-assert.equal(writes,4);
+assert.equal(writes,3);
 assert.equal((await projector.inspect(intents)).state,'MATCH');
 assert.equal((await projector.apply({operationId:'op',gateToken:'fence',intents})).replayed,true);
-assert.equal(writes,4);
+assert.equal(writes,3);
 // Duplicate stored row is a hard failure.
 sheets['Notification Queue'].push(notification('SENT_DEV_REDIRECT','VIS-A'));
 await assert.rejects(()=>projector.inspect(intents),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
@@ -56,7 +57,7 @@ for(const status of [429,503]){
  const extra=[{range:'Notification Queue!A:M',values:[notification('PENDING','VIS-C')]}];
  failStatus=status;
  await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents:extra}),new RegExp('APPEND_PROJECTOR_HTTP_'+status));
- assert.equal(writes,4);
+ assert.equal(writes,3);
  failStatus=0;
 }
 // R4: a full 5000-row scan is not proof of absence; fail closed.

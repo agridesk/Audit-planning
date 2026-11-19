@@ -76,7 +76,28 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];
-  for(const change of changes){
+  for(const [index,change] of changes.entries()){
+   if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)){
+    // Re-entering unchanged contact data can turn phone numbers into formulas.
+    if(second.detail[index].target)continue;
+    const changed=[];
+    for(let i=0;i<Math.max(change.values.length,change.before.length);i++)
+     if(str(change.values[i])!==str(change.before[i]))changed.push(i);
+    const row=change.row;
+    for(let i=0;i<changed.length;){
+     const start=changed[i];let end=start;
+     while(i+1<changed.length&&changed[i+1]===end+1){i++;end++;}
+     const column=index=>{
+      let n=index+1,result='';
+      while(n){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}
+      return result;
+     };
+     entered.push({range:`Companies!${column(start)}${row}:${column(end)}${row}`,
+      values:[Array.from({length:end-start+1},(_,j)=>change.values[start+j]??'')]});
+     i++;
+    }
+    continue;
+   }
    const literalDate=plan.scopeExtension&&/^Audit_Obligations!([K-M])\d+(?::\1\d+)?$/.test(change.range)&&
     typeof change.values[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(change.values[0]);
    (literalDate?literalDates:entered).push({range:change.range,values:[change.values]});

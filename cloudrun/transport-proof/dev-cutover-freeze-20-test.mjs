@@ -40,6 +40,9 @@ assert.equal(freeze('POST','/api/v1/planning/atomic-composition-forward-recover'
 assert.deepEqual(freeze('POST','/api/v1/planning/atomic-composition-forward-recover',{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
 assert.match(r15,/u\.pathname==='\/api\/v1\/planning\/atomic-self-planning-rescue'/);
 assert.equal(freeze('POST','/api/v1/planning/atomic-self-planning-rescue').allow,false);
+assert.deepEqual(freeze('POST','/api/v1/manager/open-enrichment',{atomicPlanningEnabled:true}),{allow:true});
+assert.equal(freeze('POST','/api/v1/manager/open-enrichment').allow,false);
+for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,'/api/v1/manager/open-enrichment',{atomicPlanningEnabled:true}).allow,false);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');
 
 const directSwap={atomicPlanningEnabled:true,swapDirectRouteEnabled:true};

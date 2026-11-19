@@ -1038,6 +1038,14 @@ async function directManagerSelfPlanning20(identity,body){
     expectedSourceRevision:expectedRevision,
     canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:found.h,row:updated,
      status:'Pending Planning',sourceRevision:directRowRevision(found.h,updated)},
+    // Lifecycle writes can store the same row in unformatted Sheets form.
+    // Offer it as a second exact proof only for the same row and revision.
+    sourceUnformattedRow:(()=>{
+     const candidate=findAudit(result[0]?.values||[],auditId);
+     return candidate?.sourceRow===found.sourceRow&&
+      JSON.stringify(candidate.h)===JSON.stringify(found.h)&&
+      directRowRevision(candidate.h,candidate.row)===expectedRevision?candidate.row:null;
+    })(),
     // A Self planning toggle owns only the selected AD cell. A full-row
     // CAS would reject unrelated numeric/formatted cells (e.g. total hours).
     projectionWrites:[{range:targetRange,values:[[updated[index]]]}],

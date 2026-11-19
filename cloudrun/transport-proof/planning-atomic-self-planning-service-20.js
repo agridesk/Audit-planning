@@ -1,5 +1,5 @@
 /** Issue #87: DEV-only canonical Self planning toggle.
- * One Firestore audit transaction + fenced full-row Sheets projection.
+ * One Firestore audit transaction + fenced projection of the toggle cell.
  * Existing legacy route remains unchanged whenever atomic authority is off.
  */
 import {createHash} from 'node:crypto';
@@ -75,11 +75,21 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_CELL_CONTRACT_INVALID');
    const untouched=proof.canonicalSnapshot.row.slice();
    untouched[column]=beforeCell.before[0];
-   if(!sameRow(untouched,previous.snapshot.row))
+   const previousRow=previous.snapshot.row;
+   const unformatted=proof.sourceUnformattedRow;
+   if(!sameRow(untouched,previousRow)&&(!Array.isArray(unformatted)||!sameRow(unformatted,previousRow))){
+    const old=normalizedRow(previousRow),formatted=normalizedRow(untouched);
+    const differingColumns=Array.from({length:Math.max(old.length,formatted.length)},(_,i)=>i)
+     .filter(i=>(old[i]??'')!==(formatted[i]??'')).map(i=>i+1);
+    console.warn('[AMS_SELF_PLANNING_SOURCE_PARITY]',JSON.stringify({differingColumns:differingColumns.slice(0,12),
+     differingColumnCount:differingColumns.length,unformattedAvailable:Array.isArray(unformatted)}));
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_SOURCE_ROW_MISMATCH');
+   }
    if(JSON.stringify(normalizedHeaders(proof.canonicalSnapshot.headers))!==JSON.stringify(normalizedHeaders(previous.snapshot.headers)))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_HEADER_MISMATCH');
-   const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
+   const row=previousRow.slice();
+   row[column]=afterCell.values[0][0];
+   const snapshot={...previous.snapshot,...proof.canonicalSnapshot,row,
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,
     appendIntents:[]};
    attempted=true;

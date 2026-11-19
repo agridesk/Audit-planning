@@ -24,7 +24,8 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
    readAudit:async()=>{events.push('readAudit');return old},
    readOutbox:async()=>outbox,
    commit:async args=>{events.push('firestoreCommit');assert.equal(args.nextSnapshot.managerCommentLast,'preserve this comment');assert.equal(args.action,'SELF_PLANNING');
-    assert.deepEqual(args.blocks,[]);assert.equal(args.expectedRevision,7);return{revision:8}},
+    assert.deepEqual(args.blocks,[]);assert.equal(args.expectedRevision,7);
+    assert.equal(args.nextSnapshot.row[18],old.snapshot.row[18]);return{revision:8}},
    markProjected:async()=>events.push('markProjected'),
    markUncertain:async()=>events.push('markUncertain')
   },
@@ -73,6 +74,21 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
   range:'Audit planning!AD2',before:['Yes']}]}});
  await assert.rejects(service.commit({actor,body}),/PREFLIGHT_CELL_CONTRACT_INVALID/);
  assert.ok(!events.includes('firestoreCommit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const numericRow=row.slice();numericRow[18]=8;
+ const old={...before,snapshot:{...before.snapshot,row:numericRow}};
+ const {service,events}=mock({old,preview:{...proof,sourceUnformattedRow:numericRow}});
+ assert.equal((await service.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('firestoreCommit'));
+}
+{
+ const differentRow=row.slice();differentRow[18]=9;
+ const old={...before,snapshot:{...before.snapshot,row:differentRow}};
+ const {service,events}=mock({old,preview:{...proof,sourceUnformattedRow:row}});
+ await assert.rejects(service.commit({actor,body}),/PREFLIGHT_SOURCE_ROW_MISMATCH/);
+ assert.ok(!events.includes('firestoreCommit'));
+ assert.ok(events.includes('gateRelease'));
 }
 {
  const {service,events}=mock({inspection:'MISMATCH'});

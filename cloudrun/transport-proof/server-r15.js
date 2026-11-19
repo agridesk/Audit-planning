@@ -473,15 +473,39 @@ const atomicLifecyclePaths={
  '/api/v1/manager/cancel-direct':'CANCEL',
  '/api/v1/manager/complete-direct':'COMPLETE'
 };
+async function auditorLifecyclePreflight({cookie,body,action}){
+ const payload=JSON.stringify({...body,action});
+ const origin=new URL(runtime.origin);
+ // R12 through R5 rewrite Host. Use Node HTTP for the established R4
+ // loopback port so Origin and Host reach the original guard unchanged.
+ return new Promise((resolve,reject)=>{
+  const request=http.request({
+   hostname:'127.0.0.1',port:port+9,path:'/api/v1/auditor/action',method:'POST',
+   headers:{host:origin.host,origin:origin.origin,cookie:String(cookie||''),
+    'content-type':'application/json','content-length':Buffer.byteLength(payload)}
+  },response=>{
+   const chunks=[];
+   response.on('data',chunk=>chunks.push(chunk));
+   response.on('error',reject);
+   response.on('end',()=>{
+    const status=response.statusCode||503;
+    resolve(new Response(Buffer.concat(chunks),{status}));
+   });
+  });
+  request.on('error',reject);
+  request.setTimeout(25000,()=>request.destroy(Error('AUDITOR_PREFLIGHT_TIMEOUT')));
+  request.end(payload);
+ });
+}
 const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomicService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body,action})=>{
-  const route=actor.role==='auditor'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  const route=Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
   if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
-  const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}: {})},
-   body:JSON.stringify(actor.role==='auditor'?{...body,action}:body)});
+  const r=actor.role==='auditor'?await auditorLifecyclePreflight({cookie:actor.cookie,body,action}):
+   await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
+    headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
@@ -491,11 +515,10 @@ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleS
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body,action})=>{
-  const path=actor.role==='auditor'&&action==='COMPLETE'?'/api/v1/auditor/action':action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
-  const payload=path==='/api/v1/auditor/action'?{...body,action:'COMPLETE'}:body;
-  const r=await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}:{})},
-   body:JSON.stringify(payload)});
+  const path=action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
+  const r=actor.role==='auditor'?await auditorLifecyclePreflight({cookie:actor.cookie,body,action}):
+   await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
+    headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
   return data;
@@ -1711,6 +1734,14 @@ http.createServer(async(req,res)=>{
    res.end(JSON.stringify({ok:false,code:'AMS_EXT_PREVIEW_READ_ONLY',message:'EXT preview: write and unverified routes are disabled'}));return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
+   const host=String(req.headers.host||'').toLowerCase();
+   const origin=String(req.headers.origin||'');
+   const devHosts=[new URL(runtime.origin).host,'ams-fase12-dev-510075419067.europe-west1.run.app',
+    'ams-transport-proof-510075419067.europe-west1.run.app'];
+   if(origin!=='https://'+host||!(runtime.isDev?devHosts.includes(host):origin===runtime.origin)){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'ORIGIN_FORBIDDEN'}));return;
+   }
    const actor=await session(req);
    if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('AUDITOR_ATOMIC_BODY_TOO_LARGE');}

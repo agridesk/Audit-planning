@@ -168,7 +168,11 @@ const lateFetch=async(url,init={})=>{
   if(scanCount===2)lateRows['Notification Queue'].push(['now','PENDING','EVENT','','VIS-LATE','','','','','','hash-late']);
   return ok({valueRanges:[{values:lateRows['Notification Queue']}]});
  }
- if(path.endsWith('/spreadsheets/dev-sheet'))return ok({sheets:[{properties:{title:'Notification Queue',sheetId:1}}]});
+ if(path.endsWith('/spreadsheets/dev-sheet')){
+  await Promise.resolve();
+  assert.equal(scanCount,2,'metadata and final duplicate scan start together');
+  return ok({sheets:[{properties:{title:'Notification Queue',sheetId:1}}]});
+ }
  if(path.endsWith(':batchUpdate')){lateWrites++;return ok({replies:[{}]});}
  throw Error('LATE_FETCH_UNEXPECTED');
 };

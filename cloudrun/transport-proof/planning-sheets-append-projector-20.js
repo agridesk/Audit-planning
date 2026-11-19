@@ -114,9 +114,11 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const before=await inspect(intents);
   if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
   await verifyFence({operationId,gateToken});
-  const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');
-  // Recheck all logical identities immediately before the atomic batch.
-  const fresh=await inspect(intents);
+  // Metadata is independent of the final identity scan.
+  const [metadata,fresh]=await Promise.all([
+   request(base+'?fields=sheets(properties(sheetId,title))'),
+   inspect(intents)
+  ]);
   if(fresh.state!=='MATCH'){
    const groups=new Map();
    for(const missing of fresh.missing){

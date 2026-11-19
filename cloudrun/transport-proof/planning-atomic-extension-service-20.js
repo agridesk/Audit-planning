@@ -27,7 +27,9 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
      !['apply','undo'].includes(command))
    throw Error('EXT_ATOMIC_INPUT_INVALID');
   const operationId=hash({kind:'MODEL_C_EXT',auditId,obligationId,command,requestId,actorId});
-  const old=await store.readOutbox(operationId);
+  const started=Date.now(),timings={};
+  async function measure(name,fn){const t=Date.now();try{return await fn();}finally{timings[name]=Date.now()-t;}}
+  const old=await measure('priorMs',()=>store.readOutbox(operationId));
   if(old){
    if(old.auditId!==auditId||old.actorId!==actorId)throw Error('EXT_ATOMIC_REPLAY_IDENTITY_CONFLICT');
    if(old.state!=='PROJECTED')throw Error('EXT_ATOMIC_OUTBOX_RECOVERY_REQUIRED');
@@ -38,15 +40,17 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
   }
   let lock=null,attempted=false,projected=false;
   try{
-   lock=await gate.acquire({operationId,actorId,kind:'ATOMIC_MODEL_C_EXT'});
-   const previous=await store.readAudit(auditId);
+   lock=await measure('gateMs',()=>gate.acquire({operationId,actorId,kind:'ATOMIC_MODEL_C_EXT'}));
+   const [previous,proof]=await Promise.all([
+    measure('auditMs',()=>store.readAudit(auditId)),
+    measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true}}))
+   ]);
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId||
       previous.removed||previous.snapshot?.status!=='Pending Planning'||
       !Array.isArray(previous.snapshot?.row)||!Array.isArray(previous.snapshot?.headers)||
       !Array.isArray(previous.blocks)||previous.blocks.length||
       !Array.isArray(previous.claimIds)||previous.claimIds.length)
     throw Error('EXT_ATOMIC_BACKFILL_OR_PARITY_REQUIRED');
-   const proof=await preflight({actor,body:{...body,authorityPreflight:true}});
    const changes=proof?.canonicalSnapshot?.scopeExtension?.obligationChanges;
    const count=changes?.length??1;
    if(proof?.success!==true||proof?.authorityPreflight!==true||
@@ -76,23 +80,25 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
     projectionPreconditions:proof.projectionPreconditions,
     appendIntents:proof.appendIntents};
    attempted=true;
-   const receipt=await store.commit({auditId,operationId,actorId,expectedRevision:previous.revision,
-    nextSnapshot:snapshot,auditorId:null,blocks:[],action:command==='apply'?'EXT_APPLY':'EXT_UNDO'});
+   const receipt=await measure('commitMs',()=>store.commit({auditId,operationId,actorId,expectedRevision:previous.revision,
+    nextSnapshot:snapshot,auditorId:null,blocks:[],action:command==='apply'?'EXT_APPLY':'EXT_UNDO'}));
    if(receipt.replayed)throw Error('EXT_ATOMIC_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan:snapshot});
-   await appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents});
-   const rows=await projector.inspect(snapshot),
-    appends=await appendProjector.inspect(snapshot.appendIntents);
+   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
+   await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
+   const [rows,appends]=await measure('verifyMs',()=>Promise.all([
+    projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)
+   ]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')
     throw Error('EXT_ATOMIC_PROJECTION_NOT_VERIFIED');
-   await store.markProjected({auditId,operationId,proof:{
-    verified:true,auditId,rowHash:hash({rows:rows.detail,appendCount:appends.count})}});
+   await measure('markProjectedMs',()=>store.markProjected({auditId,operationId,proof:{
+    verified:true,auditId,rowHash:hash({rows:rows.detail,appendCount:appends.count})}}));
    projected=true;
-   await gate.release({token:lock.token,verified:true,proof:'EXT_FIRESTORE_MODEL_C_CB_OUTBOX_VERIFIED'});lock=null;
+   await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'EXT_FIRESTORE_MODEL_C_CB_OUTBOX_VERIFIED'}));lock=null;
    return {ok:true,success:true,direct:true,auditId,obligationId,command,operationId,
     patch:proof.patch,cbNotification:proof.cbNotification,
     authority:'FIRESTORE',projection:'PROJECTED',revision:receipt.revision};
   }finally{
+   console.info('[PLANNING_EXT_TIMING]',JSON.stringify({command,...timings,totalMs:Date.now()-started,projected}));
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'EXT_PREFLIGHT_REJECTED'});
     else if(projected)await gate.release({token:lock.token,verified:true,proof:'EXT_PROJECTED'});

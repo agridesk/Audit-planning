@@ -36,11 +36,11 @@ const previous={auditId:'audit-1',revision:6,pendingOperationId:null,
  sourceRevision:'old-rev',headers:ph,row:before,managerCommentLast:'KEEP'}};
 const actor={role:'manager',auditorId:'manager-1'};
 const body={auditId:'audit-1',companyUid:'company-1',obligationId:'ob-1',command:'apply',requestId:'request-1'};
-function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outbox=null,old=previous}={}){
+function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outbox=null,old=previous,hooks={}}={}){
  const events=[];
  const instance=createAtomicExtensionService20({
   store:{
-   readAudit:async()=>{events.push('readAudit');return old},
+   readAudit:async()=>{events.push('readAudit');if(hooks.audit)await hooks.audit();return old},
    readOutbox:async()=>outbox,
    commit:async args=>{events.push('commit');assert.equal(args.action,'EXT_APPLY');
     assert.equal(args.nextSnapshot.managerCommentLast,'KEEP');
@@ -54,17 +54,27 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
    release:async()=>events.push('gateRelease'),
    uncertain:async()=>events.push('uncertainGate')
   },
-  preflight:async()=>{events.push('preflight');return preflight},
+  preflight:async()=>{events.push('preflight');if(hooks.preflight)await hooks.preflight();return preflight},
   projector:{
    apply:async()=>events.push('projectRows'),
-   inspect:async()=>({state:inspection,detail:[{matched:true}]})
+   inspect:async()=>{if(hooks.rowInspect)await hooks.rowInspect();return {state:inspection,detail:[{matched:true}]}}
   },
   appendProjector:{
    apply:async()=>events.push('appendOutbox'),
-   inspect:async()=>({state:appendInspection,count:1})
+   inspect:async()=>{if(hooks.appendInspect)await hooks.appendInspect();return {state:appendInspection,count:1}}
   }
  });
  return {instance,events};
+}
+{
+ let preflightStarted=false,appendInspectStarted=false;
+ const {instance}=setup({hooks:{
+  audit:async()=>{await Promise.resolve();assert.equal(preflightStarted,true,'preflight starts while audit is read')},
+  preflight:async()=>{preflightStarted=true},
+  rowInspect:async()=>{await Promise.resolve();assert.equal(appendInspectStarted,true,'both readbacks start together')},
+  appendInspect:async()=>{appendInspectStarted=true}
+ }});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
 }
 {
  const {instance,events}=setup(),result=await instance.commit({actor,body});

@@ -16,7 +16,9 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
   if(['REJECT','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED');
   const auditId=str(body.auditId),operationId=hash({auditId,actorId:actor.auditorId,action,body});
-  const replay=await atomicStore.readOutbox(operationId);
+  const started=Date.now(),timings={};
+  async function measure(name,fn){const t=Date.now();try{return await fn();}finally{timings[name]=Date.now()-t;}}
+  const replay=await measure('priorMs',()=>atomicStore.readOutbox(operationId));
   if(replay){
    if(replay.auditId!==auditId||replay.actorId!==actor.auditorId||replay.action!==action)throw Error('LIFECYCLE_ATOMIC_REPLAY_IDENTITY_CONFLICT');
    if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,action,authority:'FIRESTORE',projection:'PROJECTED'};
@@ -24,12 +26,14 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   }
   let lock=null,attempted=false,committed=false,projected=false;
   try{
-   lock=await gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_LIFECYCLE_'+action});
-   const preview=await preflight({actor,body:{...body,authorityPreflight:true},action});
+   lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_LIFECYCLE_'+action}));
+   const [preview,old]=await Promise.all([
+    measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action})),
+    measure('auditMs',()=>atomicStore.readAudit(auditId))
+   ]);
    if(preview?.authorityPreflight!==true||preview?.success!==true||preview?.auditId!==auditId)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_INVALID');
    if(preview.idempotent===true)throw Error('LIFECYCLE_ATOMIC_LEGACY_REPLAY_UNVERIFIED');
    if(!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!preview.canonicalSnapshot||!Array.isArray(preview.appendIntents))throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_INCOMPLETE');
-   const old=await atomicStore.readAudit(auditId);
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('LIFECYCLE_ATOMIC_CANONICAL_PARITY_CONFLICT');
    if(old.snapshot?.legacyUnverified===true)throw Error('LIFECYCLE_LEGACY_UNVERIFIED_BLOCKED');
    if(actor.role==='auditor'){
@@ -42,7 +46,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    let auditorId=null,blocks=[];
    if(statuses.has(status)){
     const email=str(snapshot.assignedTo).toLowerCase();
-    const matching=(await roster()).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
+    const matching=(await measure('rosterMs',()=>roster())).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
     if(matching.length!==1||!str(matching[0].auditorId))throw Error('LIFECYCLE_ATOMIC_AUDITOR_IDENTITY_UNRESOLVED');
     auditorId=matching[0].auditorId;
     const head=snapshot.headers||[],row=snapshot.row||[];
@@ -55,20 +59,23 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    }
    if(actor.role==='auditor'&&action==='ACCEPT'&&auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
    attempted=true;
-   const receipt=await atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks});
+   const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
    if(receipt.replayed)throw Error('LIFECYCLE_ATOMIC_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan:snapshot});
-   await appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents});
-   const rows=await projector.inspect(snapshot),appends=await appendProjector.inspect(snapshot.appendIntents);
+   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
+   await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
+   const [rows,appends]=await measure('verifyMs',()=>Promise.all([
+    projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)
+   ]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('LIFECYCLE_ATOMIC_PROJECTION_UNVERIFIED');
    const proof={verified:true,auditId,rowHash:hash({rows:rows.detail,appends:appends.count})};
-   await atomicStore.markProjected({auditId,operationId,proof});
+   await measure('markProjectedMs',()=>atomicStore.markProjected({auditId,operationId,proof}));
    projected=true;
-   await gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_FIRESTORE_AND_SHEETS_VERIFIED'});
+   await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_FIRESTORE_AND_SHEETS_VERIFIED'}));
    lock=null;
    return {success:true,action,auditId,operationId,revision:receipt.revision,authority:'FIRESTORE',projection:'PROJECTED'};
   }finally{
+   console.info('[PLANNING_LIFECYCLE_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,projected}));
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_PREFLIGHT_FAILED_BEFORE_WRITE'});
     else if(projected)await gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_PROJECTED_RELEASE_FAILED'});

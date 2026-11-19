@@ -137,3 +137,59 @@ assert.equal(pairedProof.projectionPreconditions.length,14);
 assert.equal(pairedProof.appendIntents[0].values.length,2);
 assert.throws(()=>buildAtomicExtensionWriteset20({plan:paired,source:pairSource,cbEvents:[events[0],events[0]],cbEvent:events[0],revisionOf:()=> 'revision'}),/MEMBERSHIP_INVALID/);
 console.log('Shared expiry writeset: both obligations and both event intents verified');
+
+// Reconcile only the missing member after proving the prior member's CB event.
+const cbHeaders=['Event_ID','Operation_ID','Audit_ID','Obligation_ID','Company_UID','ScopeCode','Certification_Body_ID','Action','State_After','Created_At','Status','Details_JSON'];
+const recoveryHeaders=[...pairHeaders,'Certification_Body_ID'];
+const recoverySource=()=>{
+ const rows=[recoveryHeaders,
+  ['G','C','MPS-GAP','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-12-31','','','2027','OPEN','CB1'],
+  ['R','C','GRASP','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-11-30','','','2027','OPEN','CB1']];
+ const source={...pairSource,obligationRows:rows,cbOutboxRows:[cbHeaders]};
+ const normal=plan({...pairCommand,snapshot:inspect(source)});
+ const first=normal.obligationChanges.find(x=>x.obligationId==='G').expected;
+ rows[1].splice(5,5,first.effectiveExpiry,first.windowFrom,first.windowTo,'Yes',first.extensionMetadata);
+ source.cbOutboxRows.push(['CB_EXT_TX','TX','P','G','C','MPS-GAP','CB1','APPLY','APPLIED','2026-11-18T10:00:00Z','BUFFERED',
+  JSON.stringify({scopeCode:'MPS-GAP',certificationBodyId:'CB1',previousExpiry:'2027-01-31',effectiveExpiry:'2027-05-31'})]);
+ return source;
+};
+const partial=recoverySource();
+const repaired=plan({...pairCommand,requestId:'REPAIR',snapshot:inspect(partial)});
+assert.deepEqual(repaired.obligationChanges.map(x=>x.obligationId),['R']);
+assert.equal(JSON.parse(repaired.expected.extensionMetadata).transactionId,'TX');
+assert.equal(repaired.expected.aggregateExpiry,'2027-05-31');
+assert.deepEqual(repaired.patch.scopeChanges,[{scopeCode:'GRASP',extensionApplied:true}]);
+const repairEvent=Array(16).fill('');repairEvent[0]='CB_EXT_REPAIR';repairEvent[3]='R';
+const repairProof=buildAtomicExtensionWriteset20({plan:repaired,source:partial,cbEvent:{eventId:repairEvent[0],values:repairEvent},revisionOf:()=> 'revision'});
+assert.equal(repairProof.projectionWrites.length,9);
+assert.deepEqual(repairProof.appendIntents[0].values,[repairEvent]);
+partial.obligationRows[2].splice(5,5,repaired.expected.effectiveExpiry,repaired.expected.windowFrom,repaired.expected.windowTo,'Yes',repaired.expected.extensionMetadata);
+const fullUndo=plan({...pairCommand,command:'undo',obligationId:'G',requestId:'UNDO_REPAIRED',snapshot:inspect(partial)});
+assert.deepEqual(fullUndo.obligationChanges.map(x=>x.obligationId),['G','R']);
+const partialUndoSource=recoverySource();
+const partialUndo=plan({...pairCommand,command:'undo',obligationId:'G',requestId:'UNDO_PARTIAL',snapshot:inspect(partialUndoSource)});
+assert.deepEqual(partialUndo.obligationChanges.map(x=>x.obligationId),['G']);
+assert.equal(partialUndo.expected.aggregateExpiry,'2027-01-31');
+const missingEvidence=recoverySource();missingEvidence.cbOutboxRows.pop();
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(missingEvidence)}),/PARTIAL_CB_EVIDENCE_INVALID/);
+const duplicateEvidence=recoverySource();duplicateEvidence.cbOutboxRows.push([...duplicateEvidence.cbOutboxRows[1]]);
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(duplicateEvidence)}),/PARTIAL_CB_EVIDENCE_INVALID/);
+const changedEvidence=recoverySource();changedEvidence.cbOutboxRows[1][11]=JSON.stringify({scopeCode:'MPS-GAP',certificationBodyId:'CB1',previousExpiry:'2027-01-31',effectiveExpiry:'2027-06-30'});
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(changedEvidence)}),/PARTIAL_CB_EVIDENCE_INVALID/);
+const newerEvidence=recoverySource();const newer=[...newerEvidence.cbOutboxRows[1]];newer[0]='CB_EXT_NEWER';newer[1]='NEWER';newer[9]='2026-11-18T10:01:00Z';newerEvidence.cbOutboxRows.push(newer);
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(newerEvidence)}),/PARTIAL_CB_EVIDENCE_INVALID/);
+const conflictingBefore=recoverySource();
+const conflictingMeta=JSON.parse(conflictingBefore.obligationRows[1][9]);conflictingMeta.months=3;
+conflictingBefore.obligationRows[1][9]=JSON.stringify(conflictingMeta);
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(conflictingBefore)}),/PARTIAL_PROVENANCE_INVALID/);
+
+// Required-together dependencies remain coupled even when expiry is not shared.
+const nonShared=recoverySource();
+nonShared.obligationRows[1].splice(5,5,'2027-01-31','2026-09-30','2026-12-31','','');
+nonShared.obligationRows[2][4]='2027-02-28';nonShared.obligationRows[2][5]='2027-02-28';
+nonShared.sharedExpiryPairs=[{parentScopeCode:'MPS-GAP',childScopeCode:'GRASP',shareExpiry:false}];
+const nonSharedPlan=plan({...pairCommand,snapshot:inspect(nonShared)});
+assert.deepEqual(nonSharedPlan.obligationChanges.map(x=>x.obligationId),['G','R']);
+assert.deepEqual(nonSharedPlan.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-05-31','2027-06-28']);
+assert.deepEqual(nonSharedPlan.patch.scopeChanges.map(x=>x.scopeCode),['MPS-GAP','GRASP']);
+console.log('Partial dependency reconciliation: prior CB proof, one changed member, coupled undo and fail-closed guards passed');

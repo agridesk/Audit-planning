@@ -38,7 +38,7 @@ const legacyWindowOffsets20=(base,from,to)=>{
 const col=i=>{let n=i+1,s='';while(n>0){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s};
 const index=(headers,name)=>{const i=headers.indexOf(name);if(i<0)throw Error('EXT_DEV_SCHEMA_MISSING_'+name);return i};
 const get=(row,head,name)=>row[index(head,name)];
-export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows,scopeRows,companyUid,sharedExpiryPairs=[]}={}){
+export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows,scopeRows,companyUid,sharedExpiryPairs=[],cbOutboxRows}={}){
  const arrays=[obligationRows,linkRows,planningRows,scopeRows];
  if(arrays.some(rows=>!Array.isArray(rows)||!Array.isArray(rows[0])||rows.length>2501))throw Error('EXT_DEV_SOURCE_INVALID');
  const [O,L,P,S]=arrays.map(rows=>({head:rows[0].map(t),rows:rows.slice(1)}));
@@ -79,35 +79,94 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   if(!companyUid||company===companyUid)records.push(rec);
  }
  for(const [auditId,ids] of byAudit){if(!auditRows.has(auditId)||ids.some(id=>!obligations.has(id)))throw Error('EXT_DEV_ORPHAN_LINK')}
- return{records,obligations,sharedExpiryPairs,byAudit,auditRows,planningHead:P.head,obligationHead:O.head,mode:'DEV_MODEL_C_DIRECT',canMutate:records.some(x=>x.canMutate)};
+ return{records,obligations,sharedExpiryPairs,cbOutboxRows,byAudit,auditRows,planningHead:P.head,obligationHead:O.head,mode:'DEV_MODEL_C_DIRECT',canMutate:records.some(x=>x.canMutate)};
+}
+function partialGroupTransaction20(snapshot,members,auditId,companyUid){
+ const rows=snapshot.cbOutboxRows,headers=['Event_ID','Operation_ID','Audit_ID','Obligation_ID','Company_UID','ScopeCode','Certification_Body_ID','Action','State_After','Created_At','Status','Details_JSON'];
+ if(!Array.isArray(rows)||!Array.isArray(rows[0])||rows.length>=2500||headers.some(h=>!rows[0].includes(h))||rows.some(r=>!Array.isArray(r)))
+  throw Error('EXT_DEV_PARTIAL_CB_EVIDENCE_UNAVAILABLE');
+ const h=rows[0],value=(row,name)=>t(row[h.indexOf(name)]),transactions=new Set();
+ for(const member of members.filter(x=>x.extensionApplied)){
+  let meta;try{meta=JSON.parse(member.extensionMetadata)}catch{throw Error('EXT_DEV_PARTIAL_PROVENANCE_INVALID')}
+  const before=meta?.before;
+  if(!member.canUndo||meta?.source!=='AMS_DEV_MODEL_C_SCOPE_EXTENSION_20'||meta.scopeCode!==member.scopeCode||
+     !t(meta.transactionId)||Number(meta.months)!==member.policy.months||!before||
+     before.extensionApplied!==false||t(before.extensionMetadata)||iso(before.effectiveExpiry)!==member.baseExpiry||
+     !iso(before.windowFrom)||!iso(before.windowTo)||iso(before.windowFrom)>iso(before.windowTo)||
+     member.effectiveExpiry!==addMonths(member.baseExpiry,member.policy.months)||
+     member.windowFrom!==addMonths(member.effectiveExpiry,member.policy.from)||
+     member.windowTo!==addMonths(member.effectiveExpiry,member.policy.to))
+   throw Error('EXT_DEV_PARTIAL_PROVENANCE_INVALID');
+  const cbIndex=snapshot.obligationHead.indexOf('Certification_Body_ID');
+  const body=cbIndex<0?'':t(member.sourceRow[cbIndex]);
+  const history=rows.slice(1).filter(row=>value(row,'Obligation_ID')===member.obligationId);
+  if(history.some(row=>!Number.isFinite(Date.parse(value(row,'Created_At')))))
+   throw Error('EXT_DEV_PARTIAL_CB_EVIDENCE_INVALID');
+  const found=history.filter(row=>value(row,'Operation_ID')===t(meta.transactionId)&&
+   value(row,'Audit_ID')===auditId&&value(row,'Obligation_ID')===member.obligationId&&
+   value(row,'Company_UID')===companyUid&&value(row,'ScopeCode')===member.scopeCode);
+  if(!body||found.length!==1||!value(found[0],'Event_ID')||value(found[0],'Certification_Body_ID')!==body||
+     rows.slice(1).filter(row=>value(row,'Event_ID')===value(found[0],'Event_ID')).length!==1||
+     history.some(row=>row!==found[0]&&Date.parse(value(row,'Created_At'))>=Date.parse(value(found[0],'Created_At')))||
+     value(found[0],'Action')!=='APPLY'||value(found[0],'State_After')!=='APPLIED'||
+     !['BUFFERED','QUEUED','SENT','TESTED','FAILED','BLOCKED'].includes(value(found[0],'Status')))
+   throw Error('EXT_DEV_PARTIAL_CB_EVIDENCE_INVALID');
+  let details;try{details=JSON.parse(value(found[0],'Details_JSON'))}catch{throw Error('EXT_DEV_PARTIAL_CB_EVIDENCE_INVALID')}
+  if(t(details?.scopeCode)!==member.scopeCode||t(details?.certificationBodyId)!==body||
+     iso(details?.effectiveExpiry)!==member.effectiveExpiry||iso(details?.previousExpiry)!==iso(before.effectiveExpiry))
+   throw Error('EXT_DEV_PARTIAL_CB_EVIDENCE_INVALID');
+  transactions.add(t(meta.transactionId));
+ }
+ if(transactions.size!==1)throw Error('EXT_DEV_PARTIAL_PROVENANCE_INVALID');
+ return [...transactions][0];
 }
 export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationId,command,requestId,actorUid}={}){
  if(!snapshot||!['apply','undo'].includes(command)||!t(auditId)||!t(companyUid)||!t(obligationId)||!t(requestId)||!t(actorUid)||t(requestId).length>180)throw Error('EXT_DEV_COMMAND_INVALID');
  const id=t(obligationId),rec=snapshot.obligations.get(id),ids=snapshot.byAudit.get(t(auditId))||[];
  if(!rec||rec.companyUid!==companyUid||rec.auditId!==auditId||!ids.includes(id)||ids.length>100||!(command==='apply'?rec.canApply:rec.canUndo))throw Error('EXT_DEV_SCOPE_NOT_ELIGIBLE');
  const scopes=new Set([rec.scopeCode]);
- for(const pair of snapshot.sharedExpiryPairs){
-  if(!pair.shareExpiry)continue;
-  if(pair.parentScopeCode===rec.scopeCode)scopes.add(pair.childScopeCode);
-  if(pair.childScopeCode===rec.scopeCode)scopes.add(pair.parentScopeCode);
- }
+ let expanded=true;
+ while(expanded){expanded=false;for(const pair of snapshot.sharedExpiryPairs){
+  if(scopes.has(pair.parentScopeCode)&&!scopes.has(pair.childScopeCode)){scopes.add(pair.childScopeCode);expanded=true;}
+  if(scopes.has(pair.childScopeCode)&&!scopes.has(pair.parentScopeCode)){scopes.add(pair.parentScopeCode);expanded=true;}
+ }}
  let members=[rec];
+ let changedMembers=members,groupTransaction=requestId;
+ const sharedPairs=snapshot.sharedExpiryPairs.filter(pair=>pair.shareExpiry&&scopes.has(pair.parentScopeCode)&&scopes.has(pair.childScopeCode));
  if(scopes.size>1){
   if(!rec.cycleKey)throw Error('EXT_DEV_SHARED_EXPIRY_CYCLE_REQUIRED');
   members=[...snapshot.obligations.values()].filter(o=>o.companyUid===companyUid&&
    o.cycleKey===rec.cycleKey&&scopes.has(o.scopeCode)&&
    ['OPEN','LINKED_TO_VISIT'].includes(o.obligationState));
   if(members.length!==scopes.size||new Set(members.map(o=>o.scopeCode)).size!==scopes.size||
-    members.some(o=>o.auditId!==auditId||!(command==='apply'?o.canApply:o.canUndo)))
+    members.some(o=>o.auditId!==auditId))
    throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');
-  if(new Set(members.map(o=>o.effectiveExpiry)).size!==1||
-    command==='undo'&&new Set(members.map(o=>o.extensionTransactionId)).size!==1)
-   throw Error('EXT_DEV_SHARED_EXPIRY_PROVENANCE_CONFLICT');
+  const partial=members.some(o=>o.extensionApplied)&&members.some(o=>!o.extensionApplied);
+  if(partial){
+   if(sharedPairs.length!==snapshot.sharedExpiryPairs.filter(pair=>scopes.has(pair.parentScopeCode)&&scopes.has(pair.childScopeCode)).length||
+      members.some(o=>o.extensionApplied?!o.canUndo:!o.canApply))
+    throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');
+   groupTransaction=partialGroupTransaction20(snapshot,members,auditId,companyUid);
+   changedMembers=members.filter(o=>command==='apply'?!o.extensionApplied:o.extensionApplied);
+  }else{
+   if(members.some(o=>!(command==='apply'?o.canApply:o.canUndo)))
+    throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');
+   if(command==='undo'&&new Set(members.map(o=>o.extensionTransactionId)).size!==1)
+    throw Error('EXT_DEV_SHARED_EXPIRY_PROVENANCE_CONFLICT');
+   changedMembers=members;
+   for(const pair of sharedPairs){
+    const a=members.find(o=>o.scopeCode===pair.parentScopeCode),b=members.find(o=>o.scopeCode===pair.childScopeCode);
+    if(a.effectiveExpiry!==b.effectiveExpiry)throw Error('EXT_DEV_SHARED_EXPIRY_PROVENANCE_CONFLICT');
+   }
+  }
  }
- const changes=new Map(members.map(member=>[member.obligationId,
-  {record:member,after:planObligationExtension(member,{command,requestId,actorUid,ids})}]));
- if(new Set([...changes.values()].map(change=>change.after.effectiveExpiry)).size!==1)
-  throw Error('EXT_DEV_SHARED_EXPIRY_RESULT_CONFLICT');
+ const changes=new Map(changedMembers.map(member=>[member.obligationId,
+  {record:member,after:planObligationExtension(member,{command,requestId:groupTransaction,actorUid,ids})}]));
+ for(const pair of sharedPairs){
+  const a=members.find(o=>o.scopeCode===pair.parentScopeCode),b=members.find(o=>o.scopeCode===pair.childScopeCode);
+  if((changes.get(a.obligationId)?.after.effectiveExpiry||a.effectiveExpiry)!==(changes.get(b.obligationId)?.after.effectiveExpiry||b.effectiveExpiry))
+   throw Error('EXT_DEV_SHARED_EXPIRY_RESULT_CONFLICT');
+ }
  const after=changes.get(id).after;
  const all=ids.map(k=>changes.has(k)?{...changes.get(k).record,...changes.get(k).after}:snapshot.obligations.get(k));
  if(all.some(x=>!x||x.auditId!==auditId||x.companyUid!==companyUid))throw Error('EXT_DEV_AUDIT_LINEAGE_INVALID');
@@ -133,7 +192,8 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
  put('Audit planning',ph,audit.rowNumber,'Planning window to',joint?to:'');
  return{updates,obligationChanges:[...changes].map(([obligationId,{after}])=>({obligationId,expected:after})),auditId,obligationId:id,scopeCode:rec.scopeCode,command,operationId:requestId,
   expected:{...after,aggregateExpiry:expiry,aggregateApplied:all.some(x=>x.extensionApplied),planningWindowFrom:joint?from:'',planningWindowTo:joint?to:''},
-  patch:{auditId,extensionApplied:all.some(x=>x.extensionApplied),expiryZ:expiry,planningWindowFrom:joint?from:'',planningWindowTo:joint?to:'',requiresSeparatePlanning:!joint},
+  patch:{auditId,extensionApplied:all.some(x=>x.extensionApplied),expiryZ:expiry,planningWindowFrom:joint?from:'',planningWindowTo:joint?to:'',requiresSeparatePlanning:!joint,
+   scopeChanges:[...changes.values()].map(({record,after})=>({scopeCode:record.scopeCode,extensionApplied:after.extensionApplied}))},
   direct:true,projection:'PROJECTED'};
 }
 

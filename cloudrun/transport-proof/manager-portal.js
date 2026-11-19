@@ -294,7 +294,7 @@ async function runSingleScopeExtension20(button){
    patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
    patch.planningWindow=patch.planningWindowText;
    patch.extApplied=patch.extensionApplied;
-   mergeRowInPlace(auditId,patch);updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply');
+   mergeRowInPlace(auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:obligation.scopeCode,extensionApplied:command==='apply'}]).forEach(function(change){updateExtendedScopeCodes20(auditId,change.scopeCode,change.extensionApplied===true)});
    document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV';
    return;
   }
@@ -1479,7 +1479,7 @@ if(tab==='scopes'){
     patch.extApplied=patch.extensionApplied;
     patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
     patch.planningWindow=patch.planningWindowText;
-    mergeRowInPlace(o.auditId,patch);updateExtendedScopeCodes20(o.auditId,o.scopeCode,predictedApplied);
+    mergeRowInPlace(o.auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:o.scopeCode,extensionApplied:predictedApplied}]).forEach(function(change){updateExtendedScopeCodes20(o.auditId,change.scopeCode,change.extensionApplied===true)});
     if(extCurrent())await loadExtObligations();
    }else{
     if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';

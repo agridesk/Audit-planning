@@ -228,10 +228,10 @@ async function readIsolatedDevModelCExt20(){
  // Independent read-only checks overlap; identity still must pass before any write.
  const [project,r]=await Promise.all([
   verifiedAuditorLockDevProject(),
-  sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100','Config_Scope_Dependencies!A1:G1000'])
+  sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100','Config_Scope_Dependencies!A1:G1000','CB_Extension_Outbox!A1:P2500'])
  ]);
  if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
- if(r.length!==6||(r[5]?.values?.length??0)>=1000)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
+ if(r.length!==7||(r[5]?.values?.length??0)>=1000)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
@@ -248,7 +248,7 @@ async function readIsolatedDevModelCExt20(){
  if(scopeIndex<0)throw Error('EXT_DEV_SCOPE_CODE_COLUMN_MISSING');
  const scopeCodes=[...new Set(scopeRows.slice(1).map(row=>clean(row[scopeIndex])).filter(Boolean))];
  const sharedExpiryPairs=requiredTogetherScopePairs20({dependencies:r[5]?.values,scopeCodes});
- return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows,sharedExpiryPairs};
+ return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows,sharedExpiryPairs,cbOutboxRows:r[6]?.values};
 }
 function isolatedExtPilot20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'
@@ -3433,9 +3433,17 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       try{
         const source=await readIsolatedDevModelCExt20();
         const out=inspectDevScopeExtension20({...source,companyUid:uid});
+        const reconciliationPreview=u.searchParams.get('reconciliationPreview')==='1'?out.records.filter(r=>r.auditId&&r.canMutate).map(r=>{
+          const command=r.extensionApplied?'undo':'apply';
+          try{
+            const plan=planDevScopeExtension20({snapshot:out,auditId:r.auditId,companyUid:uid,obligationId:r.obligationId,command,requestId:'READ_ONLY_PREVIEW',actorUid:'READ_ONLY_PREVIEW'});
+            return {obligationId:r.obligationId,command,eligible:true,changedObligationIds:plan.obligationChanges.map(x=>x.obligationId),effectiveExpiry:plan.expected.aggregateExpiry};
+          }catch(error){return {obligationId:r.obligationId,command,eligible:false,reason:clean(error?.message||error)};}
+        }):undefined;
         return send(res,200,{ok:true,companyUid:uid,records:out.records.map(({sourceRow,policy,rowNumber,...record})=>({
           ...record,revision:0
-        })),mode:'DEV_MODEL_C_DIRECT',canMutate:out.canMutate});
+        })),mode:'DEV_MODEL_C_DIRECT',canMutate:out.canMutate,
+        ...(reconciliationPreview?{reconciliationPreview,writeAuthorized:false}:{})});
       }catch(e){return send(res,409,{ok:false,error:'EXT_DEV_DIRECT_DOSSIER_FAILED',detail:clean(e?.message||e)})}
     }
     try{

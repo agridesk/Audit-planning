@@ -29,7 +29,7 @@ const lifecyclePreviewContext20=new AsyncLocalStorage();
 const scopeExtensionProjectionWrites20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
-import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
+import {buildDirectAuditorAcceptSheets20,directLifecycleRowRevision20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
 import {URL} from 'node:url';
@@ -1243,15 +1243,7 @@ async function withDevLifecycleFirestoreLock20(auditId,fn){
 }
 function directStatusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
 function directRowRevision(h,row){
-  const g=n=>val(row,col(h,n));
-  return createHash('sha256').update([
-    g(['Audit ID','Audit_ID','AuditId','Audit Id']),
-    g(['Status']),
-    g(['Assigned to','Assigned auditor','Auditor']),
-    g(['Planning JSON','Planning_JSON']),
-    g(['Last decision timestamp']),
-    g(['Status since'])
-  ].join('|')+(g(['Auditor_UID','Assigned_Auditor_UID'])?'|'+g(['Auditor_UID','Assigned_Auditor_UID']):'')).digest('hex').slice(0,24);
+  return directLifecycleRowRevision20(h,row);
 }
 function directResolveAuditorEmail(audValues,assigned){
   const a=clean(assigned).toLowerCase();if(!a)return'';

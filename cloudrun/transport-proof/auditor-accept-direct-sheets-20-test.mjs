@@ -5,10 +5,12 @@ const h=['Audit ID','Status','Assigned to','Planning JSON','Last decision timest
 const row=['A-123','Approved','Auditor Example','{}','','','uid-123','','','','Example'];
 const ah=['Auditor_UID','E-mail','Role','Active','Name','Abbreviation'];
 const ar=['uid-123','a@example.test','AUDITOR','YES','Auditor Example','AX'];
-const expectedRevision=createHash('sha256').update(row.slice(0,6).join('|')).digest('hex').slice(0,24);
+const expectedRevision=createHash('sha256').update(row.slice(0,7).join('|')).digest('hex').slice(0,24);
+const legacyRevision=createHash('sha256').update(row.slice(0,6).join('|')).digest('hex').slice(0,24);
 const opts={actor:{role:'AUDITOR',uid:'uid-123',email:'a@example.test'},auditId:'A-123',expectedRevision,values:{audit:[h,row],auditors:[ah,ar]},sheetIds:{audit:123,queue:456},stamp:'2026-10-28T09:00:00'};
 const good=build(opts);
 assert.equal(good.requests.length,6);
+assert.throws(()=>build({...opts,expectedRevision:legacyRevision}),/REVISION_CONFLICT/);
 assert.equal(good.requests.filter(x=>x.updateCells).length,5);
 assert.equal(good.requests.filter(x=>x.appendCells).length,1);
 assert.ok(good.requests.every(x=>!x.updateCells||x.updateCells.range.endColumnIndex-x.updateCells.range.startColumnIndex===1));

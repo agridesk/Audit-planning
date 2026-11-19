@@ -6,7 +6,7 @@ const core=readFileSync(new URL('../../CoreStatusMachine.js',import.meta.url),'u
 const gas=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
-assert.match(s,/import \{buildDirectAuditorAcceptSheets20\}/);
+assert.match(s,/import \{buildDirectAuditorAcceptSheets20,directLifecycleRowRevision20\}/);
 assert.match(s,/AMS_AUDITOR_DIRECT_ACCEPT_ENABLED/);
 assert.match(s,/AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED/);
 assert.match(s,/AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED/);

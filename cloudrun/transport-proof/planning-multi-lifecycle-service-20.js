@@ -24,9 +24,11 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
   let lock=null,attempted=false,committed=false,verified=false;
   try{
    lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_MULTI_'+action}));
-   const preview=await measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action}));
+   const [preview,parent]=await Promise.all([
+    measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action})),
+    measure('parentMs',()=>atomicStore.readAudit(auditId))
+   ]);
    if(preview?.success!==true||preview?.authorityPreflight!==true||preview?.auditId!==auditId||!Array.isArray(preview.removedSourceRows)||preview.removedSourceRows.length!==1||!Array.isArray(preview.successorSnapshots)||!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!Array.isArray(preview.appendIntents))throw Error('PLANNING_MULTI_PREFLIGHT_INCOMPLETE');
-   const parent=await measure('parentMs',()=>atomicStore.readAudit(auditId));
    if(!parent||parent.pendingOperationId||parent.snapshot?.sourceRevision!==preview.expectedSourceRevision||parent.snapshot?.legacyUnverified)throw Error('PLANNING_MULTI_PARENT_REVISION_INVALID');
    if(actor.role==='auditor'&&(norm(parent.snapshot?.status)!=='ACCEPTED'||parent.auditorId!==actor.auditorId))throw Error('PLANNING_MULTI_AUDITOR_OWNERSHIP_INVALID');
    const expectedStatus=action==='COMPLETE'?'COMPLETED':'REJECTED';

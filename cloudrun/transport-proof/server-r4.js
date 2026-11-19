@@ -810,7 +810,13 @@ function gridScopeStyles20(configRows){
  }
  return result;
 }
-async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email,loaded){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=loaded||await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerEnrichmentSource20(email){
+ const ranges=['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024'];
+ const result=await sheetsBatchGet(ranges);
+ if(!Array.isArray(result)||result.length!==ranges.length)throw Error('MANAGER_ENRICHMENT_SOURCE_INCOMPLETE');
+ return {base:await managerOpenRead(email,result),datasets:[(result[0]?.values||[]).slice(0,483),result[1]?.values||[],result[3]?.values||[],result[4]?.values||[],result[5]?.values||[]]};
+}
 
 function actorAllowedActions(c){
   const out=[];if(c?.canPlan)out.push('PLAN');if(c?.canApprove)out.push('APPROVE');if(c?.canAccept||c?.canAcceptOnBehalf)out.push('ACCEPT');if(c?.canComplete)out.push('COMPLETE');if(c?.canCancel)out.push('CANCEL');return out;
@@ -3738,6 +3744,14 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(rows.some(x=>x.active&&(!x.certificationBodyId||!certificationBodyById.get(x.certificationBodyId)?.active)))return send(res,409,{ok:false,error:'ACTIVE_SCOPE_CERTIFICATION_BODY_MISSING_OR_INACTIVE'});
       return send(res,200,{ok:true,readOnly:true,rows,certificationBodies,versionStorageInitialized:false});
     }catch(e){return send(res,500,{ok:false,error:'SCOPE_READ_FAILED',detail:clean(e?.message||e)});}
+  }
+  if(u.pathname==='/api/v1/internal/dev-manager-enrichment-source'&&req.method==='POST'){
+   if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'||!sessionConfigured())return send(res,404,{ok:false,error:'NOT_FOUND'});
+   if(!safeEq(clean(req.headers['x-ams-internal-secret']),SESSION_SECRET))return send(res,403,{ok:false,error:'FORBIDDEN'});
+   const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+   if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+   try{return send(res,200,await managerEnrichmentSource20(actor.email));}
+   catch(e){return send(res,500,{ok:false,error:'MANAGER_ENRICHMENT_SOURCE_FAILED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/open'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'OPEN_GRID_READ_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/internal/dev-auditor-uid'&&req.method==='POST'){

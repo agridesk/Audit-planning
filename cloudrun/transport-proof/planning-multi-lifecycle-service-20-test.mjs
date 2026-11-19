@@ -45,4 +45,19 @@ preview.successorSnapshots=[child];failProjection=true;
 await assert.rejects(()=>svc.commit({actor,body:{...body,action:'complete-2'},action:'COMPLETE'}),/PROJECTION_TIMEOUT/);
 assert.equal(held.state,'UNCERTAIN');assert.ok(uncertain>=2);
 await assert.rejects(()=>svc.commit({actor:{role:'auditor',auditorId:'wrong'},body,action:'REJECT'}),/PLANNING_MULTI_ACTION_FORBIDDEN/);
+let releasePreflight,startedParent=false;
+const parentStarted=new Promise(resolve=>{releasePreflight=resolve});
+const parallelStore={...store,
+ async readOutbox(){return null;},
+ async readAudit(){startedParent=true;releasePreflight();return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'parallel-rev',status:'Accepted'}};},
+ async commitMulti(){return {replayed:false,entities:[]};},
+ async markProjected(){}
+};
+const parallelPreview={...preview,expectedSourceRevision:'parallel-rev',canonicalSnapshot:{auditId:'parent',status:'Rejected'},successorSnapshots:[]};
+const parallelGate={async acquire(){return {token:'parallel'};},async release(){},async uncertain(){throw Error('UNEXPECTED_UNCERTAIN')}};
+const parallelService=createPlanningMultiLifecycleService({atomicStore:parallelStore,gate:parallelGate,projector,appendProjector,
+ preflight:async()=>{await Promise.race([parentStarted,new Promise((_,reject)=>setTimeout(()=>reject(Error('PARENT_READ_NOT_CONCURRENT')),500))]);return parallelPreview;}});
+failProjection=false;
+assert.equal((await parallelService.commit({actor,body,action:'REJECT'})).success,true);
+assert.equal(startedParent,true);
 console.log('Multi lifecycle: completion successor, reject, replay and unknown Sheets outcome OK');

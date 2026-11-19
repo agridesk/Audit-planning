@@ -9,10 +9,11 @@ const end=r10.indexOf("u.pathname==='/api/v1/manager/extension'",from);
 assert(from>0&&end>from);
 const route=r10.slice(from,end);
 assert.match(route,/process\.env\.AMS_RUNTIME_ENV==='DEV'/,'Only DEV must change source');
-assert.match(route,/127\.0\.0\.1:'\+INNER_PORT\+'\/api\/v1\/manager\/open'/,'Use authenticated canonical direct read');
+assert.match(route,/127\.0\.0\.1:'\+INNER_PORT\+'\/api\/v1\/internal\/dev-manager-enrichment-source'/,'Use authenticated internal canonical read');
 assert.match(route,/headers\.cookie=clean\(req\.headers\.cookie\)/,'Forward session');
+assert.match(route,/'x-ams-internal-secret':secret/,'Authenticate the internal source request');
 assert.match(route,/wanted\.has\(clean\(x\.auditId\)\)/,'Enrich only requested audits');
-assert.match(route,/enrichManagerOpen\(source\)/,'Retain canonical extension and audit enrichment');
+assert.match(route,/enrichManagerOpen\(source,datasets\)/,'Retain canonical extension and audit enrichment');
 assert.match(route,/callGasBridge\(identity,'externalmanageropenenriched'/,'Existing PROD mode retained');
 assert.match(r4,/u\.pathname==='\/api\/v1\/manager\/open'/);
 assert.match(ui,/loadOpenEnrichment\(seq\)/);
@@ -20,6 +21,23 @@ const ext=r10.slice(r10.indexOf('async function enrichManagerOpen'),r10.indexOf(
 assert.match(ext,/r\.canExtend=r\.statusKey==='PENDING_PLANNING'/);
 assert.match(ext,/managerExtensionLinkedAuditIds\(obValues,linkValues\)/);
 assert.match(ext,/process\.env\.AMS_RUNTIME_ENV==='DEV'\?await sheetValuesBatch\(ranges\):await Promise\.all\(ranges\.map\(sheetValues\)\)/);
+const sourceRoute=r4.slice(r4.indexOf("u.pathname==='/api/v1/internal/dev-manager-enrichment-source'"),r4.indexOf("u.pathname==='/api/v1/manager/open'"));
+for(const guard of ["AMS_RUNTIME_ENV!=='DEV'","K_SERVICE!=='ams-fase12-dev'","x-ams-internal-secret","sessionFromRequestValidated(req)","!=='manager'"])
+ assert.ok(sourceRoute.includes(guard),'Internal source must enforce '+guard);
+const sourceFunction=r4.slice(r4.indexOf('async function managerEnrichmentSource20('),r4.indexOf('function actorAllowedActions('));
+let sourceReads=0,incomplete=false;
+const planningRows=Array.from({length:600},(_,i)=>['row-'+i]);
+const sourceReader=vm.runInNewContext('('+sourceFunction.trim()+')',{sheetsBatchGet:async ranges=>{
+ sourceReads++;assert.equal(ranges.length,6);
+ const results=[planningRows,[['scope']],[['company']],[['auditor']],[['obligation']],[['link']]].map(values=>({values}));
+ return incomplete?results.slice(0,5):results;
+},managerOpenRead:async(email,loaded)=>({success:true,email,loadedCount:loaded.length})});
+const source=await sourceReader('manager@example.test');
+assert.equal(sourceReads,1);assert.equal(source.base.loadedCount,6);
+assert.equal(source.datasets[0].length,483);assert.equal(source.datasets[1][0][0],'scope');
+assert.equal(source.datasets[2][0][0],'auditor');assert.equal(source.datasets[3][0][0],'obligation');
+assert.equal(source.datasets[4][0][0],'link');
+incomplete=true;await assert.rejects(()=>sourceReader('manager@example.test'),/MANAGER_ENRICHMENT_SOURCE_INCOMPLETE/);
 const batchSource=r10.slice(r10.indexOf('async function sheetValuesBatch('),r10.indexOf('async function auditPlanningRows('));
 let calls=0,mode='ok';
 const batch=vm.runInNewContext('('+batchSource.trim()+')',{SID:'fixture',URL,accessToken:async()=> 'token',fetch:async(url)=>{

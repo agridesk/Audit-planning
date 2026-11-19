@@ -42,6 +42,7 @@ assert.match(r15,/u\.pathname==='\/api\/v1\/planning\/atomic-self-planning-rescu
 assert.equal(freeze('POST','/api/v1/planning/atomic-self-planning-rescue').allow,false);
 assert.deepEqual(freeze('POST','/api/v1/manager/open-enrichment',{atomicPlanningEnabled:true}),{allow:true});
 assert.equal(freeze('POST','/api/v1/manager/open-enrichment').allow,false);
+assert.equal(freeze('POST','/api/v1/internal/dev-manager-enrichment-source',{atomicPlanningEnabled:true}).allow,false);
 for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,'/api/v1/manager/open-enrichment',{atomicPlanningEnabled:true}).allow,false);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');
 

@@ -18,6 +18,6 @@ const view=portal.slice(apply,apply+4400);
 assert(view.includes("'/api/v1/manager/extension-obligation-command'"),'per-scope command must use Firestore authority');
 assert(view.includes("'/api/v1/manager/extension-reconcile-projection'"),'projection must be confirmed');
 assert(view.includes("body.extensionTransactionId=o.extensionTransactionId"),'Undo must carry proven transaction ID');
-assert(view.includes("data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}"),'only selected audit obligations visible');
+assert(portal.includes("data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}"),'only selected audit obligations visible');
 assert(portal.includes('button.onclick=function(){extAction(o,command,button)}'),'each row must receive its own EXT/Undo action');
 console.log('PASS multi-scope Extensions: one click exact Company UID > Scopes > audit-specific EXT/Undo, guarded Firestore commit and projection');

@@ -16,8 +16,8 @@ assert(html.includes('id="companyManagement20Close"')&&html.includes('company-na
 assert(ui.includes('function grid4ScopeBadges(r)')&&ui.includes('function renderCompleted(rows)'));
 assert(r4.includes('const scopeStyles=gridScopeStyles20(vr[1]?.values||[]);out.rows=(out.rows||[]).map(row=>({...row,scopeStyles}))'),'manager Completed colors');
 assert(r4.includes("map(r=>({...r,scopeStyles,actorMode:'AUDITOR'}))"),'auditor Completed colors');
-assert(ui.includes('var swap20PairDisplayNumbers=new Map()')&&ui.includes("return '⇄ '+swap20PairDisplayNumbers.get"));
-assert(ui.includes('function extensionControls(r)')&&r10.includes("process.env.AMS_RUNTIME_ENV==='DEV'")&&r10.includes("'/api/v1/manager/open'"),'EXT enriched from direct DEV read');
+assert(ui.includes('var swap20PairDisplayNumbers=new Map()')&&ui.includes("function pairNo(p){return p.pairNo||swap20PairDisplayNumbers.get(swap20PairKey(p))}"));
+assert(ui.includes('function extensionControls(r)')&&r10.includes("process.env.AMS_RUNTIME_ENV==='DEV'")&&r10.includes("'/api/v1/internal/dev-manager-enrichment-source'"),'EXT enriched from direct DEV read');
 assert(r4.includes('exts.every(n=>n>0)')&&r10.includes('months.every(n=>n>0)'),'EXT strictest scope policy');
 assert(ui.includes('selectionExcel()')&&ui.includes('selectionPdf()'),'Grid exports');
 assert(ui.includes('Audit date')&&ui.includes('Completed date'),'Two completed dates');

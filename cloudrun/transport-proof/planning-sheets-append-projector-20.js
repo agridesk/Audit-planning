@@ -108,9 +108,13 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   return {state:missing.length?'MISSING':'MATCH',missing,count:items.length};
  }
- async function prepare({operationId,gateToken,intents}){
+ async function prepare({operationId,gateToken,intents,metadataOnly=false}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
+  if(metadataOnly){
+   validate(intents);
+   return {metadata:await request(base+'?fields=sheets(properties(sheetId,title))')};
+  }
   const before=await inspect(intents);
   const metadata=before.state==='MATCH'?null:await request(base+'?fields=sheets(properties(sheetId,title))');
   return {before,metadata};
@@ -118,7 +122,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
  async function apply({operationId,gateToken,intents,prepared,freshInspection}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
-  const before=prepared?.before??await inspect(intents);
+  const before=prepared?.before??freshInspection??await inspect(intents);
   if(!prepared&&before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true,verification:before};}
   await verifyFence({operationId,gateToken});
   // Metadata is independent of the final identity scan.
@@ -141,7 +145,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    await request(base+':batchUpdate','POST',{requests});
    await verifyFence({operationId,gateToken});
   }
-  const after=await inspect(intents);
+  const after=freshInspection&&fresh.state==='MATCH'?fresh:await inspect(intents);
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');
   await verifyFence({operationId,gateToken});
   return {operationId,confirmed:true,replayed:false,verification:after};

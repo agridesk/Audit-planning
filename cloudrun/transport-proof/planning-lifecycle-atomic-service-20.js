@@ -65,7 +65,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    const overlap=action==='ACCEPT'&&typeof appendProjector.prepare==='function'&&snapshot.appendIntents.length>0&&
     snapshot.appendIntents.every(intent=>intent.range==='Notification Queue!A:M')&&
     snapshot.projectionWrites.every(write=>write.range.startsWith('Audit planning!'));
-   const prepared=overlap?measure('appendPrepareMs',()=>appendProjector.prepare(appendArgs)).then(value=>({value}),error=>({error})):null;
+   const prepared=overlap?measure('appendPrepareMs',()=>appendProjector.prepare({...appendArgs,metadataOnly:true})).then(value=>({value}),error=>({error})):null;
    const rowArgs={operationId,gateToken:lock.token,plan:snapshot};
    const preparedRow=overlap&&typeof projector.prepareExistingPlanningRows==='function'?
     measure('rowPrepareMs',()=>projector.prepareExistingPlanningRows(rowArgs)).then(value=>({value}),error=>({error})):null;
@@ -82,11 +82,8 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    if(rowReady?.error)throw rowReady.error;
    // Accept's row and queue are on separate tabs. Read the queue while the row
    // is projected under the same exclusive gate, then publish after row readback.
-   const freshQueue=overlap?prepared.then(async ready=>{
-    if(ready.error)return ready;
-    try{return {value:await measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))};}
-    catch(error){return {error};}
-   }):null;
+   const freshQueue=overlap?measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))
+    .then(value=>({value}),error=>({error})):null;
    const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;

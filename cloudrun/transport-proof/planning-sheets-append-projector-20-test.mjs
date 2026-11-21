@@ -216,6 +216,13 @@ const beforePreparedApply=batchWrites;
 const preparedResult=await service.apply({...preparedArgs,prepared,freshInspection});
 assert.equal(preparedResult.verification.state,'MATCH');
 assert.equal(batchWrites,beforePreparedApply,'The final scan must catch an append after preparation');
+const readsBeforeMetadata=batchReads;
+const metadataOnly=await service.prepare({...preparedArgs,metadataOnly:true});
+assert.equal(batchReads,readsBeforeMetadata,'Metadata preparation must not scan the queue');
+const exactInspection=await service.inspect(preparedArgs.intents);
+assert.equal((await service.apply({...preparedArgs,prepared:metadataOnly,freshInspection:exactInspection})).verification.state,'MATCH');
+assert.equal(batchReads,readsBeforeMetadata+1,'A previously projected intent only needs one verified queue read');
+assert.equal(batchWrites,beforePreparedApply);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

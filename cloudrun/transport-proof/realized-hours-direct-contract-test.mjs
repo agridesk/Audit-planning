@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createRealizedHoursAtomicService20} from './realized-hours-atomic-service-20.js';
+import {createRealizedHoursAtomicService20,createRealizedHoursBatchProjector20} from './realized-hours-atomic-service-20.js';
 const server=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const client=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
@@ -28,8 +28,18 @@ const atomic=createRealizedHoursAtomicService20({
    events.push('committed');return {replayed:false};
   },markProjected:async()=>events.push('verified')},
  gate:{acquire:async()=>({token:'token'}),release:async()=>events.push('released')},
- projector:{apply:async()=>events.push('archive'),inspect:async()=>({state:'MATCH'})},
- appendProjector:{apply:async()=>events.push('trail'),inspect:async()=>({state:'MATCH',count:1})},
+ project:createRealizedHoursBatchProjector20({
+  readArchive:async()=>({state:events.includes('batch')?'MATCH':'READY'}),
+  readTrail:async()=>({state:events.includes('batch')?'MATCH':'MISSING',count:1}),
+  readTabs:async()=>[{properties:{sheetId:10,title:'Log realized audits'}},{properties:{sheetId:20,title:'Notification Queue'}}],
+  writeBatch:async requests=>{
+   assert.equal(requests.length,2);
+   assert.deepEqual(requests[0].updateCells.start,{sheetId:10,rowIndex:1,columnIndex:2});
+   assert.deepEqual(requests[0].updateCells.rows,[{values:[{userEnteredValue:{numberValue:5.25}}]}]);
+   assert.equal(requests[1].appendCells.sheetId,20);
+   events.push('batch');
+  },verifyFence:async()=>{}
+ }),
  readLog:async()=>[['Audit ID','Status','Hours dedicated','Other'],['audit-1','Completed',5,'preserved']],
  roster:async()=>[{role:'manager',active:true,email:'manager@example.test'}],signingKey:'test-key'
 });
@@ -37,7 +47,7 @@ const actor={role:'manager',auditorId:'manager-1',email:'manager@example.test'};
 const body={auditId:'audit-1',expectedHoursDedicated:5,hoursDedicated:5.25,requestId:'ad74b1de-173b-4dc7-ab85-4a322d4e0afd'};
 const corrected=await atomic.commit({actor,body,onCommitted:receipt=>{assert.equal(receipt.newHoursDedicated,5.25);events.push('receipt');}});
 assert.equal(corrected.projection,'PROJECTED');
-assert.deepEqual(events,['committed','receipt','archive','trail','verified','released']);
+assert.deepEqual(events,['committed','receipt','batch','verified','released']);
 events.length=0;
 await assert.rejects(()=>atomic.commit({actor,body:{...body,expectedHoursDedicated:4}}),error=>error.message==='STALE_REALIZED_HOURS'&&error.writeOutcome==='NOT_COMMITTED');
 assert.deepEqual(events,['released']);

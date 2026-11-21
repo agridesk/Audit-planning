@@ -8,7 +8,7 @@ function column(index){
  return label;
 }
 
-export function createRealizedHoursAtomicService20({store,gate,projector,appendProjector,readLog,roster,signingKey}){
+export function createRealizedHoursAtomicService20({store,gate,project,readLog,roster,signingKey}){
  async function commit({actor,body,onCommitted}){
   const auditId=text(body?.auditId),actorId=text(actor?.auditorId),requestId=text(body?.requestId);
   const oldHours=body?.expectedHoursDedicated,newHours=body?.hoursDedicated;
@@ -54,9 +54,7 @@ export function createRealizedHoursAtomicService20({store,gate,projector,appendP
    if(saved.replayed)throw Error('REALIZED_HOURS_UNEXPECTED_REPLAY');
    const receipt={auditId,operationId,action:'REALIZED_HOURS',newHoursDedicated:newHours};
    try{onCommitted?.(receipt);}catch{console.warn('[AMS_REALIZED_HOURS_RECEIPT_FAILED]');}
-   await projector.apply({operationId,gateToken:lock.token,plan});
-   await appendProjector.apply({operationId,gateToken:lock.token,intents:plan.appendIntents});
-   const [archive,queue]=await Promise.all([projector.inspect(plan),appendProjector.inspect(plan.appendIntents)]);
+   const [archive,queue]=await project({operationId,gateToken:lock.token,plan});
    if(archive.state!=='MATCH'||queue.state!=='MATCH')throw Error('REALIZED_HOURS_PROJECTION_UNVERIFIED');
    await store.markProjected({auditId,operationId,proof:{verified:true,auditId,rowHash:digest({archive:archive.detail,queue:queue.count})}});
    projected=true;
@@ -76,4 +74,45 @@ export function createRealizedHoursAtomicService20({store,gate,projector,appendP
   }
  }
  return {commit};
+}
+
+export function createRealizedHoursBatchProjector20({readArchive,readTrail,readTabs,writeBatch,verifyFence}){
+ return async function project({operationId,gateToken,plan}){
+  const [write]=plan.projectionWrites,[precondition]=plan.projectionPreconditions,[intent]=plan.appendIntents;
+  const row=/^Log realized audits!A([2-9]\d*|1\d+):[A-Z]+\1$/.exec(write.range);
+  const before=precondition.before,after=write.values[0];
+  const changed=after.map((value,index)=>value!==before[index]?index:-1).filter(index=>index>=0);
+  if(!row||write.range!==precondition.range||before.length!==after.length||changed.length!==1||
+     !Number.isFinite(after[changed[0]])||intent.range!=='Notification Queue!A:M'||intent.values.length!==1)
+   throw Error('REALIZED_HOURS_BATCH_PLAN_INVALID');
+  const fence={operationId,gateToken},started=Date.now();
+  await verifyFence(fence);
+  const [archive,trail,tabs]=await Promise.all([readArchive(plan),readTrail(plan.appendIntents),readTabs()]);
+  const readyMs=Date.now()-started;
+  if(!['READY','MATCH'].includes(archive.state)||!['MISSING','MATCH'].includes(trail.state))
+   throw Error('REALIZED_HOURS_BATCH_PRECONDITION_CONFLICT');
+  const requests=[];
+  const cell=value=>({userEnteredValue:typeof value==='number'?{numberValue:value}:{stringValue:String(value)}});
+  const sheetId=title=>{
+   const id=tabs.find(tab=>tab.properties?.title===title)?.properties?.sheetId;
+   if(!Number.isInteger(id))throw Error('REALIZED_HOURS_BATCH_SHEET_MISSING');
+   return id;
+  };
+  if(archive.state==='READY')requests.push({updateCells:{
+   start:{sheetId:sheetId('Log realized audits'),rowIndex:Number(row[1])-1,columnIndex:changed[0]},
+   rows:[{values:[cell(after[changed[0]])]}],fields:'userEnteredValue'
+  }});
+  if(trail.state==='MISSING')requests.push({appendCells:{sheetId:sheetId('Notification Queue'),
+   rows:[{values:intent.values[0].map(cell)}],fields:'userEnteredValue'}});
+  const writeStarted=Date.now();
+  if(requests.length){
+   await verifyFence(fence);
+   await writeBatch(requests);
+  }
+  const verifyStarted=Date.now();
+  const verified=await Promise.all([readArchive(plan),readTrail(plan.appendIntents)]);
+  await verifyFence(fence);
+  console.info('[AMS_REALIZED_HOURS_BATCH_TIMING]',JSON.stringify({operationId,readyMs,writeMs:verifyStarted-writeStarted,verifyMs:Date.now()-verifyStarted}));
+  return verified;
+ };
 }

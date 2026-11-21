@@ -61,7 +61,7 @@ import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.j
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
-import {createRealizedHoursAtomicService20} from './realized-hours-atomic-service-20.js';
+import {createRealizedHoursAtomicService20,createRealizedHoursBatchProjector20} from './realized-hours-atomic-service-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
 import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
@@ -543,7 +543,25 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
  }
 }):null;
 const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRealizedHoursAtomicService20({
- store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ store:planningAtomicStore,gate:planningGlobalGate,
+ project:createRealizedHoursBatchProjector20({
+  readArchive:planningAtomicProjector.inspect,readTrail:planningAtomicAppendProjector.inspect,
+  verifyFence:async({operationId,gateToken})=>{
+   const {holder}=await planningGlobalGate.read();
+   if(holder?.operationId!==operationId||holder?.token!==gateToken||holder.state!=='ACTIVE')throw Error('REALIZED_HOURS_FENCE_LOST');
+  },
+  readTabs:async()=>{
+   const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'?fields=sheets(properties(sheetId,title))',
+    {headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('REALIZED_HOURS_BATCH_METADATA_FAILED');
+   return (await response.json()).sheets;
+  },
+  writeBatch:async requests=>{
+   const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+':batchUpdate',
+    {method:'POST',headers:{authorization:'Bearer '+await getToken(),'content-type':'application/json'},body:JSON.stringify({requests}),signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('REALIZED_HOURS_BATCH_WRITE_FAILED');
+  }
+ }),
  roster:getRoster,signingKey:process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY,
  readLog:async()=>{
   const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Log realized audits'!A1:AZ10000"));

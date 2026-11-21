@@ -10,9 +10,9 @@ const readStart=src.indexOf('async function readGridActionResult20(');
 const readEnd=src.indexOf('function removeCompletedRowInPlace',readStart);
 const body=src.slice(a,b)+src.slice(readStart,readEnd);
 const auditId='AUD_POST_EXT';
-const run=async ({freshRevision='rev-after-extension',freshValue='No',status='PENDING_PLANNING',writeOk=true,writeOutcome='NOT_COMMITTED',missing=false}={})=>{
+const run=async ({gridRevision='',freshRevision='rev-after-extension',freshValue='No',status='PENDING_PLANNING',writeOk=true,writeOutcome='NOT_COMMITTED',missing=false}={})=>{
  const calls=[],notice={textContent:''},patches=[],button={disabled:false,getAttribute:k=>k==='data-audit-id'?auditId:k==='data-next'?'true':''};
- const ctx={button,URLSearchParams,crypto,performance,requestAnimationFrame:fn=>fn(),console,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
+ const ctx={button,URLSearchParams,crypto,performance,requestAnimationFrame:fn=>fn(),console,all:[{auditId,statusKey:'PENDING_PLANNING',sourceRow:42,sourceRevision:gridRevision,allowSelfPlanning:'No'}],
   busyAudits:new Set(),document:{getElementById:()=>notice},
   mergeRowInPlace:(id,p)=>patches.push({id,...p}),
   fetch:async (url,options)=>{
@@ -32,6 +32,14 @@ assert.equal(good.calls[0].url,'/api/v1/manager/self-planning-state?auditId=AUD_
 assert.equal(JSON.parse(good.calls[1].options.body).expectedRevision,'rev-after-extension');
 assert.equal(good.patches[0].sourceRevision,'rev-next');
 assert.equal(good.button.disabled,false);
+const direct=await run({gridRevision:'grid-revision'});
+assert.deepEqual(direct.calls.map(call=>call.url),['/api/v1/manager/self-planning-direct']);
+assert.equal(JSON.parse(direct.calls[0].options.body).expectedRevision,'grid-revision');
+assert.equal(JSON.parse(direct.calls[0].options.body).expectedAllowSelfPlanning,false);
+const stale=await run({gridRevision:'stale-grid-revision',writeOk:false});
+assert.equal(stale.calls.length,1);
+assert.equal(stale.patches.length,0);
+assert.match(stale.notice,/Change rejected before saving/);
 const missing=await run({missing:true});
 assert.equal(missing.calls.length,1);
 assert.match(missing.notice,/source revision missing/);

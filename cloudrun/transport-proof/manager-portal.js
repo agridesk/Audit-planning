@@ -294,6 +294,7 @@ async function runSingleScopeExtension20(button){
    patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
    patch.planningWindow=patch.planningWindowText;
    patch.extApplied=patch.extensionApplied;
+   patch.sourceRevision=patch.sourceRevision||'';
    mergeRowInPlace(auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:obligation.scopeCode,extensionApplied:command==='apply'}]).forEach(function(change){updateExtendedScopeCodes20(auditId,change.scopeCode,change.extensionApplied===true)});
    document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV';
    return;
@@ -365,13 +366,16 @@ async function toggleSelfPlanning20(button){
  var started=performance.now(),writeSent=false,keepBlocked=false,committedReceipt=null;
  busyAudits.add(auditId);button.disabled=true;
  try{
-  // EXT/Undo can change the canonical audit revision after the grid was loaded.
-  // Always obtain the current revision and self-planning state before a CAS write.
-  var query=new URLSearchParams({auditId:auditId,sourceRow:String(row.sourceRow||'')});
-  var freshResponse=await fetch('/api/v1/manager/self-planning-state?'+query,{credentials:'same-origin',cache:'no-store'});
-  var current=await freshResponse.json();
-  if(!freshResponse.ok||current.success!==true||current.auditId!==auditId)
-   throw Error(current.error||current.message||'Fresh audit state unavailable');
+  // The write checks both the revision and the previous value against the source.
+  // A partial row patch without a revision needs a fresh read first.
+  var current=row;
+  if(!current.sourceRevision){
+   var query=new URLSearchParams({auditId:auditId,sourceRow:String(row.sourceRow||'')});
+   var freshResponse=await fetch('/api/v1/manager/self-planning-state?'+query,{credentials:'same-origin',cache:'no-store'});
+   current=await freshResponse.json();
+   if(!freshResponse.ok||current.success!==true||current.auditId!==auditId)
+    throw Error(current.error||current.message||'Fresh audit state unavailable');
+  }
   if(current.statusKey!=='PENDING_PLANNING')throw Error('Audit is no longer Pending Planning');
   if(!current.sourceRevision)throw Error('Canonical source revision missing; self planning was not changed');
   var expected=/^(true|yes|1)$/i.test(String(current.allowSelfPlanning||''));

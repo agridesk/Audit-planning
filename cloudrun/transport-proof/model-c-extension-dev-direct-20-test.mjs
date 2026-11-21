@@ -113,6 +113,32 @@ const pairSource={obligationRows:pairRows,linkRows:[lh,['P','G','ACTIVE'],['P','
  scopeRows:driftScopeRows,companyUid:'C',
  sharedExpiryPairs:[{parentScopeCode:'MPS-GAP',childScopeCode:'GRASP',shareExpiry:true}]};
 const pairCommand={auditId:'P',companyUid:'C',obligationId:'R',command:'apply',requestId:'TX',actorUid:'M1'};
+const parentOnly={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]]],
+ linkRows:[lh,['P','G','ACTIVE']]};
+const parentCommand={...pairCommand,obligationId:'G'};
+const singleApply=plan({...parentCommand,snapshot:inspect(parentOnly)});
+assert.deepEqual(singleApply.obligationChanges.map(x=>x.obligationId),['G'],'parent without an active child can be extended alone');
+parentOnly.obligationRows[1].splice(5,5,singleApply.expected.effectiveExpiry,singleApply.expected.windowFrom,singleApply.expected.windowTo,'Yes',singleApply.expected.extensionMetadata);
+const singleUndo=plan({...parentCommand,command:'undo',requestId:'SINGLE_UNDO',snapshot:inspect(parentOnly)});
+assert.deepEqual(singleUndo.obligationChanges.map(x=>x.obligationId),['G']);
+assert.equal(singleUndo.expected.effectiveExpiry,'2027-01-31');
+const otherCycle={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]],[...pairRows[2]]]};
+otherCycle.obligationRows[2][pairHeaders.indexOf('Cycle_Key')]='2028';
+assert.deepEqual(plan({...parentCommand,snapshot:inspect(otherCycle)}).obligationChanges.map(x=>x.obligationId),['G'],'child in another cycle does not force coupling');
+const duplicateParent={...parentOnly,obligationRows:[pairHeaders,[...pairRows[1]],[...pairRows[1]]]};
+duplicateParent.obligationRows[2][0]='G2';
+assert.throws(()=>plan({...parentCommand,snapshot:inspect(duplicateParent)}),/SHARED_EXPIRY_GROUP_NOT_ELIGIBLE/,'duplicate active parent prevents independent mutation');
+const childOnly={...pairSource,obligationRows:[pairHeaders,[...pairRows[2]]],
+ linkRows:[lh,['P','R','ACTIVE']]};
+assert.throws(()=>plan({...pairCommand,snapshot:inspect(childOnly)}),/SHARED_EXPIRY_GROUP_NOT_ELIGIBLE/,'child still requires its parent');
+const missingCycle={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]],[...pairRows[2]]]};
+missingCycle.obligationRows[2][pairHeaders.indexOf('Cycle_Key')]='';
+assert.throws(()=>plan({...parentCommand,snapshot:inspect(missingCycle)}),/SHARED_EXPIRY_CYCLE_REQUIRED/,'an unidentifiable active child cannot be ignored');
+const otherVisit={...pairSource,linkRows:[lh,['P','G','ACTIVE'],['OTHER','R','ACTIVE']],
+ planningRows:[ph,['P','Pending Planning','2027-01-31','','2026-09-30','2026-12-31'],['OTHER','Pending Planning','2027-01-31','','2026-09-30','2026-11-30']]};
+assert.throws(()=>plan({...parentCommand,snapshot:inspect(otherVisit)}),/SHARED_EXPIRY_GROUP_NOT_ELIGIBLE/,'an active child on another visit cannot be ignored');
+const unlinkedChild={...pairSource,linkRows:[lh,['P','G','ACTIVE']]};
+assert.throws(()=>plan({...parentCommand,snapshot:inspect(unlinkedChild)}),/SHARED_EXPIRY_GROUP_NOT_ELIGIBLE/,'an unlinked active child cannot be ignored');
 const paired=plan({...pairCommand,snapshot:inspect(pairSource)});
 assert.equal(paired.updates.length,14);
 assert.deepEqual(paired.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-05-31','2027-05-31']);

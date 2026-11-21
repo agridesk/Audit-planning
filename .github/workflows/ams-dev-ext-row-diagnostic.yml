@@ -1,0 +1,72 @@
+name: DEV EXT source row diagnostic
+on:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/ams-dev-ext-row-diagnostic.yml']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  compare:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    environment: ams-dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Authenticate read-only DEV identity
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - name: Compare one DEV audit without exposing cell values
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          const project='audit-management-system-dev', auditId='AUD_CultiusItxartSCP_HQ_1777531729225_18';
+          const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',token=process.env.TOKEN;
+          if(!token)throw Error('READ_TOKEN_MISSING');
+          const headers={authorization:'Bearer '+token};
+          async function get(url) {
+            const r=await fetch(url,{headers,signal:AbortSignal.timeout(20000)});
+            if(!r.ok)throw Error('READ_HTTP_'+r.status);
+            return r.json();
+          }
+          function decode(v){
+            if('nullValue'in v)return null;
+            if('stringValue'in v)return v.stringValue;
+            if('booleanValue'in v)return v.booleanValue;
+            if('integerValue'in v)return Number(v.integerValue);
+            if('doubleValue'in v)return Number(v.doubleValue);
+            if('arrayValue'in v)return (v.arrayValue.values||[]).map(decode);
+            if('mapValue'in v)return Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));
+            throw Error('FIRESTORE_VALUE_INVALID');
+          }
+          const docUrl='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_planning_20_dev_audits/'+encodeURIComponent(auditId);
+          const before=await get(docUrl),audit=decode(before.fields.payload),snapshot=audit.snapshot;
+          assert(snapshot.auditId===auditId&&Number.isSafeInteger(snapshot.sourceRow)&&snapshot.sourceRow>=2&&snapshot.sourceRow<2000);
+          assert(Array.isArray(snapshot.row)&&Array.isArray(snapshot.headers));
+          const render=snapshot.row.some(v=>typeof v==='number'||typeof v==='boolean')?'UNFORMATTED_VALUE':'FORMATTED_VALUE';
+          const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheetId)+'/values:batchGet');
+          url.searchParams.append('ranges','Audit planning!A1:BW1');
+          url.searchParams.append('ranges','Audit planning!A'+snapshot.sourceRow+':BW'+snapshot.sourceRow);
+          url.searchParams.set('valueRenderOption',render);
+          if(render==='UNFORMATTED_VALUE')url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+          const data=await get(url),after=await get(docUrl);
+          assert(before.updateTime===after.updateTime,'FIRESTORE_CHANGED_DURING_READ');
+          assert(data.valueRanges?.length===2,'SHEETS_RANGES_MISSING');
+          const sheetHeaders=data.valueRanges[0]?.values?.[0]||[],sheetRow=data.valueRanges[1]?.values?.[0]||[];
+          const idIndex=sheetHeaders.findIndex(v=>['audit id','audit_id','auditid','audit id'].includes(String(v).trim().toLowerCase()));
+          assert(idIndex>=0&&sheetRow[idIndex]===auditId,'AUDIT_SOURCE_ROW_CHANGED');
+          function trimRow(row){const r=row.slice();while(r.length&&r.at(-1)==='')r.pop();return r}
+          function trimHeaders(row){return trimRow(row.map(v=>String(v??'').trim()))}
+          const a=trimRow(snapshot.row),b=trimRow(sheetRow),diffs=[];
+          for(let i=0;i<Math.max(a.length,b.length);i++)if(JSON.stringify(a[i])!==JSON.stringify(b[i]))diffs.push({column:i+1,snapshotType:typeof a[i],sheetType:typeof b[i]});
+          console.log(JSON.stringify({readOnly:true,render,sourceRow:snapshot.sourceRow,headerMatch:JSON.stringify(trimHeaders(snapshot.headers))===JSON.stringify(trimHeaders(sheetHeaders)),rowMatch:diffs.length===0,differences:diffs,snapshotRevision:audit.revision,hasPendingOperation:!!audit.pendingOperationId}));
+          JS

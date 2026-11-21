@@ -115,9 +115,21 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
     typeof change.values[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(change.values[0]);
    (literalDate?literalDates:entered).push({range:change.range,values:[change.values]});
   }
+  const verifyFromWrite=changedPlanningCellsOnly&&existingRowsProof&&entered.length>0&&literalDates.length===0&&
+   changes.every(change=>/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range));
+  let verifiedWrites=false;
   for(const [valueInputOption,data] of [['USER_ENTERED',entered],['RAW',literalDates]]){
    if(!data.length)continue;
-   await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:false});
+   const response=await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:Boolean(verifyFromWrite),
+    ...(verifyFromWrite?{responseValueRenderOption:'UNFORMATTED_VALUE',responseDateTimeRenderOption:'FORMATTED_STRING'}:{})});
+   if(verifyFromWrite){
+    const normalizeRange=range=>str(range).replace(/^'Audit planning'!/,'Audit planning!').replace(/!([A-Z]+\d+):\1$/,'!$1');
+    verifiedWrites=Array.isArray(response?.responses)&&response.responses.length===data.length&&data.every((item,index)=>{
+     const actual=response.responses[index]?.updatedData;
+     return normalizeRange(actual?.range)===normalizeRange(item.range)&&
+      Array.isArray(actual?.values)&&actual.values.length<=1&&equal(actual.values[0],item.values[0]);
+    });
+   }
    await verifyFence({operationId,gateToken});
   }
   // USER_ENTERED can reinterpret Last_Updated as a localized Sheets date.
@@ -136,7 +148,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    });
    await verifyFence({operationId,gateToken});
   }
-  const verified=await inspect(plan);
+  const verified=verifiedWrites?{state:'MATCH',detail:changes.map(change=>({range:change.range,target:true}))}:await inspect(plan);
   if(verified.state!=='MATCH')throw Error('SHEETS_PROJECTION_VERIFY_FAILED');
   await verifyFence({operationId,gateToken});
   return {operationId,idempotent:true,projected:true,replayed:false,verification:verified};

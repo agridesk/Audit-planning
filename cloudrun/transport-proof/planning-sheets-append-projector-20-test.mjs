@@ -211,8 +211,9 @@ const preparedArgs={operationId:'op-prepared',gateToken:'token',intents:[{range:
 const prepared=await service.prepare(preparedArgs);
 assert.equal(prepared.before.state,'MISSING');
 rows['Notification Queue'].push(preparedRow.slice());
+const freshInspection=await service.inspect(preparedArgs.intents);
 const beforePreparedApply=batchWrites;
-const preparedResult=await service.apply({...preparedArgs,prepared});
+const preparedResult=await service.apply({...preparedArgs,prepared,freshInspection});
 assert.equal(preparedResult.verification.state,'MATCH');
 assert.equal(batchWrites,beforePreparedApply,'The final scan must catch an append after preparation');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

@@ -80,10 +80,19 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    }
    const rowReady=await preparedRow;
    if(rowReady?.error)throw rowReady.error;
+   // Accept's row and queue are on separate tabs. Read the queue while the row
+   // is projected under the same exclusive gate, then publish after row readback.
+   const freshQueue=overlap?prepared.then(async ready=>{
+    if(ready.error)return ready;
+    try{return {value:await measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))};}
+    catch(error){return {error};}
+   }):null;
    const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;
-   const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value}));
+   const fresh=await freshQueue;
+   if(fresh?.error)throw fresh.error;
+   const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value,freshInspection:fresh?.value}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
     overlap&&rowResult?.verification?rowResult.verification:projector.inspect(snapshot),
     overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)

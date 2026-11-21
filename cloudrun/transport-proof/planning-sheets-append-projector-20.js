@@ -115,7 +115,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const metadata=before.state==='MATCH'?null:await request(base+'?fields=sheets(properties(sheetId,title))');
   return {before,metadata};
  }
- async function apply({operationId,gateToken,intents,prepared}){
+ async function apply({operationId,gateToken,intents,prepared,freshInspection}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
   const before=prepared?.before??await inspect(intents);
@@ -124,7 +124,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   // Metadata is independent of the final identity scan.
   const [metadata,fresh]=await Promise.all([
    prepared?.metadata??(before.state==='MATCH'?null:request(base+'?fields=sheets(properties(sheetId,title))')),
-   inspect(intents)
+   freshInspection??inspect(intents)
   ]);
   if(fresh.state!=='MATCH'){
    const tabs=metadata??await request(base+'?fields=sheets(properties(sheetId,title))');

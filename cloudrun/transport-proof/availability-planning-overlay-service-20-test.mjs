@@ -127,4 +127,47 @@ const unknownUid=createPlanningOverlayService({service:av003Storage,readPlanning
 await assert.rejects(()=>unknownUid.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_UID_UNKNOWN/);
 console.log('PASS AV-003 auditor-scoped incomplete planning isolation and fail-closed cases');
 
+const staleSwap={auditId:'STALE',revision:'2026-11-18T20:13:12.613140Z',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'10:00'}]};
+const staleRows=[['Audit ID','Status','Assigned to','Planning JSON','Date - Planned','Last manager decision'],['STALE','Pending Planning','','','','CANCEL']];
+const cancellation={
+ audit:{auditId:'STALE',revision:1,snapshot:{status:'Pending Planning'},lastOperationId:'cancel',lastProjectedOperationId:'cancel',pendingOperationId:null,blocks:[],claimIds:[]},
+ record:{createTime:'2026-11-18T21:09:02.999Z',value:{auditId:'STALE',operationId:'cancel',revision:1,action:'CANCEL',state:'PROJECTED',proof:{verified:true,auditId:'STALE',rowHash:'a'.repeat(64)}}}
+};
+const withSwap=(evidence,sourceRows=staleRows)=>createPlanningOverlayService({service,readPlanningRows:async()=>sourceRows,listCanonicalAuditors:async()=>auditors,readCanonicalSwaps:async()=>({ok:true,rows:[staleSwap]}),readInactiveSwapEvidence:async()=>evidence});
+const staleQuery={actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'};
+const cancelled=await withSwap(cancellation).period(staleQuery);
+assert.equal(Object.keys(cancelled.auditDetails).length,0,'A verified later cancellation supersedes stale SWAP occupancy');
+assert.equal((await withSwap(cancellation).mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}})).success,true);
+for(const bad of [
+ null,
+ {...cancellation,record:{...cancellation.record,createTime:'2026-11-18T20:00:00Z'}},
+ {...cancellation,record:{...cancellation.record,createTime:'2026-11-18T20:13:12.613999Z'}},
+ {...cancellation,record:{...cancellation.record,createTime:null}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,state:'UNCERTAIN'}}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,proof:{verified:false}}}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,proof:{...cancellation.record.value.proof,auditId:'OTHER'}}}},
+ {...cancellation,audit:{...cancellation.audit,pendingOperationId:'pending'}},
+ {...cancellation,audit:{...cancellation.audit,claimIds:['occupied']}},
+ {...cancellation,audit:{...cancellation.audit,revision:2}},
+]){
+ await assert.rejects(()=>withSwap(bad).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+}
+await assert.rejects(()=>withSwap(null).mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0],staleRows[1],staleRows[1]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0],['STALE','Pending Planning','',JSON.stringify({blocks:[{date:'2027-01-12',start:'09:00',end:'10:00'}]}),'','CANCEL']]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+for(const [state,action] of [['Rejected','REJECT'],['Completed','COMPLETE']]){
+ const evidence={
+  audit:{...cancellation.audit,snapshot:{status:state},removed:true},
+  record:{...cancellation.record,value:{...cancellation.record.value,action,multi:true,entities:[{auditId:'STALE',revision:1,removed:true}]}}
+ };
+ assert.equal(Object.keys((await withSwap(evidence,[staleRows[0],['STALE',state,'','']]).period(staleQuery)).auditDetails).length,0);
+ assert.equal(Object.keys((await withSwap(evidence,[staleRows[0]]).period(staleQuery)).auditDetails).length,0,'Projected tombstone may have left the open planning sheet');
+ evidence.record.value.entities[0].removed=false;
+ await assert.rejects(()=>withSwap(evidence,[staleRows[0]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+}
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+let evidenceReads=0;
+const activeSwap=createPlanningOverlayService({service,readPlanningRows:async()=>[['Audit ID','Status','Assigned to','Planning JSON'],['STALE','Accepted','a@example.com',JSON.stringify([{date:'2027-01-11',start:'09:00',end:'10:00'}])]],listCanonicalAuditors:async()=>auditors,readCanonicalSwaps:async()=>({ok:true,rows:[staleSwap]}),readInactiveSwapEvidence:async()=>{evidenceReads++;throw Error('UNEXPECTED_EVIDENCE_READ')}});
+assert.equal(Object.values((await activeSwap.period(staleQuery)).auditDetails)[0].date,'2027-01-12');
+assert.equal(evidenceReads,0,'Active SWAP replacement must retain existing behavior');
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

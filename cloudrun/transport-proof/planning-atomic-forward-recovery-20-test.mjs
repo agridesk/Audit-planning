@@ -20,8 +20,8 @@ function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=n
    gate.state='UNCERTAIN';gate.holder.state='UNCERTAIN';events.push('finish');}
  };
  const projector={
-  async inspect(){events.push('rowInspect');return {state:rowState};},
-  async apply(){events.push('rowApply');if(rowError)throw Error('SHEETS_TIMEOUT');rowState='MATCH';}
+  async inspect(_plan,options){if(!events.includes('rowApply'))assert.equal(options?.allowMissingAvailabilityRows,candidate.action==='PLAN');events.push('rowInspect');return {state:rowState};},
+  async apply(options){assert.equal(options.allowMissingAvailabilityRows,candidate.action==='PLAN');events.push('rowApply');if(rowError)throw Error('SHEETS_TIMEOUT');rowState='MATCH';}
  };
  const appendProjector={
   async inspect(){events.push('appendInspect');return {state:appendState};},

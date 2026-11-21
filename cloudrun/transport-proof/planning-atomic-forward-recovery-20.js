@@ -46,14 +46,14 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
     throw Error('ATOMIC_FORWARD_RECOVERY_CHANGED_DURING_FENCE');
    stage='READ_ROWS_BEFORE';
    const plan=['EXT_APPLY','EXT_UNDO'].includes(entry.action)?await projector.prepareExtensionDateRecovery(entry.snapshot):entry.snapshot;
-   const first=await projector.inspect(plan);
+   const first=await projector.inspect(plan,{allowMissingAvailabilityRows:entry.action==='PLAN'});
    stage='READ_APPEND_BEFORE';
    const appendBefore=await appendProjector.inspect(entry.snapshot.appendIntents);
    if(!['READY','MATCH'].includes(first.state)||!['MISSING','MATCH'].includes(appendBefore.state))
     throw Error('ATOMIC_FORWARD_RECOVERY_SOURCE_CONFLICT');
    mutationStarted=true;
    stage='APPLY_ROWS';
-   await projector.apply({operationId,gateToken:holder.token,plan});
+   await projector.apply({operationId,gateToken:holder.token,plan,allowMissingAvailabilityRows:entry.action==='PLAN'});
    stage='VERIFY_ROWS';
    const rowProof=await projector.inspect(entry.snapshot);
    if(rowProof.state!=='MATCH')throw Error('ATOMIC_FORWARD_RECOVERY_ROW_UNVERIFIED');

@@ -39,18 +39,41 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(!Array.isArray(data.sheets))throw Error('SHEETS_PROJECTOR_METADATA_INVALID');
   return new Map(data.sheets.map(x=>[x.properties?.title,x.properties]));
  }
- async function inspect(plan){
+ async function inspect(plan,{allowMissingAvailabilityRows=false}={}){
   const changes=rows(plan),url=new URL(base+'/values:batchGet');
   // Match the canonical R4 preflight reader: unformatted values, formatted dates.
   url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
   url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
   for(const change of changes)url.searchParams.append('ranges',change.range);
-  const results=(await request(url.toString())).valueRanges;
+  let results,missing=new Set();
+  try{
+   results=(await request(url.toString())).valueRanges;
+  }catch(error){
+   if(!allowMissingAvailabilityRows||error?.message!=='SHEETS_PROJECTOR_HTTP_400')throw error;
+   const meta=await metadata();
+   for(const [i,change] of changes.entries()){
+    const count=meta.get(change.sheet)?.gridProperties?.rowCount;
+    if(!Number.isSafeInteger(count)||count<1)throw Error('SHEETS_PROJECTION_TAB_MISSING');
+    if(change.row>count){
+     if(change.sheet!=='Auditor Availability'||normalize(change.before).length)
+      throw Error('SHEETS_PROJECTION_MISSING_ROW_CONFLICT');
+     missing.add(i);
+    }
+   }
+   if(!missing.size)throw error;
+   const existing=changes.filter((_,i)=>!missing.has(i));
+   url.searchParams.delete('ranges');
+   for(const change of existing)url.searchParams.append('ranges',change.range);
+   const available=existing.length?(await request(url.toString())).valueRanges:[];
+   if(!Array.isArray(available)||available.length!==existing.length)throw Error('SHEETS_PROJECTION_READ_INCOMPLETE');
+   let index=0;
+   results=changes.map((_,i)=>missing.has(i)?null:available[index++]);
+  }
   if(!Array.isArray(results)||results.length!==changes.length)throw Error('SHEETS_PROJECTION_READ_INCOMPLETE');
   let allMatch=true;
   const detail=changes.map((change,i)=>{
-   const actual=results[i].values?.[0]||[];
-   const target=equal(actual,change.values),before=equal(actual,change.before);
+   const actual=results[i]?.values?.[0]||[];
+   const target=!missing.has(i)&&equal(actual,change.values),before=equal(actual,change.before);
    if(!target)allMatch=false;
    return {range:change.range,target,before};
   });
@@ -64,11 +87,11 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   await verifyFence({operationId,gateToken});
   return inspect(plan);
  }
- async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false,existingRowsProof=null}){
+ async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false,existingRowsProof=null,allowMissingAvailabilityRows=false}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
   await verifyFence({operationId,gateToken});
-  const first=existingRowsProof??await inspect(plan);
+  const first=existingRowsProof??await inspect(plan,{allowMissingAvailabilityRows});
   if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:first};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
   const requests=[];

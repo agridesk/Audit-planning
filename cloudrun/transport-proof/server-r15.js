@@ -827,6 +827,13 @@ const overlay=createPlanningOverlayService({
  readCanonicalSwaps:async()=>swap20GridReadEnabled
   ?swap20DirectTransport.canonicalGridDates({actor:{role:'manager',email:process.env.AMS_DEV_MANAGER_EMAIL||''}})
   :{ok:true,rows:[]},
+ readInactiveSwapEvidence:async auditId=>{
+  if(!planningAtomicStore)return null;
+  const audit=await planningAtomicStore.readAudit(auditId);
+  if(!audit?.lastProjectedOperationId)return null;
+  const record=await planningAtomicStore.readOutboxWithCreateTime(audit.lastProjectedOperationId);
+  return {audit,record};
+ },
  listCanonicalAuditors:async()=>{
   const roster=await getRoster();
   return roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}));
@@ -2470,7 +2477,7 @@ http.createServer(async(req,res)=>{
       let rows;
       try{
        const plan=entry.action==='PLAN'?entry.snapshot:await planningAtomicProjector.prepareExtensionDateRecovery(entry.snapshot);
-       rows=await planningAtomicProjector.inspect(plan);
+       rows=await planningAtomicProjector.inspect(plan,{allowMissingAvailabilityRows:entry.action==='PLAN'});
       }catch{rows={state:'CONFLICT'};}
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
       eligible=['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state);
@@ -2533,7 +2540,7 @@ http.createServer(async(req,res)=>{
     try{
      if(!snapshot||!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))
       throw Error('ATOMIC_HEALTH_OUTBOX_PLAN_INCOMPLETE');
-     const rows=await planningAtomicProjector.inspect(snapshot);
+     const rows=await planningAtomicProjector.inspect(snapshot,{allowMissingAvailabilityRows:matchingGate.action==='PLAN'});
      const append=await planningAtomicAppendProjector.inspect(snapshot.appendIntents);
      matchingGate.projection={rows:rows.state,
       targets:rows.detail.map(x=>({range:x.range,target:x.target,before:x.before})),

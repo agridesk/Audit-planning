@@ -58,7 +58,7 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const accepted=await atomicStore.commit({auditId,operationId,actorId:actor.auditorId,expectedRevision:previous.revision,nextSnapshot,auditorId,blocks:body.blocks,action:'PLAN'});
    committed=true;
    if(accepted.replayed)throw Error('PLANNING_ATOMIC_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan:nextSnapshot});
+   await projector.apply({operationId,gateToken:lock.token,plan:nextSnapshot,allowMissingAvailabilityRows:true});
    const inspection=await projector.inspect(nextSnapshot);
    if(inspection.state!=='MATCH')throw Error('PLANNING_ATOMIC_PROJECTION_NOT_VERIFIED');
    await appendProjector.apply({operationId,gateToken:lock.token,intents:appendIntents});

@@ -32,6 +32,68 @@ const plan={projectionWrites:[
  {range:'Audit planning!A2:C2',before:['Company','','Pending Planning']},
  {range:'Auditor Availability!A2:C2',before:[]}
 ]};
+
+{
+ let rowCount=1,actualPlanning=['Company','','Pending Planning'],actualAvailability=[],mutations=0,unrelated400=false;
+ let fillOnExpand=false,fenceChecks=0,failOnFence=0;
+ const boundary=createPlanningSheetsWritesetProjector({
+  spreadsheetId:'boundary',getToken:async()=> 'mock',verifyFence:async()=>{
+   if(++fenceChecks===failOnFence)throw Error('FENCE_LOST');
+  },
+  fetchImpl:async(url,init={})=>{
+   const u=new URL(url),method=init.method||'GET';
+   const ok=data=>({ok:true,status:200,json:async()=>structuredClone(data)});
+   if(method==='GET'&&u.pathname.endsWith('/values:batchGet')){
+    const ranges=u.searchParams.getAll('ranges');
+    if(unrelated400||ranges.includes('Auditor Availability!A2:C2')&&rowCount<2)
+     return {ok:false,status:400};
+    return ok({valueRanges:ranges.map(range=>({values:[range.startsWith('Audit planning!')?actualPlanning:actualAvailability]}))});
+   }
+   if(method==='GET')return ok({sheets:[
+    {properties:{title:'Audit planning',sheetId:1,gridProperties:{rowCount:100}}},
+    {properties:{title:'Auditor Availability',sheetId:2,gridProperties:{rowCount}}}
+   ]});
+   mutations++;
+   if(u.pathname.endsWith(':batchUpdate')&&!u.pathname.endsWith('/values:batchUpdate')){
+    rowCount+=JSON.parse(init.body).requests[0].appendDimension.length;
+    if(fillOnExpand)actualAvailability=['other change'];
+   }else{
+    for(const item of JSON.parse(init.body).data)
+     if(item.range.startsWith('Audit planning!'))actualPlanning=item.values[0];
+     else actualAvailability=item.values[0];
+   }
+   return ok({});
+  }
+ });
+ const opts={allowMissingAvailabilityRows:true};
+ await assert.rejects(()=>boundary.inspect(plan),/SHEETS_PROJECTOR_HTTP_400/);
+ assert.equal((await boundary.inspect(plan,opts)).state,'READY');
+ assert.equal(mutations,0,'Inspection must not expand or write rows');
+ const badBefore=structuredClone(plan);
+ badBefore.projectionPreconditions[1].before=['unexpected'];
+ await assert.rejects(()=>boundary.inspect(badBefore,opts),/SHEETS_PROJECTION_MISSING_ROW_CONFLICT/);
+ const wrongSheet=structuredClone(plan);
+ wrongSheet.projectionWrites[0].range='Audit planning!A101:C101';
+ wrongSheet.projectionPreconditions[0]={range:'Audit planning!A101:C101',before:[]};
+ await assert.rejects(()=>boundary.inspect(wrongSheet,opts),/SHEETS_PROJECTION_MISSING_ROW_CONFLICT/);
+ actualPlanning=['Company','other auditor','Pending Planning'];
+ await assert.rejects(()=>boundary.apply({operationId:'conflict',gateToken:'held',plan,...opts}),/SHEETS_PROJECTION_PRECONDITION_CONFLICT/);
+ assert.equal(mutations,0,'A conflicting existing row must not expand the sheet');
+ actualPlanning=['Company','','Pending Planning'];
+ fenceChecks=0;failOnFence=2;
+ await assert.rejects(()=>boundary.apply({operationId:'fence',gateToken:'held',plan,...opts}),/FENCE_LOST/);
+ assert.equal(mutations,0,'Fence loss must prevent row expansion');
+ fenceChecks=0;failOnFence=0;fillOnExpand=true;
+ await assert.rejects(()=>boundary.apply({operationId:'race',gateToken:'held',plan,...opts}),/SHEETS_PROJECTION_CHANGED_DURING_WRITE/);
+ assert.equal(mutations,1,'A newly occupied row must not receive values');
+ rowCount=1;actualAvailability=[];mutations=0;fillOnExpand=false;
+ await boundary.apply({operationId:'boundary',gateToken:'held',plan,...opts});
+ assert.equal(rowCount,2);
+ assert.equal((await boundary.inspect(plan)).state,'MATCH');
+ assert.equal(mutations,2);
+ unrelated400=true;
+ await assert.rejects(()=>boundary.inspect(plan,opts),/SHEETS_PROJECTOR_HTTP_400/);
+}
 assert.equal((await projector.inspect(plan)).state,'READY');
 const first=await projector.apply({operationId:'operation-7',gateToken:'token-7',plan});
 assert.equal(first.projected,true);assert.equal(first.replayed,false);

@@ -7,11 +7,40 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
+const key=x=>clean(x).toLowerCase().replace(/[\s_-]+/g,'');
+function verifiedInactiveSwap({audit,record,rows,swap}){
+ const headers=rows[0].map(key),column=(...names)=>names.map(key).map(n=>headers.indexOf(n)).find(i=>i>=0)??-1;
+ const id=column('Audit ID','Audit_ID'),status=column('Status');
+ if(id<0||status<0||headers.filter(x=>x===headers[id]).length!==1||headers.filter(x=>x===headers[status]).length!==1)return false;
+ const matched=rows.slice(1).filter(row=>clean(row[id])===swap.auditId);
+ if(matched.length>1)return false;
+ const state=key(audit?.snapshot?.status),action={pendingplanning:'CANCEL',rejected:'REJECT',completed:'COMPLETE'}[state];
+ if(matched.length===1&&key(matched[0][status])!==state)return false;
+ if(!matched.length&&action==='CANCEL')return false;
+ const outbox=record?.value,operationId=audit?.lastProjectedOperationId;
+ if(!action||!operationId||audit.auditId!==swap.auditId||audit.pendingOperationId||
+    audit.lastOperationId!==operationId||
+    !Array.isArray(audit.blocks)||audit.blocks.length||!Array.isArray(audit.claimIds)||audit.claimIds.length||
+    outbox?.operationId!==operationId||outbox.state!=='PROJECTED'||outbox.action!==action||
+    outbox.proof?.verified!==true||outbox.proof.auditId!==outbox.auditId||
+    !/^[a-f0-9]{64}$/.test(outbox.proof.rowHash||'')||!Number.isSafeInteger(audit.revision))return false;
+ if(action==='CANCEL'){
+  const planning=column('Planning JSON','Planning_JSON'),date=column('Date - Planned','Date Planned'),decision=column('Last manager decision');
+  if([planning,date,decision].some(i=>i<0)||clean(matched[0][planning])||clean(matched[0][date])||key(matched[0][decision])!=='cancel'||
+     audit.removed===true||outbox.multi===true||outbox.auditId!==swap.auditId||outbox.revision!==audit.revision)return false;
+ }else{
+  if(audit.removed!==true||outbox.multi!==true||!Array.isArray(outbox.entities))return false;
+  const entities=outbox.entities.filter(x=>x?.auditId===swap.auditId);
+  if(entities.length!==1||entities[0].revision!==audit.revision||entities[0].removed!==true)return false;
+ }
+ const validTime=x=>typeof x==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(x)&&Number.isFinite(Date.parse(x));
+ return validTime(record.createTime)&&validTime(swap.revision)&&Date.parse(record.createTime)>Date.parse(swap.revision);
+}
 function validateReadRange(fromDate,toDate){
  const parse=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
  const from=parse(fromDate),to=parse(toDate);if(to<from||to-from>92)throw Error('QUERY_RANGE_OUT_OF_BOUNDS');
 }
-export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps}={}){
+export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps,readInactiveSwapEvidence}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
  async function slotsFor(fromDate,toDate,{fresh=false,incompleteAuditDiagnostics}={}){
   const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors(),readScopeNames?readScopeNames():{}]);
@@ -26,7 +55,13 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    if(!id||replaceIds.has(id)||!Array.isArray(audit.plannedBlocks)||!audit.plannedBlocks.length)throw Error('AVAILABILITY_SWAP_CANONICAL_INVALID');
    replaceIds.add(id);
    const prior=legacy.filter(x=>x.auditId===id);
-   if(!prior.length)throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
+   if(!prior.length){
+    if(typeof readInactiveSwapEvidence==='function'){
+     const evidence=await readInactiveSwapEvidence(id);
+     if(verifiedInactiveSwap({...evidence,rows,swap:audit}))continue;
+    }
+    throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
+   }
    const meta=prior[0];
    for(const block of audit.plannedBlocks){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(String(block.date||''))||!/^\d{2}:\d{2}$/.test(String(block.start||''))||!/^\d{2}:\d{2}$/.test(String(block.end||''))||block.start>=block.end)throw Error('AVAILABILITY_SWAP_BLOCK_INVALID');

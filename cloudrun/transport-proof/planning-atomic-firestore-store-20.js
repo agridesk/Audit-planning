@@ -32,7 +32,7 @@ function decode(v){
 const decodeDoc=raw=>{
  if(!raw)return null;
  if(!raw.fields?.payload||!raw.updateTime)throw Error('PLANNING_FIRESTORE_CORRUPT');
- return {value:decode(raw.fields.payload),updateTime:raw.updateTime};
+ return {value:decode(raw.fields.payload),updateTime:raw.updateTime,createTime:raw.createTime};
 };
 const time=x=>{if(!/^\d\d:\d\d$/.test(str(x)))throw Error('PLANNING_TIME_INVALID');const [h,m]=x.split(':').map(Number);const n=h*60+m;if(h>23||m>59||n%15)throw Error('PLANNING_TIME_INVALID');return n;};
 function claimsFor(blocks,auditorId){
@@ -121,6 +121,10 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   return {ok:true,checked:ids.length};
  }
  async function readOutbox(operationId){return clone((await get('outbox',operationId))?.value??null);}
+ async function readOutboxWithCreateTime(operationId){
+  const record=await get('outbox',operationId);
+  return record?{value:clone(record.value),createTime:record.createTime??null}:null;
+ }
  async function transaction(fn){
   const started=await request(base+':beginTransaction','POST',{options:{readWrite:{}}});
   if(!started.ok)throw Error('PLANNING_FIRESTORE_BEGIN_'+started.status);
@@ -364,5 +368,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
 }

@@ -5,6 +5,6 @@ const start=r15.indexOf("if(req.method==='GET'&&u.pathname==='/api/v1/planning/a
 const end=r15.indexOf("if(req.method==='GET'&&u.pathname==='/api/v1/planning/availability-read-diagnostic')",start);
 assert.ok(start>0&&end>start);
 const handler=r15.slice(start,end);
-for(const required of ['actor?.role!==\'manager\'','planningGlobalGate.read()','planningAtomicStore.listOutbox','planningAtomicProjector.inspect(snapshot)','planningAtomicAppendProjector.inspect(snapshot.appendIntents)','recoveryEvidenceComplete','delete matchingGate.snapshot'])assert.ok(handler.includes(required),required);
+for(const required of ['actor?.role!==\'manager\'','planningGlobalGate.read()','planningAtomicStore.listOutbox',"planningAtomicProjector.inspect(snapshot,{allowMissingAvailabilityRows:matchingGate.action==='PLAN'})",'planningAtomicAppendProjector.inspect(snapshot.appendIntents)','recoveryEvidenceComplete','delete matchingGate.snapshot'])assert.ok(handler.includes(required),required);
 for(const forbidden of ['planningAtomicProjector.apply','planningAtomicAppendProjector.apply','planningGlobalGate.release','markProjected','atomicStore.commit','planningAtomicRecovery.scan'])assert.ok(!handler.includes(forbidden),forbidden);
 console.log('ATOMIC_WRITE_HEALTH_READONLY_PROJECTION_PASS');

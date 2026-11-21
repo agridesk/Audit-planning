@@ -8,7 +8,7 @@ function column(index){
  return label;
 }
 
-export function createRealizedHoursAtomicService20({store,gate,project,readLog,roster,signingKey}){
+export function createRealizedHoursAtomicService20({store,gate,prepareProjection,readLog,roster,signingKey}){
  async function commit({actor,body,onCommitted}){
   const auditId=text(body?.auditId),actorId=text(actor?.auditorId),requestId=text(body?.requestId);
   const oldHours=body?.expectedHoursDedicated,newHours=body?.hoursDedicated;
@@ -26,6 +26,13 @@ export function createRealizedHoursAtomicService20({store,gate,project,readLog,r
    }
    lock=await gate.acquire({operationId,actorId,kind:'ATOMIC_REALIZED_HOURS'});
    if(!signingKey)throw Error('REALIZED_HOURS_SIGNING_KEY_NOT_CONFIGURED');
+   const timestamp=new Date().toISOString(),type='COMPLETED_HOURS_OVERRIDE';
+   const payload={type,auditId,auditNumber:'',company:'',actorEmail:actor.email,actorRole:'MANAGER',beforeStatus:'Completed',afterStatus:'Completed',reason:'Manager realized-hours correction',hours:newHours,oldHoursDedicated:oldHours,newHoursDedicated:newHours,timestamp,source:'CloudRun.RealizedHoursAtomic',action:''};
+   const signature=createHmac('sha256',signingKey).update(type+'|'+auditId+'|'+timestamp+'|').digest('base64url');
+   const trail=[timestamp.slice(0,16).replace('T',' '),'AUDIT_TRAIL',type,'',auditId,'','[TRAIL] '+type+' :: '+auditId,JSON.stringify(payload),0,'',signature,'',JSON.stringify({payload})];
+   const appendIntents=[{range:'Notification Queue!A:M',values:[trail]}];
+   // Queue and tab reads are independent of the archived row lookup.
+   const inputs=oldHours===newHours?null:prepareProjection.readInputs(appendIntents);
    const [audit,rows,actors]=await Promise.all([store.readAudit(auditId),readLog(),roster()]);
    if(!actors.some(record=>record.role==='manager'&&record.active&&record.email===text(actor.email).toLowerCase()))
     throw Error('REALIZED_HOURS_ACTIVE_MANAGER_REQUIRED');
@@ -43,18 +50,18 @@ export function createRealizedHoursAtomicService20({store,gate,project,readLog,r
    // Fence on the full archived row so a shifted row cannot receive the correction.
    const range='Log realized audits!A'+(index+1)+':'+column(headers.length-1)+(index+1);
    const next=row.slice();next[hours]=newHours;
-   const timestamp=new Date().toISOString(),type='COMPLETED_HOURS_OVERRIDE';
-   const payload={type,auditId,auditNumber:'',company:'',actorEmail:actor.email,actorRole:'MANAGER',beforeStatus:'Completed',afterStatus:'Completed',reason:'Manager realized-hours correction',hours:newHours,oldHoursDedicated:oldHours,newHoursDedicated:newHours,timestamp,source:'CloudRun.RealizedHoursAtomic',action:''};
-   const signature=createHmac('sha256',signingKey).update(type+'|'+auditId+'|'+timestamp+'|').digest('base64url');
-   const trail=[timestamp.slice(0,16).replace('T',' '),'AUDIT_TRAIL',type,'',auditId,'','[TRAIL] '+type+' :: '+auditId,JSON.stringify(payload),0,'',signature,'',JSON.stringify({payload})];
-   const plan={auditId,realizedHoursCorrection:true,projectionWrites:[{range,values:[next]}],projectionPreconditions:[{range,before:row}],appendIntents:[{range:'Notification Queue!A:M',values:[trail]}]};
+   const plan={auditId,realizedHoursCorrection:true,projectionWrites:[{range,values:[next]}],projectionPreconditions:[{range,before:row}],appendIntents};
    attempted=true;
+   // Preparation only reads Sheets. Keep its failure separate from the commit outcome.
+   const prepared=prepareProjection({operationId,gateToken:lock.token,plan,inputs}).then(apply=>({apply}),error=>({error}));
    const saved=await store.commitRealizedHours({auditId,operationId,actorId,expectedRevision:audit?.revision??null,oldHours,newHours,projectionPlan:plan});
    committed=true;
    if(saved.replayed)throw Error('REALIZED_HOURS_UNEXPECTED_REPLAY');
    const receipt={auditId,operationId,action:'REALIZED_HOURS',newHoursDedicated:newHours};
    try{onCommitted?.(receipt);}catch{console.warn('[AMS_REALIZED_HOURS_RECEIPT_FAILED]');}
-   const [archive,queue]=await project({operationId,gateToken:lock.token,plan});
+   const projection=await prepared;
+   if(projection.error)throw projection.error;
+   const [archive,queue]=await projection.apply();
    if(archive.state!=='MATCH'||queue.state!=='MATCH')throw Error('REALIZED_HOURS_PROJECTION_UNVERIFIED');
    await store.markProjected({auditId,operationId,proof:{verified:true,auditId,rowHash:digest({archive:archive.detail,queue:queue.count})}});
    projected=true;
@@ -77,7 +84,7 @@ export function createRealizedHoursAtomicService20({store,gate,project,readLog,r
 }
 
 export function createRealizedHoursBatchProjector20({readArchive,readTrail,readTabs,writeBatch,verifyFence}){
- return async function project({operationId,gateToken,plan}){
+ async function prepareProjection({operationId,gateToken,plan,inputs}){
   const [write]=plan.projectionWrites,[precondition]=plan.projectionPreconditions,[intent]=plan.appendIntents;
   const row=/^Log realized audits!A([2-9]\d*|1\d+):[A-Z]+\1$/.exec(write.range);
   const before=precondition.before,after=write.values[0];
@@ -87,7 +94,9 @@ export function createRealizedHoursBatchProjector20({readArchive,readTrail,readT
    throw Error('REALIZED_HOURS_BATCH_PLAN_INVALID');
   const fence={operationId,gateToken},started=Date.now();
   await verifyFence(fence);
-  const [archive,trail,tabs]=await Promise.all([readArchive(plan),readTrail(plan.appendIntents),readTabs()]);
+  const [archive,source]=await Promise.all([readArchive(plan),inputs]);
+  if(source.error)throw source.error;
+  const {trail,tabs}=source;
   const readyMs=Date.now()-started;
   if(!['READY','MATCH'].includes(archive.state)||!['MISSING','MATCH'].includes(trail.state))
    throw Error('REALIZED_HOURS_BATCH_PRECONDITION_CONFLICT');
@@ -104,15 +113,19 @@ export function createRealizedHoursBatchProjector20({readArchive,readTrail,readT
   }});
   if(trail.state==='MISSING')requests.push({appendCells:{sheetId:sheetId('Notification Queue'),
    rows:[{values:intent.values[0].map(cell)}],fields:'userEnteredValue'}});
-  const writeStarted=Date.now();
-  if(requests.length){
+  return async function apply(){
+   const writeStarted=Date.now();
+   if(requests.length){
+    await verifyFence(fence);
+    await writeBatch(requests);
+   }
+   const verifyStarted=Date.now();
+   const verified=await Promise.all([readArchive(plan),readTrail(plan.appendIntents)]);
    await verifyFence(fence);
-   await writeBatch(requests);
-  }
-  const verifyStarted=Date.now();
-  const verified=await Promise.all([readArchive(plan),readTrail(plan.appendIntents)]);
-  await verifyFence(fence);
-  console.info('[AMS_REALIZED_HOURS_BATCH_TIMING]',JSON.stringify({operationId,readyMs,writeMs:verifyStarted-writeStarted,verifyMs:Date.now()-verifyStarted}));
-  return verified;
- };
+   console.info('[AMS_REALIZED_HOURS_BATCH_TIMING]',JSON.stringify({operationId,readyMs,writeMs:verifyStarted-writeStarted,verifyMs:Date.now()-verifyStarted}));
+   return verified;
+  };
+ }
+ return Object.assign(prepareProjection,{readInputs:appendIntents=>Promise.all([readTrail(appendIntents),readTabs()])
+  .then(([trail,tabs])=>({trail,tabs}),error=>({error}))});
 }

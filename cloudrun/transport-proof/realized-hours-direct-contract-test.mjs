@@ -20,18 +20,29 @@ assert.ok(route.includes('AUDIT_TRAIL_SIGNING_KEY_NOT_CONFIGURED'),'trail signin
 assert.ok(server.includes("createHmac('sha256',WRITE_KEY)"),'trail must use configured signing key');
 assert.ok(!route.includes("WRITE_KEY||'AMS_DEV'"),'hardcoded fallback signing key forbidden');
 const events=[];
+let finishCommit;
 const atomic=createRealizedHoursAtomicService20({
  store:{readOutbox:async()=>null,readAudit:async()=>({revision:2,removed:true,snapshot:{status:'Completed'}}),
   commitRealizedHours:async input=>{
    assert.deepEqual(input.projectionPlan.projectionWrites,[{range:'Log realized audits!A2:D2',values:[['audit-1','Completed',5.25,'preserved']]}]);
    assert.equal(input.projectionPlan.appendIntents[0].values[0][2],'COMPLETED_HOURS_OVERRIDE');
+   await new Promise(resolve=>{finishCommit=resolve;});
    events.push('committed');return {replayed:false};
   },markProjected:async()=>events.push('verified')},
  gate:{acquire:async()=>({token:'token'}),release:async()=>events.push('released')},
- project:createRealizedHoursBatchProjector20({
-  readArchive:async()=>({state:events.includes('batch')?'MATCH':'READY'}),
+ prepareProjection:createRealizedHoursBatchProjector20({
+  readArchive:async()=>{
+   if(!events.includes('batch')){
+    assert.deepEqual(events,[],'Sheets preparation can run while the commit is still pending');
+    finishCommit();
+   }
+   return {state:events.includes('batch')?'MATCH':'READY'};
+  },
   readTrail:async()=>({state:events.includes('batch')?'MATCH':'MISSING',count:1}),
-  readTabs:async()=>[{properties:{sheetId:10,title:'Log realized audits'}},{properties:{sheetId:20,title:'Notification Queue'}}],
+  readTabs:async()=>{
+   assert.equal(finishCommit,undefined,'Queue and tab reads start before the commit');
+   return [{properties:{sheetId:10,title:'Log realized audits'}},{properties:{sheetId:20,title:'Notification Queue'}}];
+  },
   writeBatch:async requests=>{
    assert.equal(requests.length,2);
    assert.deepEqual(requests[0].updateCells.start,{sheetId:10,rowIndex:1,columnIndex:2});
@@ -49,6 +60,7 @@ const corrected=await atomic.commit({actor,body,onCommitted:receipt=>{assert.equ
 assert.equal(corrected.projection,'PROJECTED');
 assert.deepEqual(events,['committed','receipt','batch','verified','released']);
 events.length=0;
+finishCommit=undefined;
 await assert.rejects(()=>atomic.commit({actor,body:{...body,expectedHoursDedicated:4}}),error=>error.message==='STALE_REALIZED_HOURS'&&error.writeOutcome==='NOT_COMMITTED');
 assert.deepEqual(events,['released']);
 console.log('PASS: restored DEV direct realized-hours contracts');

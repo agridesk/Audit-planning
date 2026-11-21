@@ -544,7 +544,7 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
 }):null;
 const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRealizedHoursAtomicService20({
  store:planningAtomicStore,gate:planningGlobalGate,
- project:createRealizedHoursBatchProjector20({
+ prepareProjection:createRealizedHoursBatchProjector20({
   readArchive:planningAtomicProjector.inspect,readTrail:planningAtomicAppendProjector.inspect,
   verifyFence:async({operationId,gateToken})=>{
    const {holder}=await planningGlobalGate.read();

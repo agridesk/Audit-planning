@@ -284,6 +284,30 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {operationId,replayed:false,state:'PENDING',entities:receipts};
   });
  }
+ async function commitRealizedHours({auditId,operationId,actorId,expectedRevision,oldHours,newHours,projectionPlan}){
+  if(!validId(auditId)||!validId(operationId)||!validId(actorId)||!(expectedRevision===null||Number.isSafeInteger(expectedRevision)&&expectedRevision>=0)||
+     !Number.isFinite(oldHours)||!Number.isFinite(newHours)||newHours<=0||!Number.isInteger(newHours*4)||oldHours===newHours||
+     projectionPlan?.auditId!==auditId)throw Error('REALIZED_HOURS_TRANSACTION_INPUT_INVALID');
+  const action='REALIZED_HOURS',requestDigest=hex(JSON.stringify({auditId,actorId,expectedRevision,oldHours,newHours,projectionPlan}));
+  return transaction(async tx=>{
+   const old=await tx.get('audit',auditId),replay=await tx.get('outbox',operationId);
+   if(replay){
+    if(replay.value.requestDigest!==requestDigest||replay.value.action!==action)throw Error('REALIZED_HOURS_REPLAY_CONFLICT');
+    return {operationId,replayed:true,state:replay.value.state,revision:replay.value.revision};
+   }
+   const current=old?.value;
+   if(current?(current.removed!==true||current.snapshot?.status!=='Completed'||current.snapshot?.identityRetired===true||
+      current.claimIds?.length||current.pendingOperationId||current.revision!==expectedRevision):expectedRevision!==null)
+    throw Error('REALIZED_HOURS_COMPLETED_REVISION_CONFLICT');
+   if(current?.snapshot.hoursDedicated!==undefined&&current.snapshot.hoursDedicated!==oldHours)
+    throw Error('STALE_REALIZED_HOURS');
+   const revision=(expectedRevision??-1)+1,now=new Date().toISOString();
+   const archived=current??{auditId,removed:true,auditorId:null,blocks:[],claimIds:[],snapshot:{auditId,status:'Completed'}};
+   tx.set('audit',auditId,{...archived,revision,snapshot:{...archived.snapshot,hoursDedicated:newHours},pendingOperationId:operationId,lastOperationId:operationId,updatedAt:now});
+   tx.set('outbox',operationId,{auditId,operationId,actorId,action,revision,requestDigest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now});
+   return {operationId,replayed:false,state:'PENDING',revision};
+  });
+ }
  async function seed({auditId,snapshot,auditorId,blocks=[]}){
   if(!validId(auditId)||!snapshot||typeof snapshot!=='object'||snapshot.auditId!==auditId||!/^([a-f0-9]{24})$/.test(str(snapshot.sourceRevision)))throw Error('PLANNING_BACKFILL_SOURCE_INVALID');
   const newClaims=claimsFor(blocks,auditorId),ids=newClaims.map(x=>x.claimId);
@@ -340,5 +364,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
 }

@@ -77,7 +77,8 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];
   for(const [index,change] of changes.entries()){
-   if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)){
+   if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)||
+      plan.realizedHoursCorrection===true&&/^Log realized audits!A\d+:[A-Z]+\d+$/.test(change.range)){
     // Re-entering unchanged contact data can turn phone numbers into formulas.
     if(second.detail[index].target)continue;
     const changed=[];
@@ -92,7 +93,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
       while(n){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}
       return result;
      };
-     entered.push({range:`Companies!${column(start)}${row}:${column(end)}${row}`,
+     entered.push({range:`${change.sheet}!${column(start)}${row}:${column(end)}${row}`,
       values:[Array.from({length:end-start+1},(_,j)=>change.values[start+j]??'')]});
      i++;
     }

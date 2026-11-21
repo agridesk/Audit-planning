@@ -487,10 +487,13 @@ function runActionViaWarmWorker(auditId,action,options){
     })
   })
 }
-function runRealizedHoursDirect(auditId,hoursDedicated){
-  var started=performance.now();
-  return fetch('/api/v1/manager/realized-hours-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,hoursDedicated:hoursDedicated,expectedHoursDedicated:(all.find(function(r){return r.auditId===auditId})||{}).hoursDedicated})})
-    .then(function(response){return response.json().then(function(result){if(!response.ok||result.success===false){if(response.status===409&&result.error==='STALE_REALIZED_HOURS')throw new Error('Hours were changed by another user. Refresh the completed audits before trying again.');if(result.error==='REALIZED_HOURS_WRITE_IN_PROGRESS')throw new Error('Another correction is in progress. Refresh before making another change.');throw new Error(result.error||'REALIZED_HOURS_DIRECT_FAILED');}return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{transport:'CLOUD_RUN_DIRECT'}};})});
+async function runRealizedHoursDirect(auditId,hoursDedicated,onCommitted){
+  var started=performance.now(),row=all.find(function(r){return r.auditId===auditId});
+  var response=await fetch('/api/v1/manager/realized-hours-direct',{method:'POST',credentials:'same-origin',
+    headers:{'content-type':'application/json',accept:'application/x-ndjson'},
+    body:JSON.stringify({auditId:auditId,hoursDedicated:hoursDedicated,expectedHoursDedicated:row?.hoursDedicated,requestId:crypto.randomUUID()})});
+  var result=await readGridActionResult20(response,auditId,'REALIZED_HOURS',onCommitted);
+  return {result:result,relayElapsedMs:Math.round(performance.now()-started)};
 }
 async function runActionViaCloudRun(auditId,action,options,onCommitted){
   var started=performance.now();
@@ -660,7 +663,48 @@ function closeRealizedDialog(){realizedDialogAuditId="";showModal("realizedModal
 document.getElementById("completeCancel").onclick=closeCompleteDialog;
 document.getElementById("completeConfirm").onclick=function(){var id=completeDialogAuditId,q=quarterHourValue(document.getElementById("completeHours").value);if(q==null){window.alert("Hours dedicated must be > 0 in steps of 0.25.");return}var button=document.querySelector('.act[data-audit-id="'+CSS.escape(id)+'"][data-action="complete"]');if(!button)return;button.setAttribute("data-complete-hours",String(q));closeCompleteDialog();runAction(button)};
 document.getElementById("realizedCancel").onclick=closeRealizedDialog;
-document.getElementById("realizedConfirm").onclick=function(){var id=realizedDialogAuditId,q=quarterHourValue(document.getElementById("realizedHours").value);if(q==null){window.alert("Hours dedicated must be > 0 in steps of 0.25.");return}if(busyAudits.has(id))return;busyAudits.add(id);showModal("realizedModal",false);var sx=window.scrollX,sy=window.scrollY,started=performance.now();document.getElementById("status").textContent="Working · correcting realized hours…";runRealizedHoursDirect(id,q).then(function(x){var totalMs=Math.round(performance.now()-started),serverPerf=x&&x.result&&x.result.perf||{};console.info("[REALIZED_HOURS_PERF]",{totalMs:totalMs,relayMs:x.relayElapsedMs||0,server:serverPerf,trace:x.trace||{}});if(!x||!x.result||x.result.success===false||x.result.ok===false||String(x.result.auditId||"")!==id||Math.abs(Number(x.result.newHoursDedicated)-q)>1e-9)throw new Error("REALIZED_HOURS_COMMIT_NOT_CONFIRMED");var idx=all.findIndex(function(r){return r.auditId===id});if(idx>=0){all[idx]=Object.assign({},all[idx],{hoursDedicated:q});var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(id)+'"]');if(tr){var fragment=document.createElement("tbody");fragment.innerHTML=renderCompleted([all[idx]]);var fresh=fragment.firstElementChild;if(fresh){tr.replaceWith(fresh);bindCompletedButtons(fresh)}}window.scrollTo(sx,sy)}var p=x.result.perf||{},fmt=function(v){return typeof v==="number"&&isFinite(v)?Math.round(v)+" ms":"n/a"},direct=x.result.transport==="DIRECT_SHEETS_ATOMIC";document.getElementById("status").textContent=all.length+" completed audits · realized hours corrected "+Math.round(performance.now()-started)+" ms (Cloud Run request "+fmt(x.relayElapsedMs)+(direct?" · Sheets lookup "+fmt(p.lookupMs)+" · atomic write+trail "+fmt(p.logWriteMs):" · GAS total "+fmt(p.totalMs)+" · canonical read "+fmt(p.canonicalReadMs)+" · auth "+fmt(p.managerAuthorizationMs)+" · cache "+fmt(p.cacheInvalidationMs)+" · trail "+fmt(p.auditTrailMs)+" · POST "+fmt((x.result.bridgePerf||{}).postResponseMs)+" · redirect "+fmt((x.result.bridgePerf||{}).redirectGetMs))+")"}).catch(function(e){window.alert("Realized-hours correction failed: "+e.message)}).finally(function(){busyAudits.delete(id);realizedDialogAuditId=""})}
+document.getElementById("realizedConfirm").onclick=async function(){
+ var id=realizedDialogAuditId,q=quarterHourValue(document.getElementById("realizedHours").value);
+ if(q==null){window.alert("Hours dedicated must be > 0 in steps of 0.25.");return}
+ if(busyAudits.has(id))return;
+ var started=performance.now(),status=document.getElementById("status"),receipt=null,blocked=false;
+ busyAudits.add(id);showModal("realizedModal",false);
+ status.textContent="Working · correcting realized hours…";
+ function showValue(saved){
+  if(saved.auditId!==id||saved.newHoursDedicated!==q)throw Error("REALIZED_HOURS_COMMIT_NOT_CONFIRMED");
+  var idx=all.findIndex(function(r){return r.auditId===id});
+  if(idx>=0){
+   all[idx]=Object.assign({},all[idx],{hoursDedicated:q});
+   var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(id)+'"]');
+   if(tr){
+    var fragment=document.createElement("tbody");fragment.innerHTML=renderCompleted([all[idx]]);
+    var fresh=fragment.firstElementChild;
+    if(fresh){tr.replaceWith(fresh);bindCompletedButtons(fresh)}
+   }
+  }
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+   console.info("[AMS_GRID_CONFIRMATION_TIMING]",{auditId:id,action:"realized-hours",clickToVisibleMs:Math.round(performance.now()-started)});
+  });});
+ }
+ try{
+  var x=await runRealizedHoursDirect(id,q,function(saved){
+   receipt=saved;status.textContent="Hours saved, synchronizing…";showValue(saved);
+  });
+  if(x.result?.success!==true)throw Error("REALIZED_HOURS_COMMIT_NOT_CONFIRMED");
+  if(!receipt)showValue(x.result);
+  status.textContent=x.result.changed===false?"Hours unchanged":"Realized hours saved and synchronized";
+  console.info("[REALIZED_HOURS_PERF]",{relayMs:x.relayElapsedMs});
+ }catch(error){
+  if(receipt){error.writeOutcome="COMMITTED";error.reference=receipt.operationId}
+  if(error.message==="DEV_CUTOVER_WRITES_FROZEN")error.writeOutcome="NOT_COMMITTED";
+  if(error.message==="STALE_REALIZED_HOURS")error.message="Hours were changed. Refresh the completed audits before trying again.";
+  status.textContent=gridActionErrorText20(error);
+  blocked=error.writeOutcome!=="NOT_COMMITTED";
+ }finally{
+  if(!blocked)busyAudits.delete(id);
+  realizedDialogAuditId="";
+ }
+};
 
 function extensionAppliedState(r){return !!(r&&(r.extensionApplied===true||r.extApplied===true||String(r.extensionApplied||r.extApplied||'').toLowerCase()==='yes'))}
 function searchable(r){if(currentView==="completed")return[r.auditId,r.company,r.region,r.scopesText,r.status,r.auditor,r.executedOn,r.completedDate,r.hoursPlanned,r.hoursDedicated].join(" ").toLowerCase();return[r.auditId,r.company,locationText(r),r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.datePlanned,effectiveExpiry(r),r.conceptMonth,r.hasProvisionalPlanning?"provisional":"",r.latestComment].join(" ").toLowerCase()}

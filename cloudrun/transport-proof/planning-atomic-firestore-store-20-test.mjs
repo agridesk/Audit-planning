@@ -122,6 +122,15 @@ assert.equal((await authority.commitMulti({
 assert.equal((await authority.markProjected({auditId,operationId:'multiReceiptFixture-one',proof:{verified:true,auditId,rowHash:'b'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(auditId)).pendingOperationId,null);
+const hours={auditId,operationId:'hours-one',actorId:'manager',expectedRevision:3,oldHours:5,newHours:5.25,projectionPlan:{auditId}};
+assert.equal((await authority.commitRealizedHours(hours)).state,'PENDING');
+assert.equal((await authority.commitRealizedHours(hours)).replayed,true);
+assert.equal((await authority.readAudit(auditId)).removed,true);
+assert.equal((await authority.readAudit(auditId)).snapshot.hoursDedicated,5.25);
+assert.equal((await authority.readOutbox('hours-one')).state,'PENDING');
+await authority.markProjected({auditId,operationId:'hours-one',proof:{verified:true,auditId,rowHash:'f'.repeat(64)}});
+await assert.rejects(()=>authority.commitRealizedHours({...hours,operationId:'hours-stale',expectedRevision:4}),/STALE_REALIZED_HOURS/);
+await assert.rejects(()=>authority.commitRealizedHours({...hours,operationId:'hours-open',auditId:multiSuccessor,projectionPlan:{auditId:multiSuccessor},expectedRevision:0}),/COMPLETED_REVISION_CONFLICT/);
 const transfer=await authority.commitMulti({
  operationId:'transfer-one',actorId:'manager',action:'TRANSFER',
  entities:[{auditId:multiSuccessor,expectedRevision:0,nextSnapshot:{auditId:multiSuccessor,status:'Approved'},auditorId:'aud-2',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],

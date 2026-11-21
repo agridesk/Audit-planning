@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {devCutoverFreezeDecision20 as gate} from './dev-cutover-freeze-20.mjs';
 const freeze=(method,path,overrides={})=>gate({isDev:true,freezeEnabled:true,method,path,backfillWriteEnabled:false,legacyWritersFrozen:false,...overrides});
+assert.deepEqual(freeze('POST','/api/v1/manager/realized-hours-direct'),{allow:false,status:423,error:'DEV_CUTOVER_WRITES_FROZEN'});
+assert.deepEqual(freeze('POST','/api/v1/manager/realized-hours-direct',{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
 for(const path of ['/api/v1/manager/scopes/policy','/api/v1/manager/approve-direct','/api/v1/manager/company-management/save',
  '/api/v1/manager/extension-obligation-command','/api/v1/auditor/action','/api/v1/planning/commit-handoff',
  '/api/v1/manager/swap20/propose','/api/v1/manager/scopes/create','/api/v1/planning/atomic-backfill']){

@@ -61,6 +61,7 @@ import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.j
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
+import {createRealizedHoursAtomicService20} from './realized-hours-atomic-service-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
 import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
@@ -543,17 +544,29 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
 }):null;
 function gridActionFailure20(error,action){
  const raw=String(error?.message||'');
- const safe=/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_)[A-Z0-9_]{1,130}$/.test(raw);
+ const safe=raw==='STALE_REALIZED_HOURS'||/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_|REALIZED_HOURS_)[A-Z0-9_]{1,130}$/.test(raw);
  const reference=/^[a-f0-9]{64}$/.test(error?.operationId||'')?error.operationId:randomUUID();
  const writeOutcome=['NOT_COMMITTED','COMMITTED','PROJECTED'].includes(error?.writeOutcome)?error.writeOutcome:'UNKNOWN';
  console.error('[AMS_GRID_ACTION_ERROR]',JSON.stringify({action,reference,writeOutcome,errorCode:raw.slice(0,160),revision:process.env.K_REVISION}));
  return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
 }
+const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRealizedHoursAtomicService20({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ roster:getRoster,signingKey:process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY,
+ readLog:async()=>{
+  const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Log realized audits'!A1:AZ10000"));
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('REALIZED_HOURS_LOG_READ_FAILED');
+  return (await response.json()).values;
+ }
+}):null;
 async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
- const service=action==='SELF_PLANNING'?planningAtomicSelfPlanning:
+ const service=action==='REALIZED_HOURS'?planningAtomicRealizedHours:action==='SELF_PLANNING'?planningAtomicSelfPlanning:
   ['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
  const stream=runtime.isDev&&req.headers.accept==='application/x-ndjson'
-  &&['/api/v1/manager/action','/api/v1/auditor/action','/api/v1/manager/self-planning-direct'].includes(String(req.url||'').split('?')[0]);
+  &&['/api/v1/manager/action','/api/v1/auditor/action','/api/v1/manager/self-planning-direct','/api/v1/manager/realized-hours-direct'].includes(String(req.url||'').split('?')[0]);
  let receiptSent=false;
  const result=await service.commit({actor,body,action,onCommitted:stream?receipt=>{
   if(res.destroyed)return;
@@ -2192,6 +2205,16 @@ http.createServer(async(req,res)=>{
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/realized-hours-direct'&&planningAtomicRealizedHours){
+   const actor=await session(req);
+   if(actor?.role!=='manager'||req.headers.origin!=='https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'DEV_MANAGER_SAME_ORIGIN_REQUIRED',writeOutcome:'NOT_COMMITTED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('REALIZED_HOURS_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('REALIZED_HOURS_BODY_INVALID');}
+   await respondToAtomicGridLifecycle(req,res,{actor,body,action:'REALIZED_HOURS'});return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/self-planning-direct'&&planningAtomicSelfPlanning){
    const actor=await session(req);

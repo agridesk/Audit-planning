@@ -7,7 +7,7 @@ on:
         description: Single EXT release operation
         required: true
         type: choice
-        options: [deploy, preview, promote]
+        options: [deploy, preview, promote, source-check]
       revision:
         description: Candidate revision for preview or promotion
         required: false
@@ -61,12 +61,35 @@ jobs:
           cd cloudrun/transport-proof
           npm test > "$RUNNER_TEMP/ext-tests.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/ext-tests.log"; exit 1; }
           echo "Isolated EXT-only full test suite passed"
+      - name: Authenticate read-only DEV identity
+        if: inputs.operation == 'source-check'
+        id: read_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - name: Verify candidate against read-only DEV sources
+        if: inputs.operation == 'source-check'
+        env:
+          TOKEN: ${{ steps.read_auth.outputs.access_token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
+          test "$(git hash-object cloudrun/transport-proof/scope-dependency-policy-20.mjs)" = 7e4f62c28cf28ff051b9c744a6fcccea12d5a8a3
+          node .github/scripts/dev-ext-source-check.mjs
       - uses: google-github-actions/auth@v3
+        if: inputs.operation != 'source-check'
         with:
           workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
           service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v3
+        if: inputs.operation != 'source-check'
       - name: Execute guarded DEV-only operation
+        if: inputs.operation != 'source-check'
         shell: bash
         env:
           OPERATION: ${{ inputs.operation }}

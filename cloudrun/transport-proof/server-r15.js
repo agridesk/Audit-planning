@@ -841,7 +841,10 @@ const overlay=createPlanningOverlayService({
 });
 const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity:session,listAuditors:async actor=>{
  const roster=await getRoster();
- return roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName}));
+ return {
+  directory:roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName})),
+  canonicalAuditors:roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}))
+ };
 }});
 async function legacyAvailabilityDiagnostic(req,res){
  const actor=await session(req);

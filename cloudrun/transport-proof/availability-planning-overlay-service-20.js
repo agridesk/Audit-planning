@@ -42,11 +42,12 @@ function validateReadRange(fromDate,toDate){
 }
 export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps,readInactiveSwapEvidence}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
- async function slotsFor(fromDate,toDate,{fresh=false,incompleteAuditDiagnostics}={}){
-  const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors(),readScopeNames?readScopeNames():{}]);
+ async function slotsFor(fromDate,toDate,{fresh=false,incompleteAuditDiagnostics,canonicalAuditors}={}){
+  if(canonicalAuditors!==undefined&&!Array.isArray(canonicalAuditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
+  const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),canonicalAuditors===undefined?listCanonicalAuditors():canonicalAuditors,readScopeNames?readScopeNames():{}]);
   if(!Array.isArray(rows)||!Array.isArray(auditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
   const legacy=canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate:'1900-01-01',toDate:'2100-12-31',scopeNamesBySlot,incompleteAuditDiagnostics});
-  if(typeof readCanonicalSwaps!=='function')return legacy.filter(x=>x.date>=fromDate&&x.date<=toDate);
+  if(typeof readCanonicalSwaps!=='function')return {slots:legacy.filter(x=>x.date>=fromDate&&x.date<=toDate),auditors};
   const swaps=await readCanonicalSwaps();
   if(swaps?.ok!==true||!Array.isArray(swaps.rows))throw Error('AVAILABILITY_SWAP_CANONICAL_READ_UNVERIFIED');
   const replaceIds=new Set(),canonical=[];
@@ -68,10 +69,10 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
     canonical.push({...meta,date:block.date,start:block.start,end:block.end,state:'COMMITTED'});
    }
   }
-  return legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate));
+  return {slots:legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate)),auditors};
  }
- async function reviewDiagnostics(items,auditorIds,fromDate,toDate,{manager=false}={}){
-  const roster=await listCanonicalAuditors(),allowed=new Set(auditorIds);
+ function reviewDiagnostics(items,auditorIds,fromDate,toDate,{manager=false,roster}={}){
+  const allowed=new Set(auditorIds);
   const known=new Set(roster.map(a=>clean(a.auditorId)));
   const current=[],historical=[],uncertain=new Set();let unknownOwner=false;
   for(const item of items){
@@ -99,23 +100,23 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }
   return {incompleteAuditDiagnostics:current,outsidePeriodAuditDiagnostics:historical,uncertainAuditorIds:[...uncertain],unknownReservationOwner:unknownOwner};
  }
- async function period({actor,auditorId,fromDate,toDate}){
+ async function period({actor,auditorId,fromDate,toDate,canonicalAuditors}){
   validateReadRange(fromDate,toDate);
   const doc=await service.read(actor,auditorId);
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics});
-  const review=await reviewDiagnostics(incompleteAuditDiagnostics,[auditorId],fromDate,toDate,{manager:clean(actor?.role).toLowerCase()==='manager'});
+  const {slots,auditors:roster}=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics,...(clean(actor?.role).toLowerCase()==='manager'&&canonicalAuditors!==undefined?{canonicalAuditors}:{})});
+  const review=reviewDiagnostics(incompleteAuditDiagnostics,[auditorId],fromDate,toDate,{manager:clean(actor?.role).toLowerCase()==='manager',roster});
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
   const merged=withCommittedOverlay(doc,blocks);
   const auditDetails={};for(const slot of slots){if(slot.auditorId!==auditorId)continue;const id='audit:'+slot.auditId+'|'+slot.date+'|'+slot.start+'|'+slot.end;auditDetails[id]={auditId:slot.auditId,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||'',date:slot.date,start:slot.start,end:slot.end,state:slot.state};}
   return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,...review,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
- async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
+ async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={},canonicalAuditors}){
   validateReadRange(fromDate,toDate);
   if(clean(actor?.role).toLowerCase()!=='manager'||!clean(actor?.id))throw Error('NOT_AUTHORIZED');
   if(!Array.isArray(auditorIds)||auditorIds.length>250||new Set(auditorIds).size!==auditorIds.length)throw Error('INVALID_AUDITOR_SET');
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics});
+  const {slots,auditors:roster}=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics,...(canonicalAuditors!==undefined?{canonicalAuditors}:{})});
   const auditors=await Promise.all(auditorIds.map(async auditorId=>{
    const doc=await service.read(actor,auditorId);
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
@@ -123,7 +124,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }));
   const overview=buildManagerAvailabilityOverview({fromDate,toDate,auditors});
   const auditDetailsByAuditor={};for(const slot of slots){if(!auditorIds.includes(slot.auditorId))continue;(auditDetailsByAuditor[slot.auditorId]??=[]).push({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,state:slot.state,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||''});}
-  const review=await reviewDiagnostics(incompleteAuditDiagnostics,auditorIds,fromDate,toDate,{manager:true});
+  const review=reviewDiagnostics(incompleteAuditDiagnostics,auditorIds,fromDate,toDate,{manager:true,roster});
   return {...overview,auditDetailsByAuditor,...review};
  }
  async function searchAudits({actor,auditorId,term}){
@@ -134,7 +135,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   // Query canonical audit slots for all months, never only the visible calendar.
   // Incomplete historical plans cannot yield a dated search hit.
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor('1900-01-01','2100-12-31',{incompleteAuditDiagnostics});
+  const {slots}=await slotsFor('1900-01-01','2100-12-31',{incompleteAuditDiagnostics});
   const seen=new Set(),matches=[];
   for(const slot of slots){
    if(slot.auditorId!==target||!slot.company.toLocaleLowerCase().includes(query.toLocaleLowerCase()))continue;
@@ -165,7 +166,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
    const incompleteAuditDiagnostics=[];
-   const slots=await slotsFor(fromDate,toDate,{fresh:true,incompleteAuditDiagnostics});
+   const {slots}=await slotsFor(fromDate,toDate,{fresh:true,incompleteAuditDiagnostics});
    if(incompleteAuditDiagnostics.length){
     // Missing plan payload must not globally block unrelated auditors.
     // Unknown owner of an actually dated/accepted audit still fails closed.

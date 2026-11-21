@@ -7,6 +7,13 @@ const str=x=>String(x??'');
 const scalar=x=>x===null||typeof x==='string'||typeof x==='boolean'||typeof x==='number'&&Number.isFinite(x);
 const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();return a;};
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
+function sameReservedPayload(stored,expected){
+ try{
+  const actual=JSON.parse(stored),intent=JSON.parse(expected);
+  return !!actual?.windowKey&&!!actual?.groupKey&&!intent?.windowKey&&
+    !!intent?.payload&&JSON.stringify(actual.payload)===JSON.stringify(intent.payload);
+ }catch{return false;}
+}
 const columnNumber=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
 const widthOf=range=>{const m=/!A:([A-Z]+)$/.exec(range);return m?columnNumber(m[1]):0;};
 const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log','CB_Extension_Outbox']);
@@ -96,7 +103,8 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
       const storedReserved=str(existing[0][12]),expectedReserved=str(item.row[12]);
       const delivered=['SENT','SENT_DEV_REDIRECT','SENT_SIMULATED','SENT_SUPPRESSED'];
       if(storedReserved!==expectedReserved&&
-         !(storedReserved===''&&expectedReserved!==''&&delivered.includes(str(existing[0][1]))))
+         !(storedReserved===''&&expectedReserved!==''&&delivered.includes(str(existing[0][1])))&&
+         !((str(existing[0][1])==='RESERVED'||delivered.includes(str(existing[0][1])))&&sameReservedPayload(storedReserved,expectedReserved)))
        throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
       continue;
      }

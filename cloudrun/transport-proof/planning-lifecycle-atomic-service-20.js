@@ -59,6 +59,13 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     blocks=raw.map(x=>({date:str(x.date),start:str(x.start),end:str(x.end)}));
    }
    if(actor.role==='auditor'&&action==='ACCEPT'&&auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
+   // ACCEPT writes the planning row and appends notifications to a separate tab.
+   // Read-only append preparation can overlap the commit and row projection.
+   const appendArgs={operationId,gateToken:lock.token,intents:snapshot.appendIntents};
+   const overlap=action==='ACCEPT'&&typeof appendProjector.prepare==='function'&&snapshot.appendIntents.length>0&&
+    snapshot.appendIntents.every(intent=>intent.range==='Notification Queue!A:M')&&
+    snapshot.projectionWrites.every(write=>write.range.startsWith('Audit planning!'));
+   const prepared=overlap?measure('appendPrepareMs',()=>appendProjector.prepare(appendArgs)).then(value=>({value}),error=>({error})):null;
    attempted=true;
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
@@ -69,9 +76,11 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
    }
    await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
-   await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
+   const ready=await prepared;
+   if(ready?.error)throw ready.error;
+   const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
-    projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)
+    projector.inspect(snapshot),overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)
    ]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('LIFECYCLE_ATOMIC_PROJECTION_UNVERIFIED');
    const proof={verified:true,auditId,rowHash:hash({rows:rows.detail,appends:appends.count})};

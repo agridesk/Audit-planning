@@ -108,21 +108,29 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   return {state:missing.length?'MISSING':'MATCH',missing,count:items.length};
  }
- async function apply({operationId,gateToken,intents}){
+ async function prepare({operationId,gateToken,intents}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
   const before=await inspect(intents);
-  if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
+  const metadata=before.state==='MATCH'?null:await request(base+'?fields=sheets(properties(sheetId,title))');
+  return {before,metadata};
+ }
+ async function apply({operationId,gateToken,intents,prepared}){
+  if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
+  await verifyFence({operationId,gateToken});
+  const before=prepared?.before??await inspect(intents);
+  if(!prepared&&before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true,verification:before};}
   await verifyFence({operationId,gateToken});
   // Metadata is independent of the final identity scan.
   const [metadata,fresh]=await Promise.all([
-   request(base+'?fields=sheets(properties(sheetId,title))'),
+   prepared?.metadata??(before.state==='MATCH'?null:request(base+'?fields=sheets(properties(sheetId,title))')),
    inspect(intents)
   ]);
   if(fresh.state!=='MATCH'){
+   const tabs=metadata??await request(base+'?fields=sheets(properties(sheetId,title))');
    const groups=new Map();
    for(const missing of fresh.missing){
-    const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
+    const target=(tabs.sheets||[]).find(s=>s.properties?.title===missing.sheet);
     if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
     const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
     if(!groups.has(target.properties.sheetId))groups.set(target.properties.sheetId,[]);
@@ -136,7 +144,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const after=await inspect(intents);
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');
   await verifyFence({operationId,gateToken});
-  return {operationId,confirmed:true,replayed:false};
+  return {operationId,confirmed:true,replayed:false,verification:after};
  }
- return Object.freeze({inspect,apply});
+ return Object.freeze({inspect,prepare,apply});
 }

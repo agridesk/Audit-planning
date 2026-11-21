@@ -206,6 +206,15 @@ deliveredRow[1]='SENT_DEV_REDIRECT';
 deliveredRow[12]='{"payload":{"auditId":"DIFFERENT"}}';
 await assert.rejects(()=>service.inspect(deliveredIntent),/APPEND_NOTIFICATION_HASH_CONFLICT/);
 rows['Notification Queue'].pop();
+const preparedRow=['2026-11-15','PENDING','AUDIT_ACCEPTED','','VIS-PREPARED','','subject','body',0,'','hash-prepared'];
+const preparedArgs={operationId:'op-prepared',gateToken:'token',intents:[{range:'Notification Queue!A:M',values:[preparedRow]}]};
+const prepared=await service.prepare(preparedArgs);
+assert.equal(prepared.before.state,'MISSING');
+rows['Notification Queue'].push(preparedRow.slice());
+const beforePreparedApply=batchWrites;
+const preparedResult=await service.apply({...preparedArgs,prepared});
+assert.equal(preparedResult.verification.state,'MATCH');
+assert.equal(batchWrites,beforePreparedApply,'The final scan must catch an append after preparation');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

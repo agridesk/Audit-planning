@@ -595,12 +595,11 @@ function runAction(button){
   if(busyAudits.has(auditId))return;
   if(action==="plan"){var w=window.open("/planning?auditId="+encodeURIComponent(auditId),"amsPlanning_"+auditId,"popup=yes,width=1500,height=920,resizable=yes,scrollbars=yes");if(!w)window.location.href="/planning?auditId="+encodeURIComponent(auditId);return}
   if(action==="complete"&&!button.getAttribute("data-complete-hours")){openCompleteDialog(auditId);return}
-  if(action==='accept'&&button.getAttribute('data-email-confirm')!=='true'&&!window.confirm('Accept audit '+auditId+'?'))return;
   var reason="";
   if(action==="cancel"||action==="reject"){
     reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");
     if(reason===null)return;reason=reason.trim();if(!reason){window.alert("Comment is required.");return}
-  }else if(action!=="accept"&&action!=="complete"&&!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
+  }
   busyAudits.add(auditId);
   var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
   var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision};

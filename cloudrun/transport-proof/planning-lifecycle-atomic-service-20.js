@@ -84,7 +84,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    }
    const rowReady=await preparedRow;
    if(rowReady?.error)throw rowReady.error;
-   const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value}));
+   const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value,existingRowsOnly:action==='CANCEL'&&actor.role==='manager'}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;
    const fresh=await freshQueue;

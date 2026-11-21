@@ -87,15 +87,20 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   await verifyFence({operationId,gateToken});
   return inspect(plan);
  }
- async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false,existingRowsProof=null,allowMissingAvailabilityRows=false}){
+ async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false,existingRowsProof=null,allowMissingAvailabilityRows=false,existingRowsOnly=false}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
+  const existingRows=existingRowsOnly&&!existingRowsProof&&changes.every(change=>
+   /^(?:Audit planning|Auditor Availability)!A\d+:[A-Z]+\d+$/.test(change.range)&&
+   change.before.some(value=>str(value)!=='')&&change.values.some(value=>str(value)!==''));
   await verifyFence({operationId,gateToken});
-  const first=existingRowsProof??await inspect(plan,{allowMissingAvailabilityRows});
+  // Matching nonempty rows need no expansion; keep the fence and fresh read together.
+  const [first]=await Promise.all([existingRowsProof??inspect(plan,{allowMissingAvailabilityRows}),
+   existingRows?verifyFence({operationId,gateToken}):null]);
   if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:first};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
   const requests=[];
-  if(!existingRowsProof){
+  if(!existingRowsProof&&!existingRows){
    const meta=await metadata();
    for(const sheet of new Set(changes.map(x=>x.sheet))){
     const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
@@ -106,7 +111,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    if(requests.length)await request(base+':batchUpdate','POST',{requests});
    await verifyFence({operationId,gateToken});
   }
-  const second=existingRowsProof??await inspect(plan);
+  const second=existingRowsProof??(existingRows?first:await inspect(plan));
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:second};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];

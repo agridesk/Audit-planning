@@ -72,7 +72,7 @@ for(const role of ['', 'Viewer', 'Admin', 'managerx', 'AUDITORX']){
 // Server-side route separation / anti-horizontal-escalation invariants.
 const routeChecks=[
   "if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'})",
-  "role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase())",
+  "role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase(),undefined,managerGridSnapshotRequested20(req,role))",
   "role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase())",
   "if(actorRole==='AUDITOR'&&auditorEmail!==actorEmail)throw new Error('AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR')",
   "if(clean(sess.role).toLowerCase()==='auditor'&&auditorEmail!==clean(sess.email).toLowerCase())return send(res,403,{ok:false,error:'AUDITOR_CANNOT_CHECK_OTHER_AUDITOR'})",

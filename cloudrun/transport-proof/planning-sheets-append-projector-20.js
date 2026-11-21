@@ -120,6 +120,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   return {before,metadata};
  }
  async function apply({operationId,gateToken,intents,prepared,freshInspection}){
+  const timing={};
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
   const before=prepared?.before??freshInspection??await inspect(intents);
@@ -142,13 +143,17 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    }
    const requests=[...groups].map(([sheetId,rows])=>({appendCells:{sheetId,rows,fields:'userEnteredValue'}}));
    await verifyFence({operationId,gateToken});
-   await request(base+':batchUpdate','POST',{requests});
+   const writeStarted=Date.now();
+   try{await request(base+':batchUpdate','POST',{requests});}
+   finally{timing.appendWriteMs=Date.now()-writeStarted;}
    await verifyFence({operationId,gateToken});
   }
+  const verifyStarted=Date.now();
   const after=freshInspection&&fresh.state==='MATCH'?fresh:await inspect(intents);
+  timing.appendReadbackMs=Date.now()-verifyStarted;
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');
   await verifyFence({operationId,gateToken});
-  return {operationId,confirmed:true,replayed:false,verification:after};
+  return {operationId,confirmed:true,replayed:false,verification:after,timing};
  }
  return Object.freeze({inspect,prepare,apply});
 }

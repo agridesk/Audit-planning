@@ -69,6 +69,10 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    const rowArgs={operationId,gateToken:lock.token,plan:snapshot};
    const preparedRow=overlap&&typeof projector.prepareExistingPlanningRows==='function'?
     measure('rowPrepareMs',()=>projector.prepareExistingPlanningRows(rowArgs)).then(value=>({value}),error=>({error})):null;
+   // The queue scan reads a separate tab under the same exclusive gate.
+   // Publish only once the Firestore commit and planning-row readback succeed.
+   const freshQueue=overlap?measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))
+    .then(value=>({value}),error=>({error})):null;
    attempted=true;
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
@@ -80,16 +84,13 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    }
    const rowReady=await preparedRow;
    if(rowReady?.error)throw rowReady.error;
-   // Accept's row and queue are on separate tabs. Read the queue while the row
-   // is projected under the same exclusive gate, then publish after row readback.
-   const freshQueue=overlap?measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))
-    .then(value=>({value}),error=>({error})):null;
    const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;
    const fresh=await freshQueue;
    if(fresh?.error)throw fresh.error;
    const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value,freshInspection:fresh?.value}));
+   if(appendResult?.timing)Object.assign(timings,appendResult.timing);
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
     overlap&&rowResult?.verification?rowResult.verification:projector.inspect(snapshot),
     overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)

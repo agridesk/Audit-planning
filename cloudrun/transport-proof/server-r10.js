@@ -56,7 +56,21 @@ function parseJson(raw){try{return typeof raw==='string'?JSON.parse(raw):raw}cat
 function dateOnly(v){const s=clean(v),m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:s.slice(0,10);}
 function normalizeStatus(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
 function allowedActions(k){return k==='PENDING_PLANNING'?['PLAN','REJECT']:k==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:k==='APPROVED'?['ACCEPT','CANCEL','REJECT']:k==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];}
-function formalHours(j,fallback){if(j&&typeof j==='object'){const explicit=Number(j.formalHours);if(Number.isFinite(explicit))return explicit;}const n=Number(fallback);return Number.isFinite(n)?n:null;}
+function formalHours(rawPlanning,plannedDate,storedHours){
+  if(!plannedDate||!managerApprovalBlocks20(rawPlanning).length)return null;
+  const explicit=parseJson(rawPlanning)?.formalHours;
+  const value=clean(explicit) || clean(storedHours);
+  const number=Number(value.replace(',','.'));
+  return value&&Number.isFinite(number)?number:null;
+}
+function managerApprovalActions(actions,hasSavedPlan,assignment){
+  if(!actions.includes('APPROVE'))return actions;
+  try{
+    if(!hasSavedPlan)throw Error('APPROVE_SAVED_PLANNING_REQUIRED');
+    resolveManagerApprovalRecipient20(assignment);
+    return actions;
+  }catch{return actions.filter(action=>action!=='APPROVE');}
+}
 function commentsFrom(h,row){const mc=val(row,col(h,['Manager comment (last)'])),md=val(row,col(h,['Last manager decision'])),mt=val(row,col(h,['Last decision timestamp'])),ac=val(row,col(h,['Auditor comment (last)'])),ad=val(row,col(h,['Last auditor decision'])),at=val(row,col(h,['Last auditor decision timestamp'])),ss=val(row,col(h,['Status since']));let latestComment='',latestActor='',latestAction='',latestTimestamp='';if(mc||mt){latestComment=mc;latestActor='Manager';latestAction=md;latestTimestamp=mt;}if((ac||at)&&(!latestTimestamp||at>latestTimestamp)){latestComment=ac;latestActor='Auditor';latestAction=ad;latestTimestamp=at;}return{managerComment:mc,managerDecision:md,managerDecisionTimestamp:mt,auditorComment:ac,auditorDecision:ad,auditorDecisionTimestamp:at,statusSince:ss,latestComment,latestCommentActor:latestActor,latestCommentAction:latestAction,latestCommentTimestamp:latestTimestamp};}
 async function readRaw(req,max=131072){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>max)throw new Error('REQUEST_TOO_LARGE');}return raw;}
 function sendJson(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ams-build':BUILD});res.end(JSON.stringify(body));}
@@ -154,19 +168,15 @@ async function enrichManagerOpen(obj,datasets){const rows=obj?.rows;if(!Array.is
   }const extMonths=managerExtensionMonthsForAudit(h,source.row,extensionCatalog);r.extMonths=extMonths;r.extensionMonths=extMonths;r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId));if(r.statusKey==='PENDING_PLANNING'){r.hoursPlanned='';r.plannedHours='';hoursEnriched++;continue;}const rawPlanning=val(source.row,cp);
   const plannedDate=dateOnly(val(source.row,col(h,['Date - Planned','Date – Planned','Date planned','Date Planned'])));
   const hasSavedPlan=Boolean(plannedDate&&managerApprovalBlocks20(rawPlanning).length);
-  const formal=hasSavedPlan?formalHours(parseJson(rawPlanning),r.requiredHours):null;
+  const formal=formalHours(rawPlanning,plannedDate,val(source.row,col(h,['Hours planned'])));
   r.hoursPlanned=formal==null?'':Math.round(formal*100)/100;
   r.plannedHours=r.hoursPlanned;
-  if(!auditorMode&&r.allowedActions.includes('APPROVE')){
-   try{
-    if(!hasSavedPlan)throw Error('APPROVE_SAVED_PLANNING_REQUIRED');
-    resolveManagerApprovalRecipient20({assigned:val(source.row,col(h,['Assigned to','Assigned auditor','Assigned'])),
-     assignedUid:val(source.row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID'])),auditorValues:audValues});
-   }catch{r.allowedActions=r.allowedActions.filter(action=>action!=='APPROVE');}
-  }
+  if(!auditorMode)r.allowedActions=managerApprovalActions(r.allowedActions,hasSavedPlan,{
+   assigned:val(source.row,col(h,['Assigned to','Assigned auditor','Auditor','Assigned'])),
+   assignedUid:val(source.row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID'])),auditorValues:audValues});
   hoursEnriched++;
  }obj.hoursSemantics={build:BUILD,enriched:hoursEnriched,formalField:'hoursPlanned',planningTarget:'formalHours'};obj.actionCommunication={build:BUILD,enriched:commentsEnriched,canonicalFields:['Manager comment (last)','Auditor comment (last)']};return obj;}
-async function readAuditPatch(auditId,sourceRow){const started=Date.now(),[headerRows,scopeValues,audValues]=await Promise.all([sheetValues('Audit planning!A1:BW1'),sheetValues('Config_Scopes!A1:Z128'),sheetValues('Auditors!A1:Z256')]),header=headerRows[0]||[];let row=[],rowNo=Number(sourceRow)||0;const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(rowNo>1){row=(await sheetValues('Audit planning!A'+rowNo+':BW'+rowNo))[0]||[];if(val(row,ci)!==auditId){row=[];rowNo=0;}}if(!row.length){const rows=await sheetValues('Audit planning!A2:BW483');for(let i=0;i<rows.length;i++){if(val(rows[i],ci)===auditId){row=rows[i];rowNo=i+2;break;}}}if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-started,build:BUILD};const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=normalizeStatus(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'));let planningJson=g(['Planning JSON','Planning_JSON']),j=parseJson(planningJson),formal=formalHours(j,required),assigned=g(['Assigned to','Assigned auditor','Auditor']),display=managerAuditorDisplayMap(audValues).get(clean(assigned).toLowerCase())||assigned;if(k==='PENDING_PLANNING'){planningJson='';formal=null;assigned='';display='';}return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,assignedToDisplayName:display,auditorDisplayName:display,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:formal==null?'':Math.round(formal*100)/100,plannedHours:formal==null?'':Math.round(formal*100)/100,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-started,build:BUILD};}
+async function readAuditPatch(auditId,sourceRow){const started=Date.now(),[headerRows,scopeValues,audValues]=await Promise.all([sheetValues('Audit planning!A1:BW1'),sheetValues('Config_Scopes!A1:Z128'),sheetValues('Auditors!A1:Z256')]),header=headerRows[0]||[];let row=[],rowNo=Number(sourceRow)||0;const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(rowNo>1){row=(await sheetValues('Audit planning!A'+rowNo+':BW'+rowNo))[0]||[];if(val(row,ci)!==auditId){row=[];rowNo=0;}}if(!row.length){const rows=await sheetValues('Audit planning!A2:BW483');for(let i=0;i<rows.length;i++){if(val(rows[i],ci)===auditId){row=rows[i];rowNo=i+2;break;}}}if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-started,build:BUILD};const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=normalizeStatus(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'));let planningJson=g(['Planning JSON','Planning_JSON']),plannedDate=dateOnly(g(['Date planned','Date - Planned','Date – Planned'])),formal=formalHours(planningJson,plannedDate,g(['Hours planned'])),assigned=g(['Assigned to','Assigned auditor','Auditor']),display=managerAuditorDisplayMap(audValues).get(clean(assigned).toLowerCase())||assigned;if(k==='PENDING_PLANNING'){planningJson='';formal=null;assigned='';display='';}return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:managerApprovalActions(allowedActions(k),Boolean(plannedDate&&managerApprovalBlocks20(planningJson).length),{assigned,assignedUid:g(['Auditor_UID','Auditor UID','Assigned_Auditor_UID']),auditorValues:audValues}),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,assignedToDisplayName:display,auditorDisplayName:display,datePlanned:k==='PENDING_PLANNING'?'':plannedDate,hoursPlanned:formal==null?'':Math.round(formal*100)/100,plannedHours:formal==null?'':Math.round(formal*100)/100,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-started,build:BUILD};}
 async function callGasBridge(identity,route,payload){
   const started=Date.now();
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('MANAGER_ACTION_BRIDGE_NOT_CONFIGURED');

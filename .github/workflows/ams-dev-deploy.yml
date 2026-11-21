@@ -76,7 +76,8 @@ jobs:
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
           service=ams-fase12-dev
           live=ams-fase12-dev-00345-huc
-          tag="single-ext-${GITHUB_SHA:0:12}"
+          candidate_sha=111f0d499b037acc59351edfbd2c25e3faf3f09b
+          tag="single-ext-${candidate_sha:0:12}"
           describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
           traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
           current=$(describe)
@@ -85,6 +86,7 @@ jobs:
           jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
           before=$(traffic <<<"$current")
           if [[ "$OPERATION" == deploy ]]; then
+            [[ "$GITHUB_SHA" == "$candidate_sha" ]]
             gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \
               --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1"
             current=$(describe)
@@ -96,7 +98,7 @@ jobs:
             actual=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
             [[ "$actual" == "$REVISION" ]]
             sha=$(gcloud run revisions describe "$REVISION" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-            [[ "$sha" == "$GITHUB_SHA" ]]
+            [[ "$sha" == "$candidate_sha" ]]
             if [[ "$OPERATION" == preview ]]; then
               previous=$(jq -er '.status.traffic[] | select(.tag == "preflight" and (.percent // 0) == 0) | .revisionName' <<<"$current")
               restore() {

@@ -13,6 +13,7 @@ on:
       - 'cloudrun/transport-proof/planning-sheets-writeset-projector-20.js'
       - 'cloudrun/transport-proof/realized-hours-atomic-service-20.js'
       - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/server-r10.js'
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/auditor-accept-direct-sheets-20.mjs'
       - 'cloudrun/transport-proof/swap-dev-backfill-cli-20.mjs'

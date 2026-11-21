@@ -1,25 +1,17 @@
 name: Deploy isolated AMS DEV revision
 
 on:
-  push:
-    branches: [dev]
-    paths:
-      - '.github/workflows/ams-dev-deploy.yml'
-      - 'cloudrun/transport-proof/planning-atomic-extension-service-20.js'
-      - 'cloudrun/transport-proof/planning-atomic-extension-writeset-20.mjs'
-      - 'cloudrun/transport-proof/planning-lifecycle-atomic-service-20.js'
-      - 'cloudrun/transport-proof/planning-lifecycle-writeset-20.js'
-      - 'cloudrun/transport-proof/planning-sheets-append-projector-20.js'
-      - 'cloudrun/transport-proof/planning-sheets-writeset-projector-20.js'
-      - 'cloudrun/transport-proof/realized-hours-atomic-service-20.js'
-      - 'cloudrun/transport-proof/server-r15.js'
-      - 'cloudrun/transport-proof/server-r10.js'
-      - 'cloudrun/transport-proof/server-r4.js'
-      - 'cloudrun/transport-proof/auditor-accept-direct-sheets-20.mjs'
-      - 'cloudrun/transport-proof/swap-dev-backfill-cli-20.mjs'
-      - 'cloudrun/transport-proof/server-r5.js'
-      - 'cloudrun/transport-proof/manager-portal.js'
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Single EXT release operation
+        required: true
+        type: choice
+        options: [deploy, preview, promote]
+      revision:
+        description: Candidate revision for preview or promotion
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -30,57 +22,113 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  release:
     if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      PROJECT: audit-management-system-dev
-      REGION: europe-west1
-      SERVICE: ams-fase12-dev
-      RUNTIME_ACCOUNT: 510075419067-compute@developer.gserviceaccount.com
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: inputs.operation == 'deploy'
+        with:
+          node-version: '22'
+      - name: Assemble and test isolated EXT-only source
+        if: inputs.operation == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 7aedb189f820719ba34025e4bded9a579c16e247
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
+          mkdir "$RUNNER_TEMP/ext-source"
+          git archive 97be78618828f4ef772ed319be5a0bf865a15a47 | tar -xf - -C "$RUNNER_TEMP/ext-source"
+          git diff --binary c424006d57f23bd866a821e11d30b817b90eab88 2fb3286259b135d65f9ab8803455c9f9ecaa3a40 -- \
+            cloudrun/transport-proof/planning-atomic-extension-service-20.js \
+            cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs \
+            cloudrun/transport-proof/server-r4.js \
+            cloudrun/transport-proof/model-c-extension-dev-direct-route-20-test.mjs \
+            cloudrun/transport-proof/manager-dev-write-route-20-test.mjs \
+            cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs > "$RUNNER_TEMP/ext.patch"
+          test -s "$RUNNER_TEMP/ext.patch"
+          cd "$RUNNER_TEMP/ext-source"
+          git apply --check "$RUNNER_TEMP/ext.patch"
+          git apply "$RUNNER_TEMP/ext.patch"
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs" cloudrun/transport-proof/
+          cd cloudrun/transport-proof
+          npm test > "$RUNNER_TEMP/ext-tests.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/ext-tests.log"; exit 1; }
+          echo "Isolated EXT-only full test suite passed"
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
           service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v3
-      - name: Deploy and verify isolated revision
+      - name: Execute guarded DEV-only operation
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REVISION: ${{ inputs.revision }}
         run: |
           set -euo pipefail
-          tag="dev-${GITHUB_SHA:0:12}-${GITHUB_RUN_ATTEMPT}"
-          args=(--project="$PROJECT" --region="$REGION" --quiet)
-          describe() { gcloud run services describe "$SERVICE" "${args[@]}" --format=json; }
-          traffic() {
-            jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'
-          }
-          describe > "$RUNNER_TEMP/service-before.json"
-          jq -e --arg account "$RUNTIME_ACCOUNT" '.spec.template.spec.serviceAccountName == $account' "$RUNNER_TEMP/service-before.json" >/dev/null
-          jq -e '
-            [.spec.template.spec.containers[0].env[]? | {key: .name, value: .value}] | from_entries
-            | .AMS_RUNTIME_ENV == "DEV"
-              and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true"
-              and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"
-          ' "$RUNNER_TEMP/service-before.json" >/dev/null
-          before=$(traffic < "$RUNNER_TEMP/service-before.json")
-          jq -e '[.status.traffic[] | .percent // 0] | add == 100' "$RUNNER_TEMP/service-before.json" >/dev/null
-          gcloud run deploy "$SERVICE" "${args[@]}" \
-            --source=cloudrun/transport-proof --no-traffic --tag="$tag" \
-            --update-labels="commit-sha=$GITHUB_SHA"
-          describe > "$RUNNER_TEMP/service-after.json"
-          after=$(traffic < "$RUNNER_TEMP/service-after.json")
-          if [[ "$before" != "$after" ]]; then
-            echo '::error::Regular traffic changed during the isolated deployment.'
+          args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
+          service=ams-fase12-dev
+          live=ams-fase12-dev-00345-huc
+          tag="single-ext-${GITHUB_SHA:0:12}"
+          describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
+          traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
+          current=$(describe)
+          jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
+          jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
+          jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
+          before=$(traffic <<<"$current")
+          if [[ "$OPERATION" == deploy ]]; then
+            gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \
+              --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1"
+            current=$(describe)
+            [[ "$(traffic <<<"$current")" == "$before" ]]
+            revision=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+            echo "CANDIDATE=$revision TAG=$tag REGULAR_TRAFFIC_UNCHANGED"
+          elif [[ "$OPERATION" == preview || "$OPERATION" == promote ]]; then
+            [[ "$REVISION" =~ ^ams-fase12-dev-[0-9]+-[a-z0-9]+$ ]]
+            actual=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+            [[ "$actual" == "$REVISION" ]]
+            sha=$(gcloud run revisions describe "$REVISION" "${args[@]}" --format='value(metadata.labels.commit-sha)')
+            [[ "$sha" == "$GITHUB_SHA" ]]
+            if [[ "$OPERATION" == preview ]]; then
+              previous=$(jq -er '.status.traffic[] | select(.tag == "preflight" and (.percent // 0) == 0) | .revisionName' <<<"$current")
+              restore() {
+                local c p
+                c=$(describe) || return 1
+                p=$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$c") || return 1
+                if [[ "$p" == "$REVISION" ]]; then
+                  gcloud run services update-traffic "$service" "${args[@]}" --update-tags="preflight=$previous" >/dev/null || return 1
+                elif [[ "$p" != "$previous" ]]; then
+                  echo "::error::Preflight tag changed externally; refusing to overwrite it"
+                  return 1
+                fi
+                c=$(describe) || return 1
+                [[ "$(traffic <<<"$c")" == "$before" ]] || return 1
+                [[ "$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$c")" == "$previous" ]]
+              }
+              trap 'restore || exit 1' EXIT
+              trap 'exit 130' INT
+              trap 'exit 143' TERM
+              gcloud run services update-traffic "$service" "${args[@]}" --update-tags="preflight=$REVISION" >/dev/null
+              current=$(describe)
+              [[ "$(traffic <<<"$current")" == "$before" ]]
+              [[ "$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$current")" == "$REVISION" ]]
+              echo "PREFLIGHT_WINDOW_OPEN=$REVISION"
+              sleep 180
+            else
+              gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$REVISION=100" >/dev/null
+              current=$(describe)
+              jq -e --arg revision "$REVISION" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $revision and .[0].percent == 100' <<<"$current" >/dev/null
+              echo "PROMOTED=$REVISION"
+            fi
+          else
+            echo "::error::Unsupported operation"
             exit 1
           fi
-          jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | [.revisionName,.url] | @tsv' \
-            "$RUNNER_TEMP/service-after.json" > "$RUNNER_TEMP/tagged-revision.tsv"
-          IFS=$'\t' read -r revision url < "$RUNNER_TEMP/tagged-revision.tsv"
-          [[ -n "$revision" && "$url" == https://* ]]
-          deployed_sha=$(gcloud run revisions describe "$revision" "${args[@]}" --format='value(metadata.labels.commit-sha)')
-          [[ "$deployed_sha" == "$GITHUB_SHA" ]]
-          printf 'Revision: %s\nURL: %s\nCommit: %s\nRegular traffic: unchanged\n' "$revision" "$url" "$GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"

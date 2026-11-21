@@ -125,9 +125,19 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
  const id=t(obligationId),rec=snapshot.obligations.get(id),ids=snapshot.byAudit.get(t(auditId))||[];
  if(!rec||rec.companyUid!==companyUid||rec.auditId!==auditId||!ids.includes(id)||ids.length>100||!(command==='apply'?rec.canApply:rec.canUndo))throw Error('EXT_DEV_SCOPE_NOT_ELIGIBLE');
  const scopes=new Set([rec.scopeCode]);
+ const related=snapshot.sharedExpiryPairs.some(pair=>pair.parentScopeCode===rec.scopeCode||pair.childScopeCode===rec.scopeCode);
+ if(related&&!rec.cycleKey)throw Error('EXT_DEV_SHARED_EXPIRY_CYCLE_REQUIRED');
+ const activeCompanyObligations=[...snapshot.obligations.values()].filter(o=>o.companyUid===companyUid&&
+  ['OPEN','LINKED_TO_VISIT'].includes(o.obligationState));
+ if(related&&activeCompanyObligations.filter(o=>o.cycleKey===rec.cycleKey&&o.scopeCode===rec.scopeCode).length!==1)
+  throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');
  let expanded=true;
  while(expanded){expanded=false;for(const pair of snapshot.sharedExpiryPairs){
-  if(scopes.has(pair.parentScopeCode)&&!scopes.has(pair.childScopeCode)){scopes.add(pair.childScopeCode);expanded=true;}
+  if(scopes.has(pair.parentScopeCode)&&!scopes.has(pair.childScopeCode)){
+   const children=activeCompanyObligations.filter(o=>o.scopeCode===pair.childScopeCode);
+   if(children.some(o=>!o.cycleKey))throw Error('EXT_DEV_SHARED_EXPIRY_CYCLE_REQUIRED');
+   if(children.some(o=>o.cycleKey===rec.cycleKey)){scopes.add(pair.childScopeCode);expanded=true;}
+  }
   if(scopes.has(pair.childScopeCode)&&!scopes.has(pair.parentScopeCode)){scopes.add(pair.parentScopeCode);expanded=true;}
  }}
  let members=[rec];
@@ -135,9 +145,7 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
  const sharedPairs=snapshot.sharedExpiryPairs.filter(pair=>pair.shareExpiry&&scopes.has(pair.parentScopeCode)&&scopes.has(pair.childScopeCode));
  if(scopes.size>1){
   if(!rec.cycleKey)throw Error('EXT_DEV_SHARED_EXPIRY_CYCLE_REQUIRED');
-  members=[...snapshot.obligations.values()].filter(o=>o.companyUid===companyUid&&
-   o.cycleKey===rec.cycleKey&&scopes.has(o.scopeCode)&&
-   ['OPEN','LINKED_TO_VISIT'].includes(o.obligationState));
+  members=activeCompanyObligations.filter(o=>o.cycleKey===rec.cycleKey&&scopes.has(o.scopeCode));
   if(members.length!==scopes.size||new Set(members.map(o=>o.scopeCode)).size!==scopes.size||
     members.some(o=>o.auditId!==auditId))
    throw Error('EXT_DEV_SHARED_EXPIRY_GROUP_NOT_ELIGIBLE');

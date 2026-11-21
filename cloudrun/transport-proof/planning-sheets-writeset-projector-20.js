@@ -56,23 +56,34 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   });
   return {state:allMatch?'MATCH':detail.every(x=>x.target||x.before)?'READY':'CONFLICT',detail};
  }
- async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false}){
+ async function prepareExistingPlanningRows({operationId,plan,gateToken}){
+  if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
+  const changes=rows(plan);
+  if(!changes.every(change=>/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range)&&change.before.some(value=>str(value)!=='')))
+   return null;
+  await verifyFence({operationId,gateToken});
+  return inspect(plan);
+ }
+ async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false,existingRowsProof=null}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
   await verifyFence({operationId,gateToken});
-  const first=await inspect(plan);
+  const first=existingRowsProof??await inspect(plan);
   if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:first};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
-  const meta=await metadata(),requests=[];
-  for(const sheet of new Set(changes.map(x=>x.sheet))){
-   const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
-   if(!Number.isSafeInteger(props?.sheetId)||!Number.isSafeInteger(props?.gridProperties?.rowCount))throw Error('SHEETS_PROJECTION_TAB_MISSING');
-   if(props.gridProperties.rowCount<max)requests.push({appendDimension:{sheetId:props.sheetId,dimension:'ROWS',length:max-props.gridProperties.rowCount}});
+  const requests=[];
+  if(!existingRowsProof){
+   const meta=await metadata();
+   for(const sheet of new Set(changes.map(x=>x.sheet))){
+    const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
+    if(!Number.isSafeInteger(props?.sheetId)||!Number.isSafeInteger(props?.gridProperties?.rowCount))throw Error('SHEETS_PROJECTION_TAB_MISSING');
+    if(props.gridProperties.rowCount<max)requests.push({appendDimension:{sheetId:props.sheetId,dimension:'ROWS',length:max-props.gridProperties.rowCount}});
+   }
+   await verifyFence({operationId,gateToken});
+   if(requests.length)await request(base+':batchUpdate','POST',{requests});
+   await verifyFence({operationId,gateToken});
   }
-  await verifyFence({operationId,gateToken});
-  if(requests.length)await request(base+':batchUpdate','POST',{requests});
-  await verifyFence({operationId,gateToken});
-  const second=await inspect(plan);
+  const second=existingRowsProof??await inspect(plan);
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:second};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];
@@ -274,5 +285,5 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if((await inspect(normalized)).state==='CONFLICT')throw Error('EXT_RECOVERY_SOURCE_MOVED');
   return normalized;
  }
- return Object.freeze({inspect,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
+ return Object.freeze({inspect,prepareExistingPlanningRows,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
 }

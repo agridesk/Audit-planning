@@ -41,6 +41,7 @@ const narrowPlan={projectionWrites:[{range:'Audit planning!A2:C2',values:[['Comp
  projectionPreconditions:[{range:'Audit planning!A2:C2',before:['Company','auditor@example.test','Approved']}]};
 const narrow=createPlanningSheetsWritesetProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
  fetchImpl:async(url,init={})=>{
+  assert.ok(!new URL(url).pathname.endsWith('/spreadsheets/dev-sheet'),'Existing row projection skips tab metadata');
   if((init.method||'GET')==='POST'){
    const request=JSON.parse(init.body);
    assert.equal(request.valueInputOption,'USER_ENTERED');
@@ -50,7 +51,9 @@ const narrow=createPlanningSheetsWritesetProjector({spreadsheetId:'dev-sheet',ge
   }
   return fetchImpl(url,init);
  }});
-assert.equal((await narrow.apply({operationId:'accept',gateToken:'token',plan:narrowPlan,changedPlanningCellsOnly:true})).verification.state,'MATCH');
+const acceptArgs={operationId:'accept',gateToken:'token',plan:narrowPlan};
+const existingRowsProof=await narrow.prepareExistingPlanningRows(acceptArgs);
+assert.equal((await narrow.apply({...acceptArgs,changedPlanningCellsOnly:true,existingRowsProof})).verification.state,'MATCH');
 values.get('Audit planning!A2:C2')[2]='Approved';
 const replay=await projector.apply({operationId:'operation-7',gateToken:'token-7',plan});
 assert.equal(replay.replayed,true);assert.equal(writeCount,1);

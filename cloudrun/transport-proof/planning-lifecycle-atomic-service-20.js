@@ -66,6 +66,9 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     snapshot.appendIntents.every(intent=>intent.range==='Notification Queue!A:M')&&
     snapshot.projectionWrites.every(write=>write.range.startsWith('Audit planning!'));
    const prepared=overlap?measure('appendPrepareMs',()=>appendProjector.prepare(appendArgs)).then(value=>({value}),error=>({error})):null;
+   const rowArgs={operationId,gateToken:lock.token,plan:snapshot};
+   const preparedRow=overlap&&typeof projector.prepareExistingPlanningRows==='function'?
+    measure('rowPrepareMs',()=>projector.prepareExistingPlanningRows(rowArgs)).then(value=>({value}),error=>({error})):null;
    attempted=true;
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
@@ -75,7 +78,9 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     try{onCommitted({auditId,operationId,action,status:status});}
     catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
    }
-   const rowResult=await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot,changedPlanningCellsOnly:overlap}));
+   const rowReady=await preparedRow;
+   if(rowReady?.error)throw rowReady.error;
+   const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;
    const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value}));

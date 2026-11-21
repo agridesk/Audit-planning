@@ -118,6 +118,13 @@ const parentOnly={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]]],
 const parentCommand={...pairCommand,obligationId:'G'};
 const singleApply=plan({...parentCommand,snapshot:inspect(parentOnly)});
 assert.deepEqual(singleApply.obligationChanges.map(x=>x.obligationId),['G'],'parent without an active child can be extended alone');
+const separateScope={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]],
+ ['S','C','MPS-SQ','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-12-31','','','2027','OPEN']],
+ linkRows:[lh,['P','G','ACTIVE'],['P','S','ACTIVE']],
+ scopeRows:[...driftScopeRows,['MPS-SQ',4,-4,-1]]};
+const separatePlan=plan({...parentCommand,snapshot:inspect(separateScope)});
+assert.deepEqual(separatePlan.obligationChanges.map(x=>x.obligationId),['G'],'an unrelated scope does not make the absent child mandatory');
+assert.equal(separatePlan.expected.aggregateExpiry,'2027-01-31','unchanged independent scope still controls aggregate expiry');
 parentOnly.obligationRows[1].splice(5,5,singleApply.expected.effectiveExpiry,singleApply.expected.windowFrom,singleApply.expected.windowTo,'Yes',singleApply.expected.extensionMetadata);
 const singleUndo=plan({...parentCommand,command:'undo',requestId:'SINGLE_UNDO',snapshot:inspect(parentOnly)});
 assert.deepEqual(singleUndo.obligationChanges.map(x=>x.obligationId),['G']);

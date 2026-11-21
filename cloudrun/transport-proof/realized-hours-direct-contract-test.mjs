@@ -3,6 +3,8 @@ import {readFileSync} from 'node:fs';
 import {createRealizedHoursAtomicService20} from './realized-hours-atomic-service-20.js';
 const server=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const client=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
+assert.match(dockerfile,/^COPY realized-hours-atomic-service-20\.js \.\/$/m,'The Cloud Run image must contain the atomic hours module');
 const entry=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const route=server.split("u.pathname==='/api/v1/manager/realized-hours-direct'")[1]?.split("u.pathname==='/api/v1/manager/audit'")[0]||'';
 assert.ok(route,'route missing');

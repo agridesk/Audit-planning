@@ -56,8 +56,8 @@ const checks=[
 ['transport trace propagated',manager.includes('clientSentAt')&&manager.includes('browserToWorkerMs')&&manager.includes('workerRpcWallMs')&&relayHtml.includes('workerReceivedAt')&&relayHtml.includes('rpcStartedAt')&&relayHtml.includes('rpcEndedAt')],
 ['status phases instrumented',statusMachine.includes('__statusPerf.writeGuardMs')&&statusMachine.includes('__statusPerf.loadAuditMs')&&statusMachine.includes('__statusPerf.coreMs')&&statusMachine.includes('__statusPerf.notificationOnlyMs')],
 ['cancel subphases instrumented',statusMachine.includes('__perf.availabilityMs')&&statusMachine.includes('__perf.resetPlanningMs')&&statusMachine.includes('__perf.statusWriteMs')&&statusMachine.includes('__perf.lifecycleMs')&&statusMachine.includes('__perf.cacheInvalidationMs')],
-['trace visible in UI',manager.includes('coreDetail=')&&manager.includes(' · trace ')],
-['trace timing marker',manager.includes(' · trace ')&&manager.includes('b→w ')&&manager.includes('preRPC ')&&manager.includes('w→b ')],
+['synchronization visible in UI',manager.includes('Saved, synchronizing…')&&manager.includes('Saved and synchronized')],
+['trace and timing retained in diagnostics',manager.includes('console.info("[MANAGER_ACTION_TIMING]",perf)')&&['traceId','browserToWorkerMs','workerPreRpcMs','workerToBrowserMs'].every(field=>manager.includes('perf.'+field))],
 ['Planning opens as popup when available',manager.includes('window.open("/planning?auditId="')&&manager.includes('"amsPlanning_"+auditId')],
 ['Planning save message patches row immediately and background-rereads direct audit',manager.includes("msg.type==='AMS_PLANNING_SAVED'")&&manager.includes('mergeRowInPlace(auditId,patch)')&&manager.includes('rereadAudit(auditId,before.sourceRow)')],
 ['r10 stable chain',r10.includes("await import('./server-r9.js')")]

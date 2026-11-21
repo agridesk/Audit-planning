@@ -542,14 +542,6 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
   return data;
  }
 }):null;
-function gridActionFailure20(error,action){
- const raw=String(error?.message||'');
- const safe=raw==='STALE_REALIZED_HOURS'||/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_|REALIZED_HOURS_)[A-Z0-9_]{1,130}$/.test(raw);
- const reference=/^[a-f0-9]{64}$/.test(error?.operationId||'')?error.operationId:randomUUID();
- const writeOutcome=['NOT_COMMITTED','COMMITTED','PROJECTED'].includes(error?.writeOutcome)?error.writeOutcome:'UNKNOWN';
- console.error('[AMS_GRID_ACTION_ERROR]',JSON.stringify({action,reference,writeOutcome,errorCode:raw.slice(0,160),revision:process.env.K_REVISION}));
- return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
-}
 const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRealizedHoursAtomicService20({
  store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  roster:getRoster,signingKey:process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY,
@@ -562,6 +554,14 @@ const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRea
   return (await response.json()).values;
  }
 }):null;
+function gridActionFailure20(error,action){
+ const raw=String(error?.message||'');
+ const safe=raw==='STALE_REALIZED_HOURS'||/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_|REALIZED_HOURS_)[A-Z0-9_]{1,130}$/.test(raw);
+ const reference=/^[a-f0-9]{64}$/.test(error?.operationId||'')?error.operationId:randomUUID();
+ const writeOutcome=['NOT_COMMITTED','COMMITTED','PROJECTED'].includes(error?.writeOutcome)?error.writeOutcome:'UNKNOWN';
+ console.error('[AMS_GRID_ACTION_ERROR]',JSON.stringify({action,reference,writeOutcome,errorCode:raw.slice(0,160),revision:process.env.K_REVISION}));
+ return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
+}
 async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
  const service=action==='REALIZED_HOURS'?planningAtomicRealizedHours:action==='SELF_PLANNING'?planningAtomicSelfPlanning:
   ['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;

@@ -1938,6 +1938,16 @@ http.createServer(async(req,res)=>{
    const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
     Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
    if(input.confirm!=='RECOVER_VERIFIED_OPERATION')throw Error('ATOMIC_FORWARD_RECOVERY_CONFIRMATION_REQUIRED');
+   if(input.recovery==='verified-cancel'&&planningAtomicRecovery){
+    const {holder}=await planningGlobalGate.read();
+    if(holder?.state!=='UNCERTAIN'||holder.operationId!==input.operationId)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
+    const entry=await planningAtomicStore.readOutbox(holder.operationId);
+    if(entry?.action!=='CANCEL')throw Error('ATOMIC_RECOVERY_ENTRY_INVALID');
+    const recovered=await planningAtomicRecovery.recoverOne(entry);
+    if(recovered.state!=='PROJECTED')throw Error(recovered.reason||'ATOMIC_RECOVERY_UNRESOLVED');
+    planningCache.invalidate();
+    res.writeHead(303,{location:'/api/v1/planning/atomic-write-health','cache-control':'no-store'});res.end();return;
+   }
    const result=await planningAtomicForwardRecovery.commit({operationId:String(input.operationId||'')});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -2438,11 +2448,18 @@ http.createServer(async(req,res)=>{
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
    const current=await planningGlobalGate.read(),holder=current.holder;
-   let eligible=false,condition='NO_QUARANTINED_PLAN';
+   let eligible=false,verifiedCancel=false,condition='NO_QUARANTINED_PLAN';
    const operationId=holder?.operationId||'';
    if(holder?.state==='UNCERTAIN'&&/^[a-f0-9]{64}$/.test(operationId)){
     const entry=await planningAtomicStore.readOutbox(operationId);
-    if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
+    if(entry?.action==='CANCEL'&&entry.state==='UNCERTAIN'&&entry.snapshot&&planningAtomicRecovery){
+     try{
+      const rows=await planningAtomicProjector.inspect(entry.snapshot);
+      const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+      eligible=verifiedCancel=rows.state==='MATCH'&&append.state==='MATCH';
+     }catch{eligible=false;}
+     condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
+    }else if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
      const since=Date.parse(holder.uncertainAt||'');
      if(!Number.isFinite(since)||Date.now()-since<30*60*1000)condition='QUARANTINE_NOT_COMPLETE';
      else{
@@ -2471,6 +2488,7 @@ http.createServer(async(req,res)=>{
    const safeId=/^[a-f0-9]{64}$/.test(operationId)?operationId:'';
    const form=eligible?`<form method="post" action="/api/v1/planning/atomic-forward-recover">
     <input type="hidden" name="operationId" value="${safeId}">
+    ${verifiedCancel?'<input type="hidden" name="recovery" value="verified-cancel">':''}
     <input type="hidden" name="confirm" value="RECOVER_VERIFIED_OPERATION">
     <button type="submit">Recover this verified DEV transaction</button></form>`:'';
    const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

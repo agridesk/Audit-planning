@@ -12,7 +12,7 @@ function parseRange(value){
  return {sheet:m[1],startRow,endRow,startCol,endCol};
 }
 function label(n){let s='';for(;n>0;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}
-export async function normalizeLifecycleWriteset({writes,readBefore,planningRows}={}){
+export async function normalizeLifecycleWriteset({writes,readBefore,planningRows,availabilityRows}={}){
  if(!Array.isArray(writes)||!writes.length||writes.length>150||typeof readBefore!=='function')throw Error('LIFECYCLE_WRITESET_INPUT_INVALID');
  const groups=new Map(),steps=[];
  for(const write of writes){
@@ -35,10 +35,11 @@ export async function normalizeLifecycleWriteset({writes,readBefore,planningRows
  const ranges=ordered.map(([,g])=>g.sheet+'!'+label(g.first)+g.row+':'+label(g.last)+g.row);
  const originals=new Map(),missing=[];
  for(const [i,[,group]] of ordered.entries()){
-  const range=ranges[i],source=planningRows?.[group.row-1];
-  // The source batch covers Audit planning A1:BW2000 (75 columns).
-  if(group.sheet==='Audit planning'&&group.last<=75&&Array.isArray(source))
-   originals.set(range,source.slice(group.first-1,group.last));
+  const range=ranges[i],planning=planningRows?.[group.row-1],availability=availabilityRows?.[group.row-1];
+  if(group.sheet==='Audit planning'&&group.last<=75&&Array.isArray(planning))
+   originals.set(range,planning.slice(group.first-1,group.last));
+  else if(group.sheet==='Auditor Availability'&&group.last<=16&&Array.isArray(availability))
+   originals.set(range,availability.slice(group.first-1,group.last));
   else missing.push(range);
  }
  if(missing.length){

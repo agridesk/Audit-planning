@@ -41,4 +41,32 @@ assert.deepEqual(reused.projectionPreconditions,[
  {range:'Audit planning!B2:D2',before:['Approved',0,'']},
  {range:'Auditor Availability!A3:A3',before:['Free']}
 ]);
+const availabilityRows=[
+ ['Auditor','Available','Start','End'],
+ ['auditor-1','NO','09:00','10:00'],
+ ['auditor-1','NO',0],
+ ['auditor-2','YES','','']
+];
+const snapshotBefore=structuredClone(availabilityRows);
+const reusedAvailability=await normalizeLifecycleWriteset({
+ writes:[
+  {range:'Audit planning!B2:D2',values:[['Pending Planning']]},
+  {range:'Auditor Availability!B3:D3',values:[['YES']]},
+  {range:'Auditor Availability!Q4:Q4',values:[['changed']]},
+  {range:'Auditor Availability!A5:A5',values:[['new']]}
+ ],
+ planningRows:[['ID','Status','Note','Date'],['audit-2','Approved',0]],
+ availabilityRows,
+ readBefore:async ranges=>{
+  assert.deepEqual(ranges,['Auditor Availability!Q4:Q4','Auditor Availability!A5:A5']);
+  return [{values:[['outside-snapshot']]},{values:[['missing-row']]}];
+ }
+});
+assert.deepEqual(reusedAvailability.projectionPreconditions,[
+ {range:'Audit planning!B2:D2',before:['Approved',0,'']},
+ {range:'Auditor Availability!B3:D3',before:['NO',0,'']},
+ {range:'Auditor Availability!Q4:Q4',before:['outside-snapshot']},
+ {range:'Auditor Availability!A5:A5',before:['missing-row']}
+]);
+assert.deepEqual(availabilityRows,snapshotBefore,'normalizing must not mutate the source snapshot');
 console.log('Lifecycle writeset: overlapping transfer updates, successor rows, original images and invalid rows passed');

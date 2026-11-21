@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import {AsyncLocalStorage} from 'node:async_hooks';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
+import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 
 const original=new Map([
  ['Audit planning!A2:D2',['audit-1','Approved','auditor@example.test','plan']],
@@ -188,4 +192,111 @@ assert.deepEqual(integratedNew.proof(),integratedOld.proof());
 assert.equal(integratedOld.calls.filter(x=>x.method==='GET').length,10);
 assert.equal(integratedNew.calls.filter(x=>x.method==='GET').length,8,
  'A complete CANCEL keeps queue deduplication and final verification while saving two reads');
-console.log('PASS CANCEL saves two Sheets reads while preserving row checks, fences and final verification');
+
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+function fragment(start,end){
+ const from=r4.indexOf(start),to=r4.indexOf(end,from);
+ assert.ok(from>=0&&to>from);
+ return r4.slice(from,to);
+}
+const sheetFunctions=fragment('function sheetsBatchGet(', 'async function sheetsAtomicAuditorCreate(');
+const preflightFunction=fragment('async function lifecycleAuthorityPreflight20(', 'async function canonicalManagerAction(');
+const cancelFunction=fragment('async function directManagerCancel(', 'async function directManagerReject(');
+const makeR4=new Function(
+ 'process','fetch','accessToken','SID','lifecyclePreviewContext20','assertScopeExtensionLegacyWriteFenced20',
+ 'normalizeLifecycleWriteset','clean','findAudit','col','val','directStatusKey','directRowRevision',
+ 'withDirectManagerActionLock','directResolveAuditorEmail','isoLocalStamp','directSoftAvailabilityStatus',
+ 'a1col','directPrepareEcasLifecycle20','directEcasLifecycleQueueRow20','canonicalManagerRecipient','createHash',
+ `${sheetFunctions}\n${preflightFunction}\n${cancelFunction}\nreturn {lifecycleAuthorityPreflight20,directManagerCancel};`
+);
+function preflightFixture({status='Approved',mutateAvailability=false}={}){
+ const h=['Audit ID','Status','Assigned to','Auditor_UID','Date - Planned','Date - Approved','Audit days textual',
+  'Planning JSON','Hours planned','Status since','Last manager decision','Last decision timestamp',
+  'Manager comment (last)','Company'];
+ const planning=[h,['audit-1',status,'auditor@example.test','auditor-1','2027-01-01','2027-01-01','1 day',
+  '{"blocks":[]}',8,'yesterday','','','','Test Farm']];
+ const ah=['Auditor_UID','Available','First_Audit_Start_Time','First_Audit_End_Time','Audit_ID_1',
+  'Second_Audit_Start_Time','Second_Audit_End_Time','Audit_ID_2','Status_1','Status_2','Last_Updated'];
+ const availability=[ah,['auditor-1','NO','09:00','10:00','audit-1','','','','Approved','','yesterday']];
+ const originalAvailability=structuredClone(availability[1]),calls=[];
+ let posts=0,changed=false;
+ const col=(headers,names)=>{for(const name of names){const i=headers.indexOf(name);if(i>=0)return i;}return -1;};
+ const clean=value=>String(value??'').trim();
+ const rowFor=range=>{
+  const tables={
+   'Audit planning!A1:BW2000':planning,
+   'Auditor Availability!A:P':availability,
+   'Auditors!A1:Z256':[['E-mail'],['auditor@example.test']],
+   'Notification Queue!A1:M5000':[['Timestamp']],
+   'Notification_Config!A1:AF200':[['EVENT_KEY']]
+  };
+  if(Object.hasOwn(tables,range))return structuredClone(tables[range]);
+  const match=/^(Audit planning|Auditor Availability)!([A-Z]+)(\d+):([A-Z]+)\d+$/.exec(range);
+  if(!match)throw Error('UNEXPECTED_PREFLIGHT_RANGE_'+range);
+  const number=letters=>[...letters].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+  const rows=match[1]==='Audit planning'?planning:availability;
+  const row=rows[Number(match[3])-1];
+  return row?[row.slice(number(match[2])-1,number(match[4]))]:[];
+ };
+ const fetchImpl=async(url,init={})=>{
+  const method=init.method||'GET',u=new URL(url),ranges=u.searchParams.getAll('ranges');
+  calls.push({method,ranges});
+  if(method!=='GET'){posts++;throw Error('PREFLIGHT_MUST_NOT_WRITE');}
+  if(!u.pathname.endsWith('/values:batchGet'))throw Error('UNEXPECTED_PREFLIGHT_REQUEST');
+  const valueRanges=ranges.map(range=>({values:rowFor(range)}));
+  if(mutateAvailability&&!changed&&ranges.includes('Auditor Availability!A:P')){
+   availability[1][0]='another-auditor';changed=true;
+  }
+  return {ok:true,status:200,json:async()=>({valueRanges})};
+ };
+ const context=new AsyncLocalStorage();
+ const api=makeR4(
+  {env:{AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'true'}},
+  fetchImpl,async()=> 'test-token','test-sheet',context,()=>{},normalizeLifecycleWriteset,clean,
+  (rows,id)=>{
+   const index=rows.findIndex((row,i)=>i>0&&row[col(rows[0],['Audit ID'])]===id);
+   return index<0?null:{h:rows[0],row:rows[index],sourceRow:index+1};
+  },
+  col,(row,index)=>index<0?'':clean(row[index]),
+  value=>clean(value).toUpperCase().replace(/[\s-]+/g,'_'),
+  (_headers,row)=>JSON.stringify(row),
+  (_auditId,fn)=>fn(),()=> 'auditor@example.test',()=> '2027-01-02T10:00:00',
+  ()=>false,n=>{let label='';for(;n>0;n=Math.floor((n-1)/26))label=String.fromCharCode(65+(n-1)%26)+label;return label;},
+  ()=>({eligible:false,reason:''}),()=>null,()=> 'manager@example.test',createHash
+ );
+ return {api,calls,fetchImpl,planning,availability,originalAvailability,posts:()=>posts};
+}
+async function previewCancel(fixture,{auditor=false}={}){
+ const identity=auditor?{email:'auditor@example.test',auditorUid:'auditor-1'}:{email:'manager@example.test'};
+ const body={auditId:'audit-1',options:{reason:'test'},authorityPreflight:true};
+ if(auditor)body.options.expectedRevision=JSON.stringify(fixture.planning[1]);
+ return fixture.api.lifecycleAuthorityPreflight20(identity,body,'CANCEL',
+  ()=>fixture.api.directManagerCancel(identity,body,auditor));
+}
+const managerPreflight=preflightFixture(),managerPreview=await previewCancel(managerPreflight);
+assert.equal(managerPreflight.calls.length,1,'manager CANCEL preflight reuses the availability batch');
+assert.equal(managerPreflight.posts(),0,'the preflight must not issue Sheets writes');
+assert.equal(managerPreview.canonicalSnapshot.status,'Pending Planning');
+assert.deepEqual(managerPreview.projectionPreconditions.find(x=>x.range.startsWith('Auditor Availability!')).before,
+ managerPreflight.originalAvailability);
+assert.equal(managerPreview.projectionWrites.find(x=>x.range.startsWith('Auditor Availability!')).values[0][1],'YES');
+assert.equal(managerPreview.appendIntents.length,1);
+
+const concurrent=preflightFixture({mutateAvailability:true}),concurrentPreview=await previewCancel(concurrent);
+assert.equal(concurrent.calls.length,1);
+assert.deepEqual(concurrentPreview.projectionPreconditions.find(x=>x.range.startsWith('Auditor Availability!')).before,
+ concurrent.originalAvailability,'the before-image must be the one used to construct the update');
+const concurrentProjector=createPlanningSheetsWritesetProjector({
+ spreadsheetId:'test-sheet',getToken:async()=> 'test-token',fetchImpl:concurrent.fetchImpl,verifyFence:async()=>{}
+});
+await assert.rejects(()=>concurrentProjector.apply({
+ operationId:'cancel-concurrent',gateToken:'test-gate',plan:concurrentPreview,existingRowsOnly:true
+}),/SHEETS_PROJECTION_PRECONDITION_CONFLICT/);
+assert.equal(concurrent.posts(),0,'a concurrent availability change must prevent the projection write');
+
+const auditorPreflight=preflightFixture({status:'Pending Approval'});
+await previewCancel(auditorPreflight,{auditor:true});
+assert.equal(auditorPreflight.calls.length,2,'auditor CANCEL retains the existing fresh-read path');
+assert.deepEqual(auditorPreflight.calls[1].ranges,['Auditor Availability!A2:K2']);
+assert.equal(auditorPreflight.posts(),0);
+console.log('PASS manager CANCEL saves two projector reads and one preflight read while preserving row checks and fences');

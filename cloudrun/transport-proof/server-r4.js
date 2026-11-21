@@ -1172,7 +1172,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
    const width=a1col(found.h.length);
    capture.writes.push({range:'Audit planning!A'+found.sourceRow+':'+width+found.sourceRow,values:[tombstone]});
   }
-  const normalized=await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet,planningRows:planning});
+  const normalized=await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet,planningRows:planning,availabilityRows:capture.availabilityRows});
   const preconditions=normalized.projectionPreconditions;
   capture.writes=normalized.projectionWrites;
   const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;
@@ -1907,6 +1907,8 @@ async function directManagerCancel(identity,body,auditorMode=false){
 
     const av=vr[1]?.values||[],ah=av[0]||[],ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
     if(id1<0&&id2<0)throw new Error('AVAILABILITY_SCHEMA_INVALID');
+    const preview=lifecyclePreviewContext20.getStore();
+    if(preview&&!auditorMode)preview.availabilityRows=structuredClone(av);
     const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
     let availabilityRows=0;
     for(let i=1;i<av.length;i++){

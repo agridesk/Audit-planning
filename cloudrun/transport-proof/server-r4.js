@@ -187,14 +187,20 @@ function isolatedExtAtomicPreflight20(){
   process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true'&&
   process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE';
 }
-async function readCanonicalPlanningRowsForAtomic20(){
- // Identical source boundary and render semantics to R15 backfill/parity.
+async function readCanonicalPlanningRowsForAtomic20(valueRenderOption='FORMATTED_VALUE'){
+ // Use the canonical source boundary and the snapshot's original value rendering.
  // These values are compared as whole-row CAS snapshots in Firestore.
  if(process.env.AMS_RUNTIME_ENV!=='DEV'||
     process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED!=='true')
   throw Error('ATOMIC_CANONICAL_ROW_READ_NOT_ENABLED');
- const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+
-  '/values/'+encodeURIComponent('Audit planning!A1:BW2000');
+ if(!['FORMATTED_VALUE','UNFORMATTED_VALUE'].includes(valueRenderOption))
+  throw Error('ATOMIC_CANONICAL_ROW_RENDER_INVALID');
+ const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+
+  '/values/'+encodeURIComponent('Audit planning!A1:BW2000'));
+ if(valueRenderOption==='UNFORMATTED_VALUE'){
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+ }
  const result=await fetch(url,{headers:{authorization:'Bearer '+await accessToken()}});
  if(!result.ok)throw Error('ATOMIC_CANONICAL_ROW_READ_'+result.status);
  const data=await result.json(),rows=data?.values;
@@ -228,7 +234,7 @@ function normalizeDevModelCDateCells20(valueRanges){
   planning:normalize(ranges[2]?.values||[],['Extended Expiration Date','Planning window from','Planning window to'])
  };
 }
-async function readIsolatedDevModelCExt20(){
+async function readIsolatedDevModelCExt20(valueRenderOption='FORMATTED_VALUE'){
  if(!(isolatedExtDirect20()||isolatedExtAtomicPreflight20())||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
  // Independent read-only checks overlap; identity still must pass before any write.
  const [project,r]=await Promise.all([
@@ -248,7 +254,7 @@ async function readIsolatedDevModelCExt20(){
   }else if(!devManagerDirectWritesConfigAllowed20(cfg))
    throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
  const dates=normalizeDevModelCDateCells20(r);
- const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning;
+ const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20(valueRenderOption):dates.planning;
  const scopeRows=r[3]?.values||[],scopeIndex=scopeRows[0]?.indexOf('ScopeCode')??-1;
  if(scopeIndex<0)throw Error('EXT_DEV_SCOPE_CODE_COLUMN_MISSING');
  const scopeCodes=[...new Set(scopeRows.slice(1).map(row=>clean(row[scopeIndex])).filter(Boolean))];
@@ -2379,7 +2385,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         ||!clean(body.requestId)||clean(body.requestId).length>180)return send(res,400,{ok:false,error:'EXT_DEV_DIRECT_INPUT_INVALID'});
       try{
         const result=await withDirectManagerActionLock(auditId,async()=>{
-          const source=await readIsolatedDevModelCExt20();
+          const source=await readIsolatedDevModelCExt20(
+           body.authorityPreflight===true?body.sourceValueRenderOption:'FORMATTED_VALUE');
           const before=inspectDevScopeExtension20({...source,companyUid});
           const plan=planDevScopeExtension20({snapshot:before,auditId,companyUid,obligationId,command:body.command,requestId:clean(body.requestId),actorUid:clean(session.uid||session.auditorUid||session.email)});
           // Resolve CB from the immutable obligation snapshot, not from an ECAS default.

@@ -550,9 +550,10 @@ function gridActionFailure20(error,action){
  return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
 }
 async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
- const service=['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
+ const service=action==='SELF_PLANNING'?planningAtomicSelfPlanning:
+  ['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
  const stream=runtime.isDev&&req.headers.accept==='application/x-ndjson'
-  &&['/api/v1/manager/action','/api/v1/auditor/action'].includes(String(req.url||'').split('?')[0]);
+  &&['/api/v1/manager/action','/api/v1/auditor/action','/api/v1/manager/self-planning-direct'].includes(String(req.url||'').split('?')[0]);
  let receiptSent=false;
  const result=await service.commit({actor,body,action,onCommitted:stream?receipt=>{
   if(res.destroyed)return;
@@ -574,7 +575,7 @@ async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
  planningCache.invalidate();
  if(res.destroyed)return;
  if(receiptSent){
-  res.end(JSON.stringify({type:'PROJECTED',result})+'\n');
+  res.end(JSON.stringify({type:'PROJECTED',result:{...result,action}})+'\n');
  }else{
   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
   res.end(JSON.stringify(result));
@@ -2200,16 +2201,8 @@ http.createServer(async(req,res)=>{
    }
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('SELF_PLANNING_BODY_TOO_LARGE');}
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('SELF_PLANNING_BODY_INVALID');}
-   let result;
-   try{result=await planningAtomicSelfPlanning.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});}
-   catch(error){
-    const failure=gridActionFailure20(error,'SELF_PLANNING');
-    res.writeHead(failure.writeOutcome==='NOT_COMMITTED'?409:503,{'content-type':'application/json','cache-control':'no-store'});
-    res.end(JSON.stringify(failure));return;
-   }
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
-   res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:{...actor,cookie:String(req.headers.cookie||'')},
+    body,action:'SELF_PLANNING'});return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/batch-commit'&&runtime.isDev&&planningAtomicCommands){
    const actor=await session(req);

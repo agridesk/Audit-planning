@@ -43,7 +43,16 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  return {service,events};
 }
 {
- const {service,events}=mock(),out=await service.commit({actor,body});
+ const {service,events}=mock();
+ let committedReceipt;
+ const out=await service.commit({actor,body,onCommitted(receipt){
+  committedReceipt={receipt,events:[...events]};
+  throw Error('RECEIPT_CONNECTION_LOST');
+ }});
+ assert.equal(committedReceipt.receipt.action,'SELF_PLANNING');
+ assert.equal(committedReceipt.receipt.allowSelfPlanning,true);
+ assert.equal(committedReceipt.receipt.sourceRevision,'rev-after');
+ assert.deepEqual(committedReceipt.events,['gateAcquire','readAudit','preflight','firestoreCommit']);
  assert.equal(out.success,true);assert.equal(out.projection,'PROJECTED');
  assert.deepEqual(events,['gateAcquire','readAudit','preflight','firestoreCommit',
   'projectorApply','projectorInspect','markProjected','gateRelease']);
@@ -111,6 +120,17 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  const noChange={...body,allowSelfPlanning:false};
  const out=await service.commit({actor,body:noChange});
  assert.equal(out.unchanged,true);assert.ok(!events.includes('firestoreCommit'));
+}
+{
+ const {service}=mock();
+ const ids=[];
+ const record=receipt=>ids.push(receipt.operationId);
+ const first='134a43d5-5a88-413b-b1d8-20c8a05c1234';
+ const next='f93ac621-af0c-42c3-ae84-0c573e4b5432';
+ for(const requestId of [first,first,next])
+  await service.commit({actor,body:{...body,requestId},onCommitted:record});
+ assert.equal(ids[0],ids[1],'Retrying the same click uses the same outbox key');
+ assert.notEqual(ids[1],ids[2],'A later click must not replay an older toggle');
 }
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');

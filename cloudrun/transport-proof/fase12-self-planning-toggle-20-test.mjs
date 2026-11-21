@@ -21,7 +21,7 @@ assert.equal(originGuard(new URL('https://ams-fase12-dev-510075419067.europe-wes
 assert.ok(grid.includes('expectedAllowSelfPlanning:'));
 assert.ok(grid.includes('self-planning-toggle20'));
 assert.ok(grid.includes('toggleSelfPlanning20(button)'));
-assert.ok(grid.includes('sourceRevision:result.sourceRevision'));
+assert.ok(grid.includes('sourceRevision:receipt.sourceRevision'));
 const proxy=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(proxy.includes("writerPath==='/api/v1/manager/self-planning-direct'"));
 assert.ok(proxy.includes('headers.host=externalHost;')&&proxy.includes("const externalHost=String(req.headers.host||'').trim()"),'forward validated public Host to R4');

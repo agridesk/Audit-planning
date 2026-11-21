@@ -6,11 +6,13 @@ const src=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const a=src.indexOf('function gridActionError20(');
 const b=src.indexOf('\nfunction bindActionButtons',a);
 assert(a>=0&&b>a);
-const body=src.slice(a,b);
+const readStart=src.indexOf('async function readGridActionResult20(');
+const readEnd=src.indexOf('function removeCompletedRowInPlace',readStart);
+const body=src.slice(a,b)+src.slice(readStart,readEnd);
 const auditId='AUD_POST_EXT';
 const run=async ({freshRevision='rev-after-extension',freshValue='No',status='PENDING_PLANNING',writeOk=true,writeOutcome='NOT_COMMITTED',missing=false}={})=>{
  const calls=[],notice={textContent:''},patches=[],button={disabled:false,getAttribute:k=>k==='data-audit-id'?auditId:k==='data-next'?'true':''};
- const ctx={button,URLSearchParams,performance,requestAnimationFrame:fn=>fn(),console,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
+ const ctx={button,URLSearchParams,crypto,performance,requestAnimationFrame:fn=>fn(),console,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
   busyAudits:new Set(),document:{getElementById:()=>notice},
   mergeRowInPlace:(id,p)=>patches.push({id,...p}),
   fetch:async (url,options)=>{

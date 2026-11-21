@@ -15,13 +15,16 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     typeof gate?.uncertain!=='function'||typeof preflight!=='function'||
     typeof projector?.apply!=='function'||typeof projector?.inspect!=='function')
   throw Error('SELF_PLANNING_ATOMIC_CONFIG_INVALID');
- async function commit({actor,body}={}){
+ async function commit({actor,body,onCommitted}={}){
   const auditId=clean(body?.auditId),actorId=clean(actor?.auditorId||actor?.uid);
   if(actor?.role!=='manager'||!actorId||!auditId||!clean(body?.expectedRevision)||
      typeof body.allowSelfPlanning!=='boolean'||typeof body.expectedAllowSelfPlanning!=='boolean')
    throw Error('SELF_PLANNING_ATOMIC_INPUT_INVALID');
+  const requestId=body.requestId;
+  if(requestId!==undefined&&(typeof requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(requestId)))
+   throw Error('SELF_PLANNING_ATOMIC_REQUEST_ID_INVALID');
   const operationId=digest({kind:'SELF_PLANNING',auditId,actorId,
-   sourceRevision:body.expectedRevision,from:body.expectedAllowSelfPlanning,to:body.allowSelfPlanning});
+   sourceRevision:body.expectedRevision,from:body.expectedAllowSelfPlanning,to:body.allowSelfPlanning,...(requestId?{requestId}:{})});
   const prior=await store.readOutbox(operationId);
   if(prior){
    if(prior.auditId!==auditId||prior.actorId!==actorId)throw Error('SELF_PLANNING_ATOMIC_REPLAY_IDENTITY_CONFLICT');
@@ -102,6 +105,11 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     nextSnapshot:snapshot,auditorId:null,blocks:[],action:'SELF_PLANNING'}));
    committed=true;
    if(receipt.replayed)throw Error('SELF_PLANNING_ATOMIC_UNEXPECTED_REPLAY');
+   if(onCommitted){
+    try{onCommitted({auditId,operationId,action:'SELF_PLANNING',
+     allowSelfPlanning:body.allowSelfPlanning,sourceRevision:snapshot.sourceRevision});}
+    catch{console.warn('[AMS_SELF_PLANNING_RECEIPT_FAILED]');}
+   }
    await measure('projectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
    const verified=await measure('verifyMs',()=>projector.inspect(snapshot));
    if(verified.state!=='MATCH')throw Error('SELF_PLANNING_ATOMIC_PROJECTION_NOT_VERIFIED');

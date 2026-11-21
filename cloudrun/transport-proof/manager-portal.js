@@ -362,7 +362,7 @@ function gridActionErrorText20(error){
 async function toggleSelfPlanning20(button){
  var auditId=String(button.getAttribute('data-audit-id')||''),row=all.find(function(r){return String(r.auditId)===auditId});
  if(!row||busyAudits.has(auditId))return;
- var started=performance.now(),writeSent=false,keepBlocked=false;
+ var started=performance.now(),writeSent=false,keepBlocked=false,committedReceipt=null;
  busyAudits.add(auditId);button.disabled=true;
  try{
   // EXT/Undo can change the canonical audit revision after the grid was loaded.
@@ -380,17 +380,30 @@ async function toggleSelfPlanning20(button){
    mergeRowInPlace(auditId,{allowSelfPlanning:current.allowSelfPlanning,sourceRevision:current.sourceRevision});
    return;
   }
+  var requestId=crypto.randomUUID();
   writeSent=true;
-  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:current.sourceRevision,expectedAllowSelfPlanning:expected,allowSelfPlanning:next})});
-  var result=await response.json();
-  if(!response.ok||result.success!==true)throw gridActionError20(result,response.status);
-  mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
-  requestAnimationFrame(function(){requestAnimationFrame(function(){
-   console.info('[AMS_GRID_CONFIRMATION_TIMING]',{auditId:auditId,action:next?'self-planning-yes':'self-planning-no',
-    clickToVisibleMs:Math.round(performance.now()-started)});
-  });});
+  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json',accept:'application/x-ndjson'},body:JSON.stringify({auditId:auditId,expectedRevision:current.sourceRevision,expectedAllowSelfPlanning:expected,allowSelfPlanning:next,requestId:requestId})});
+  function showValue(receipt){
+   mergeRowInPlace(auditId,{allowSelfPlanning:receipt.allowSelfPlanning,sourceRevision:receipt.sourceRevision});
+   requestAnimationFrame(function(){requestAnimationFrame(function(){
+    console.info('[AMS_GRID_CONFIRMATION_TIMING]',{auditId:auditId,action:next?'self-planning-yes':'self-planning-no',
+     clickToVisibleMs:Math.round(performance.now()-started)});
+   });});
+  }
+  var result=await readGridActionResult20(response,auditId,'SELF_PLANNING',function(receipt){
+   if(receipt.allowSelfPlanning!==next||!receipt.sourceRevision)throw Error('SELF_PLANNING_RECEIPT_INVALID');
+   committedReceipt=receipt;
+   document.getElementById('status').textContent=(row.company||auditId)+' · Saved, synchronizing…';
+   showValue(receipt);
+  });
+  if(result.success!==true)throw gridActionError20(result,response.status);
+  if(committedReceipt)document.getElementById('status').textContent=(row.company||auditId)+' · Self planning synchronized';
+  else showValue(result);
  }catch(e){
-  if(!writeSent)e.writeOutcome='NOT_COMMITTED';
+  if(committedReceipt){
+   e.writeOutcome=e.writeOutcome==='PROJECTED'?'PROJECTED':'COMMITTED';
+   e.reference=e.reference||committedReceipt.operationId;
+  }else if(!writeSent)e.writeOutcome='NOT_COMMITTED';
   keepBlocked=writeSent&&e.writeOutcome!=='NOT_COMMITTED';
   document.getElementById('status').textContent=gridActionErrorText20(e);
  }
@@ -482,8 +495,12 @@ async function runActionViaCloudRun(auditId,action,options,onCommitted){
   if(onCommitted)headers.accept='application/x-ndjson';
   var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:headers,
     body:JSON.stringify({auditId:auditId,action:action,options:options||{}})});
+  var result=await readGridActionResult20(response,auditId,action.toUpperCase(),onCommitted);
+  return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{requestId:'cr'+Date.now()}};
+}
+async function readGridActionResult20(response,auditId,expectedAction,onCommitted){
   var result;
-  if(response.ok&&response.headers.get('content-type')?.startsWith('application/x-ndjson')){
+  if(response.ok&&response.headers?.get('content-type')?.startsWith('application/x-ndjson')){
     var reader=response.body.getReader(),decoder=new TextDecoder(),buffer='';
     try{
       while(true){
@@ -495,19 +512,20 @@ async function runActionViaCloudRun(auditId,action,options,onCommitted){
         for(var line of lines){
           if(!line)continue;
           var frame=JSON.parse(line);
-          if(frame.type==='COMMITTED'&&frame.auditId===auditId&&frame.action===action.toUpperCase())onCommitted(frame);
+          if(frame.type==='COMMITTED'&&frame.auditId===auditId&&frame.action===expectedAction)onCommitted(frame);
           if(frame.type==='PROJECTED')result=frame.result;
           if(frame.type==='SYNC_UNCONFIRMED')throw gridActionError20({...frame,error:frame.error||'LIFECYCLE_SYNC_UNCONFIRMED'});
         }
       }
     }finally{reader.releaseLock();}
-    if(result?.success!==true||result.auditId!==auditId||result.action!==action.toUpperCase())throw Error('LIFECYCLE_SYNC_UNCONFIRMED');
+    if(result?.success!==true||result.auditId!==auditId||result.action!==expectedAction)throw Error('LIFECYCLE_SYNC_UNCONFIRMED');
   }else{
     result=await response.json();
     if(!response.ok||result.success===false)throw gridActionError20(result,response.status);
   }
-  return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{requestId:'cr'+Date.now()}};
+  return result;
 }
+
 function removeCompletedRowInPlace(auditId,perf){
   var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return;
   var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();

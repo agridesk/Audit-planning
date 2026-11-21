@@ -56,12 +56,12 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   });
   return {state:allMatch?'MATCH':detail.every(x=>x.target||x.before)?'READY':'CONFLICT',detail};
  }
- async function apply({operationId,plan,gateToken}){
+ async function apply({operationId,plan,gateToken,changedPlanningCellsOnly=false}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
   await verifyFence({operationId,gateToken});
   const first=await inspect(plan);
-  if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
+  if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:first};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
   const meta=await metadata(),requests=[];
   for(const sheet of new Set(changes.map(x=>x.sheet))){
@@ -73,11 +73,12 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(requests.length)await request(base+':batchUpdate','POST',{requests});
   await verifyFence({operationId,gateToken});
   const second=await inspect(plan);
-  if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
+  if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:second};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];
   for(const [index,change] of changes.entries()){
    if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)||
+      changedPlanningCellsOnly&&/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range)||
       plan.realizedHoursCorrection===true&&/^Log realized audits!A\d+:[A-Z]+\d+$/.test(change.range)){
     // Re-entering unchanged contact data can turn phone numbers into formulas.
     if(second.detail[index].target)continue;
@@ -127,7 +128,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const verified=await inspect(plan);
   if(verified.state!=='MATCH')throw Error('SHEETS_PROJECTION_VERIFY_FAILED');
   await verifyFence({operationId,gateToken});
-  return {operationId,idempotent:true,projected:true,replayed:false};
+  return {operationId,idempotent:true,projected:true,replayed:false,verification:verified};
  }
  // Privacy-preserving forensic view: return only differing cell positions,
  // scalar types and whether each cell matches the preflight BEFORE/AFTER.

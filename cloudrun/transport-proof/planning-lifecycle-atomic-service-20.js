@@ -75,12 +75,13 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     try{onCommitted({auditId,operationId,action,status:status});}
     catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
    }
-   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
+   const rowResult=await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot,changedPlanningCellsOnly:overlap}));
    const ready=await prepared;
    if(ready?.error)throw ready.error;
    const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
-    projector.inspect(snapshot),overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)
+    overlap&&rowResult?.verification?rowResult.verification:projector.inspect(snapshot),
+    overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)
    ]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('LIFECYCLE_ATOMIC_PROJECTION_UNVERIFIED');
    const proof={verified:true,auditId,rowHash:hash({rows:rows.detail,appends:appends.count})};

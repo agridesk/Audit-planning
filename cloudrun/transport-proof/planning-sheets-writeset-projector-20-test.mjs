@@ -37,6 +37,21 @@ const first=await projector.apply({operationId:'operation-7',gateToken:'token-7'
 assert.equal(first.projected,true);assert.equal(first.replayed,false);
 assert.equal(rows,2);assert.equal(expanded,1);assert.equal(writeCount,1);
 assert.equal((await projector.inspect(plan)).state,'MATCH');
+const narrowPlan={projectionWrites:[{range:'Audit planning!A2:C2',values:[['Company','auditor@example.test','Accepted']]}],
+ projectionPreconditions:[{range:'Audit planning!A2:C2',before:['Company','auditor@example.test','Approved']}]};
+const narrow=createPlanningSheetsWritesetProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
+ fetchImpl:async(url,init={})=>{
+  if((init.method||'GET')==='POST'){
+   const request=JSON.parse(init.body);
+   assert.equal(request.valueInputOption,'USER_ENTERED');
+   assert.deepEqual(request.data,[{range:'Audit planning!C2:C2',values:[['Accepted']]}]);
+   values.get('Audit planning!A2:C2')[2]='Accepted';
+   return {ok:true,json:async()=>({})};
+  }
+  return fetchImpl(url,init);
+ }});
+assert.equal((await narrow.apply({operationId:'accept',gateToken:'token',plan:narrowPlan,changedPlanningCellsOnly:true})).verification.state,'MATCH');
+values.get('Audit planning!A2:C2')[2]='Approved';
 const replay=await projector.apply({operationId:'operation-7',gateToken:'token-7',plan});
 assert.equal(replay.replayed,true);assert.equal(writeCount,1);
 values.set('Audit planning!A2:C2',['Company','someone-else','Accepted']);

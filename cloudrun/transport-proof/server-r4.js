@@ -1152,7 +1152,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
    const width=a1col(found.h.length);
    capture.writes.push({range:'Audit planning!A'+found.sourceRow+':'+width+found.sourceRow,values:[tombstone]});
   }
-  const normalized=await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet});
+  const normalized=await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet,planningRows:planning});
   const preconditions=normalized.projectionPreconditions;
   capture.writes=normalized.projectionWrites;
   const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;

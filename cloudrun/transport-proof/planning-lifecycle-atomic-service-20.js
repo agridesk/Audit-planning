@@ -27,9 +27,10 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   let lock=null,attempted=false,committed=false,projected=false;
   try{
    lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_LIFECYCLE_'+action}));
-   const [preview,old]=await Promise.all([
+   const [preview,old,plannedRoster]=await Promise.all([
     measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action})),
-    measure('auditMs',()=>atomicStore.readAudit(auditId))
+    measure('auditMs',()=>atomicStore.readAudit(auditId)),
+    ['APPROVE','ACCEPT'].includes(action)?measure('rosterMs',()=>roster()):null
    ]);
    if(preview?.authorityPreflight!==true||preview?.success!==true||preview?.auditId!==auditId)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_INVALID');
    if(preview.idempotent===true)throw Error('LIFECYCLE_ATOMIC_LEGACY_REPLAY_UNVERIFIED');
@@ -46,7 +47,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    let auditorId=null,blocks=[];
    if(statuses.has(status)){
     const email=str(snapshot.assignedTo).toLowerCase();
-    const matching=(await measure('rosterMs',()=>roster())).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
+    const matching=(plannedRoster??await measure('rosterMs',()=>roster())).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
     if(matching.length!==1||!str(matching[0].auditorId))throw Error('LIFECYCLE_ATOMIC_AUDITOR_IDENTITY_UNRESOLVED');
     auditorId=matching[0].auditorId;
     const head=snapshot.headers||[],row=snapshot.row||[];

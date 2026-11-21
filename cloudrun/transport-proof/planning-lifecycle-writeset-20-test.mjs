@@ -29,4 +29,16 @@ assert.deepEqual(trailing.projectionWrites[0].values,[['audit-9','Pending Planni
 assert.deepEqual(trailing.projectionPreconditions[0].before,['audit-9','Approved','old','','']);
 await assert.rejects(()=>normalizeLifecycleWriteset({writes:[{range:'Audit planning!A2:B3',values:[['invalid']]}],readBefore:async()=>[]}),/LIFECYCLE_WRITESET_VALUES_INVALID/);
 await assert.rejects(()=>normalizeLifecycleWriteset({writes:[{range:'Audit planning!A0:C0',values:[['x','y','z']]}],readBefore:async()=>[]}),/LIFECYCLE_WRITESET_RANGE_UNSUPPORTED/);
+const reused=await normalizeLifecycleWriteset({
+ writes:[{range:'Audit planning!B2:D2',values:[['Accepted']]},{range:'Auditor Availability!A3',values:[['Busy']]}],
+ planningRows:[['ID','Status','Note','Date'],['audit-2','Approved',0]],
+ readBefore:async ranges=>{
+  assert.deepEqual(ranges,['Auditor Availability!A3:A3']);
+  return [{values:[['Free']]}];
+ }
+});
+assert.deepEqual(reused.projectionPreconditions,[
+ {range:'Audit planning!B2:D2',before:['Approved',0,'']},
+ {range:'Auditor Availability!A3:A3',before:['Free']}
+]);
 console.log('Lifecycle writeset: overlapping transfer updates, successor rows, original images and invalid rows passed');

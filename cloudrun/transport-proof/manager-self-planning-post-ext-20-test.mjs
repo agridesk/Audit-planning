@@ -10,7 +10,7 @@ const body=src.slice(a,b);
 const auditId='AUD_POST_EXT';
 const run=async ({freshRevision='rev-after-extension',freshValue='No',status='PENDING_PLANNING',writeOk=true,missing=false}={})=>{
  const calls=[],alerts=[],patches=[],button={disabled:false,getAttribute:k=>k==='data-audit-id'?auditId:k==='data-next'?'true':''};
- const ctx={button,URLSearchParams,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
+ const ctx={button,URLSearchParams,performance,requestAnimationFrame:fn=>fn(),console,all:[{auditId,sourceRow:42,sourceRevision:'rev-before-extension',allowSelfPlanning:'No'}],
   busyAudits:new Set(),window:{alert:t=>alerts.push(t)},
   mergeRowInPlace:(id,p)=>patches.push({id,...p}),
   fetch:async (url,options)=>{

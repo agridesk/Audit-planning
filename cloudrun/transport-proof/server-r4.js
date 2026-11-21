@@ -1009,7 +1009,11 @@ async function directManagerSelfPlanning20(identity,body){
  if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{
   // Read canonical audit state and DEV writer fence in one consistent Sheets round trip.
-  const result=await sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100']);
+  const atomicRequested=process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body.authorityPreflight===true;
+  const [result,formattedRows]=await Promise.all([
+   sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100']),
+   atomicRequested?readCanonicalPlanningRowsForAtomic20():null
+  ]);
   const rows=result[1]?.values||[];
   if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
   const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
@@ -1017,7 +1021,7 @@ async function directManagerSelfPlanning20(identity,body){
   if(!atomicPreflight&&!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
   if(process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&!atomicPreflight)
    throw Error('SELF_PLANNING_LEGACY_WRITER_FROZEN');
-  const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[];
+  const values=atomicPreflight?formattedRows:result[0]?.values||[];
   if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
   const found=findAudit(values,auditId);
   if(!found)throw Error('AUDIT_NOT_FOUND');

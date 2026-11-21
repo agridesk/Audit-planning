@@ -29,10 +29,15 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     idempotent:true,authority:'FIRESTORE',projection:'PROJECTED'};
    throw Error('SELF_PLANNING_ATOMIC_RECOVERY_REQUIRED');
   }
+  const started=Date.now(),timings={};
+  const measure=async(name,run)=>{
+   const start=Date.now();
+   try{return await run();}finally{timings[name]=Date.now()-start;}
+  };
   let lock=null,attempted=false,projected=false;
   try{
-   lock=await gate.acquire({operationId,actorId,kind:'ATOMIC_SELF_PLANNING'});
-   const previous=await store.readAudit(auditId);
+   lock=await measure('gateMs',()=>gate.acquire({operationId,actorId,kind:'ATOMIC_SELF_PLANNING'}));
+   const previous=await measure('auditMs',()=>store.readAudit(auditId));
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId||
       previous.removed||previous.snapshot?.status!=='Pending Planning'||
       previous.snapshot?.sourceRevision!==body.expectedRevision||
@@ -48,7 +53,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     return {success:true,auditId,allowSelfPlanning:body.allowSelfPlanning,unchanged:true,
      sourceRevision:body.expectedRevision,authority:'FIRESTORE'};
    }
-   const proof=await preflight({actor,body:{...body,authorityPreflight:true}});
+   const proof=await measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true}}));
    if(proof?.success!==true||proof?.authorityPreflight!==true||proof.auditId!==auditId||
       proof.expectedSourceRevision!==body.expectedRevision||proof.allowSelfPlanning!==body.allowSelfPlanning||
       proof.canonicalSnapshot?.auditId!==auditId||proof.canonicalSnapshot.status!=='Pending Planning')
@@ -93,11 +98,11 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,
     appendIntents:[]};
    attempted=true;
-   const receipt=await store.commit({auditId,operationId,actorId,expectedRevision:previous.revision,
-    nextSnapshot:snapshot,auditorId:null,blocks:[],action:'SELF_PLANNING'});
+   const receipt=await measure('commitMs',()=>store.commit({auditId,operationId,actorId,expectedRevision:previous.revision,
+    nextSnapshot:snapshot,auditorId:null,blocks:[],action:'SELF_PLANNING'}));
    if(receipt.replayed)throw Error('SELF_PLANNING_ATOMIC_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan:snapshot});
-   const verified=await projector.inspect(snapshot);
+   await measure('projectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
+   const verified=await measure('verifyMs',()=>projector.inspect(snapshot));
    if(verified.state!=='MATCH')throw Error('SELF_PLANNING_ATOMIC_PROJECTION_NOT_VERIFIED');
    await store.markProjected({auditId,operationId,
     proof:{verified:true,auditId,rowHash:digest({rows:verified.detail,kind:'SELF_PLANNING'})}});
@@ -106,6 +111,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
    return {success:true,auditId,allowSelfPlanning:body.allowSelfPlanning,
     sourceRevision:snapshot.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED',revision:receipt.revision};
   }finally{
+   console.info('[AMS_SELF_PLANNING_TIMING]',JSON.stringify({operationId,...timings,totalMs:Date.now()-started,projected}));
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'SELF_PLANNING_PREFLIGHT_REJECTED'});
     else if(projected)await gate.release({token:lock.token,verified:true,proof:'SELF_PLANNING_PROJECTED'});

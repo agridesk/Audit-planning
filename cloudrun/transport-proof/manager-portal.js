@@ -350,6 +350,7 @@ async function showScopePreview20(button){
 async function toggleSelfPlanning20(button){
  var auditId=String(button.getAttribute('data-audit-id')||''),row=all.find(function(r){return String(r.auditId)===auditId});
  if(!row||busyAudits.has(auditId))return;
+ var started=performance.now();
  busyAudits.add(auditId);button.disabled=true;
  try{
   // EXT/Undo can change the canonical audit revision after the grid was loaded.
@@ -371,6 +372,10 @@ async function toggleSelfPlanning20(button){
   var result=await response.json();
   if(!response.ok||result.success!==true)throw Error(result.error||result.code||result.message||'Self planning update failed');
   mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+   console.info('[AMS_GRID_CONFIRMATION_TIMING]',{auditId:auditId,action:next?'self-planning-yes':'self-planning-no',
+    clickToVisibleMs:Math.round(performance.now()-started)});
+  });});
  }catch(e){window.alert('Self planning not changed: '+String(e.message||e))}
  finally{busyAudits.delete(auditId);button.disabled=false}
 }

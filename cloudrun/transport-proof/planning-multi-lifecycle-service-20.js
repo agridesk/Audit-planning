@@ -59,6 +59,10 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
    await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'MULTI_ENTITIES_FIRESTORE_SHEETS_VERIFIED'}));
    lock=null;
    return {success:true,authority:'FIRESTORE',projection:'PROJECTED',auditId,action,operationId,successorAuditIds:snapshots.map(x=>x.auditId),entities:accepted.entities};
+  }catch(error){
+   error.operationId=operationId;
+   error.writeOutcome=verified?'PROJECTED':committed?'COMMITTED':attempted?'UNKNOWN':'NOT_COMMITTED';
+   throw error;
   }finally{
    console.info('[PLANNING_MULTI_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,verified}));
    if(lock){

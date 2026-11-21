@@ -347,10 +347,22 @@ async function showScopePreview20(button){
    window.alert('Model C scopes for '+auditId+' (read-only)\\n'+lines.join('\\n')+'\\n'+evidence+missing+'\\nTogether/separately planning is not yet enabled.');
  }catch(e){window.alert('Scope preview failed: '+e.message)}finally{button.disabled=false}
 }
+function gridActionError20(result,status){
+ var error=Error(result?.error||result?.code||'GRID_ACTION_FAILED');
+ error.writeOutcome=result?.writeOutcome||([401,403].includes(status)?'NOT_COMMITTED':'UNKNOWN');
+ error.reference=result?.reference;
+ return error;
+}
+function gridActionErrorText20(error){
+ var outcome=error.writeOutcome==='NOT_COMMITTED'?'Change rejected before saving':
+  error.writeOutcome==='PROJECTED'?'Saved and synchronized; response interrupted':
+  error.writeOutcome==='COMMITTED'?'Saved; synchronization unconfirmed':'Save outcome unconfirmed; do not retry';
+ return outcome+' · '+String(error.message||'GRID_ACTION_FAILED')+(error.reference?' · Reference: '+error.reference:'');
+}
 async function toggleSelfPlanning20(button){
  var auditId=String(button.getAttribute('data-audit-id')||''),row=all.find(function(r){return String(r.auditId)===auditId});
  if(!row||busyAudits.has(auditId))return;
- var started=performance.now();
+ var started=performance.now(),writeSent=false,keepBlocked=false;
  busyAudits.add(auditId);button.disabled=true;
  try{
   // EXT/Undo can change the canonical audit revision after the grid was loaded.
@@ -368,16 +380,21 @@ async function toggleSelfPlanning20(button){
    mergeRowInPlace(auditId,{allowSelfPlanning:current.allowSelfPlanning,sourceRevision:current.sourceRevision});
    return;
   }
+  writeSent=true;
   var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:current.sourceRevision,expectedAllowSelfPlanning:expected,allowSelfPlanning:next})});
   var result=await response.json();
-  if(!response.ok||result.success!==true)throw Error(result.error||result.code||result.message||'Self planning update failed');
+  if(!response.ok||result.success!==true)throw gridActionError20(result,response.status);
   mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
   requestAnimationFrame(function(){requestAnimationFrame(function(){
    console.info('[AMS_GRID_CONFIRMATION_TIMING]',{auditId:auditId,action:next?'self-planning-yes':'self-planning-no',
     clickToVisibleMs:Math.round(performance.now()-started)});
   });});
- }catch(e){window.alert('Self planning not changed: '+String(e.message||e))}
- finally{busyAudits.delete(auditId);button.disabled=false}
+ }catch(e){
+  if(!writeSent)e.writeOutcome='NOT_COMMITTED';
+  keepBlocked=writeSent&&e.writeOutcome!=='NOT_COMMITTED';
+  document.getElementById('status').textContent=gridActionErrorText20(e);
+ }
+ finally{if(!keepBlocked){busyAudits.delete(auditId);button.disabled=false}}
 }
 function bindActionButtons(root){(root||document).querySelectorAll(".ext-manage").forEach(function(button){button.addEventListener("click",function(){var row=all.find(function(x){return String(x.auditId)===String(button.dataset.auditId)});if(!row){window.alert('Selected audit not found. Reload the audit grid.');return}window.dispatchEvent(new CustomEvent("ams:open-company-scopes",{detail:{companyUid:row.companyUid||row.companyUID||"",companyName:row.company||"",auditId:row.auditId||""}}))})});(root||document).querySelectorAll(".ext-single").forEach(function(button){button.addEventListener("click",function(){runSingleScopeExtension20(button)})});(root||document).querySelectorAll(".scope-preview20").forEach(function(button){button.addEventListener("click",function(){showScopePreview20(button)})});(root||document).querySelectorAll(".self-planning-toggle20").forEach(function(button){button.addEventListener("click",function(){toggleSelfPlanning20(button)})});(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});}
 function diagnoseGridOverflow(){
@@ -480,14 +497,14 @@ async function runActionViaCloudRun(auditId,action,options,onCommitted){
           var frame=JSON.parse(line);
           if(frame.type==='COMMITTED'&&frame.auditId===auditId&&frame.action===action.toUpperCase())onCommitted(frame);
           if(frame.type==='PROJECTED')result=frame.result;
-          if(frame.type==='SYNC_UNCONFIRMED')throw Error('LIFECYCLE_SYNC_UNCONFIRMED');
+          if(frame.type==='SYNC_UNCONFIRMED')throw gridActionError20({...frame,error:frame.error||'LIFECYCLE_SYNC_UNCONFIRMED'});
         }
       }
     }finally{reader.releaseLock();}
     if(result?.success!==true||result.auditId!==auditId||result.action!==action.toUpperCase())throw Error('LIFECYCLE_SYNC_UNCONFIRMED');
   }else{
     result=await response.json();
-    if(!response.ok||result.success===false)throw Error(result.error||result.detail||result.message||'Action failed');
+    if(!response.ok||result.success===false)throw gridActionError20(result,response.status);
   }
   return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{requestId:'cr'+Date.now()}};
 }
@@ -607,8 +624,9 @@ function runAction(button){
         if(tr?.cells[6])tr.cells[6].textContent=tr.cells[6].textContent.replace(/Synchronizing.+$/,'Sync unconfirmed');
         return;
       }
-      window.alert('Canonical action failed: '+e.message);
-      if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false});
+      keepBlocked=e.writeOutcome!=='NOT_COMMITTED';
+      document.getElementById('status').textContent=gridActionErrorText20(e);
+      if(!keepBlocked&&tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false});
       if(String(e&&e.message||'').indexOf('ACTION_RELAY')>=0)resetRelayWorker()
     })
     .finally(function(){if(!keepBlocked)busyAudits.delete(auditId);try{button.removeAttribute("data-complete-hours")}catch(e){}})

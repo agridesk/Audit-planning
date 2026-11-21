@@ -62,7 +62,7 @@ import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifie
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
-import {createHash,timingSafeEqual} from 'node:crypto';
+import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
@@ -541,6 +541,14 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
   return data;
  }
 }):null;
+function gridActionFailure20(error,action){
+ const raw=String(error?.message||'');
+ const safe=/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_)[A-Z0-9_]{1,130}$/.test(raw);
+ const reference=/^[a-f0-9]{64}$/.test(error?.operationId||'')?error.operationId:randomUUID();
+ const writeOutcome=['NOT_COMMITTED','COMMITTED','PROJECTED'].includes(error?.writeOutcome)?error.writeOutcome:'UNKNOWN';
+ console.error('[AMS_GRID_ACTION_ERROR]',JSON.stringify({action,reference,writeOutcome,errorCode:raw.slice(0,160),revision:process.env.K_REVISION}));
+ return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
+}
 async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
  const service=['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
  const stream=runtime.isDev&&req.headers.accept==='application/x-ndjson'
@@ -552,9 +560,14 @@ async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
   receiptSent=true;
   res.write(JSON.stringify({type:'COMMITTED',...receipt})+'\n');
  }:undefined}).catch(error=>{
-  if(!receiptSent)throw error;
-  console.error('[AMS_LIFECYCLE_PROJECTION_ERROR]',JSON.stringify({action,errorCode:String(error?.message||'UNKNOWN').slice(0,140)}));
-  if(!res.destroyed)res.end(JSON.stringify({type:'SYNC_UNCONFIRMED'})+'\n');
+  if(!runtime.isDev)throw error;
+  const failure=gridActionFailure20(error,action);
+  if(res.destroyed)return null;
+  if(receiptSent)res.end(JSON.stringify({type:'SYNC_UNCONFIRMED',...failure})+'\n');
+  else{
+   res.writeHead(failure.writeOutcome==='NOT_COMMITTED'?409:503,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(failure));
+  }
   return null;
  });
  if(!result)return;
@@ -2187,7 +2200,13 @@ http.createServer(async(req,res)=>{
    }
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('SELF_PLANNING_BODY_TOO_LARGE');}
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('SELF_PLANNING_BODY_INVALID');}
-   const result=await planningAtomicSelfPlanning.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   let result;
+   try{result=await planningAtomicSelfPlanning.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});}
+   catch(error){
+    const failure=gridActionFailure20(error,'SELF_PLANNING');
+    res.writeHead(failure.writeOutcome==='NOT_COMMITTED'?409:503,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify(failure));return;
+   }
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;

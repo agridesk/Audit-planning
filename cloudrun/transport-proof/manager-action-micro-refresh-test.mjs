@@ -73,7 +73,10 @@ console.log('manager-action-micro-refresh-test passed');
 const transportStart=manager.indexOf('async function runActionViaCloudRun(');
 const transportEnd=manager.indexOf('function removeCompletedRowInPlace',transportStart);
 assert.ok(transportStart>=0&&transportEnd>transportStart);
-const transport=manager.slice(transportStart,transportEnd);
+const failureStart=manager.indexOf('function gridActionError20(');
+const failureEnd=manager.indexOf('async function toggleSelfPlanning20(',failureStart);
+assert.ok(failureStart>=0&&failureEnd>failureStart);
+const transport=manager.slice(failureStart,failureEnd)+manager.slice(transportStart,transportEnd);
 const encode=new TextEncoder();
 const committed={type:'COMMITTED',auditId:'a1',action:'ACCEPT',status:'ACCEPTED',operationId:'op'};
 const projected={type:'PROJECTED',result:{success:true,auditId:'a1',action:'ACCEPT',projection:'PROJECTED'}};
@@ -103,3 +106,24 @@ assert.equal(successful.didRelease(),true);
 const syncFailure=transportTest('{"type":"SYNC_UNCONFIRMED"}\n');
 await assert.rejects(syncFailure.response,/LIFECYCLE_SYNC_UNCONFIRMED/);
 assert.equal(syncFailure.didRelease(),true);
+
+const gateway=fs.readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const failureStartOnServer=gateway.indexOf('function gridActionFailure20(');
+const failureEndOnServer=gateway.indexOf('async function respondToAtomicGridLifecycle(',failureStartOnServer);
+assert.ok(failureStartOnServer>=0&&failureEndOnServer>failureStartOnServer);
+const logEntries=[];
+const errorContext=vm.createContext({randomUUID:()=> 'ref-generated',
+ process:{env:{K_REVISION:'test-revision'}},console:{error:(label,entry)=>logEntries.push({label,...JSON.parse(entry)})}});
+vm.runInContext(gateway.slice(failureStartOnServer,failureEndOnServer),errorContext);
+const operationId='a'.repeat(64);
+const rejection=errorContext.gridActionFailure20({message:'LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_DIRECT_ACCEPT_REVISION_CONFLICT',
+ writeOutcome:'NOT_COMMITTED',operationId},'ACCEPT');
+assert.equal(rejection.error,'LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_DIRECT_ACCEPT_REVISION_CONFLICT');
+assert.equal(rejection.reference,operationId);
+assert.equal(rejection.writeOutcome,'NOT_COMMITTED');
+assert.equal(logEntries[0].revision,'test-revision');
+const uncertain=errorContext.gridActionFailure20({message:'Internal response with an arbitrary value'},'CANCEL');
+assert.equal(uncertain.error,'GRID_ACTION_FAILED');
+assert.equal(uncertain.reference,'ref-generated');
+assert.equal(uncertain.writeOutcome,'UNKNOWN');
+assert.equal(logEntries.at(-1).reference,uncertain.reference);

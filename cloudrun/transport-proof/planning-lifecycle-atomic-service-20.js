@@ -79,6 +79,10 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_FIRESTORE_AND_SHEETS_VERIFIED'}));
    lock=null;
    return {success:true,action,auditId,operationId,revision:receipt.revision,sourceRevision:snapshot.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED'};
+  }catch(error){
+   error.operationId=operationId;
+   error.writeOutcome=projected?'PROJECTED':committed?'COMMITTED':attempted?'UNKNOWN':'NOT_COMMITTED';
+   throw error;
   }finally{
    console.info('[PLANNING_LIFECYCLE_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,projected}));
    if(lock){

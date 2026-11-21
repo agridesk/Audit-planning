@@ -2456,7 +2456,11 @@ http.createServer(async(req,res)=>{
      try{
       const rows=await planningAtomicProjector.inspect(entry.snapshot);
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
-      eligible=verifiedCancel=rows.state==='MATCH'&&append.state==='MATCH';
+      verifiedCancel=rows.state==='MATCH'&&append.state==='MATCH';
+      const since=Date.parse(holder.uncertainAt||'');
+      const quarantineComplete=Number.isFinite(since)&&Date.now()-since>=30*60*1000;
+      eligible=verifiedCancel||(quarantineComplete&&entry.multi!==true&&
+       ['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state));
      }catch{eligible=false;}
      condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
     }else if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){

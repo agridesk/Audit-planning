@@ -7,9 +7,9 @@ const entry={operationId,auditId,action:'PLAN',state:'UNCERTAIN',revision:2,snap
  projectionPreconditions:[{range:'Audit planning!A65:B65',before:['audit-safe-1','Pending Planning']}],
  appendIntents:[{range:'Notification Queue!A:M',values:[['one'],['two']]}]
 }};
-function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=null,leaseMinutes=31}={}){
+function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=null,leaseMinutes=31,action='PLAN',multi=false}={}){
  const events=[],gate={state:'UNCERTAIN',holder:{operationId,token:'t',state:'UNCERTAIN'}};
- const candidate={...entry,auditorId};
+ const candidate={...entry,action,multi,auditorId};
  const store={readOutbox:async()=>candidate,readAudit:async()=>({revision:2,pendingOperationId:operationId})};
  const gateApi={
   async read(){return {holder:gate.holder};},
@@ -34,6 +34,10 @@ function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=n
 }
 {const x=mock();const outcome=await x.service.commit({operationId});assert.equal(outcome.state,'PROJECTED');
  assert.deepEqual(x.events,['begin','rowInspect','appendInspect','rowApply','rowInspect','appendApply','appendInspect','finish','settle']);}
+{const x=mock({action:'CANCEL'});assert.equal((await x.service.commit({operationId})).state,'PROJECTED');
+ assert.deepEqual(x.events,['begin','rowInspect','appendInspect','rowApply','rowInspect','appendApply','appendInspect','finish','settle']);}
+{const x=mock({action:'CANCEL',multi:true});await assert.rejects(x.service.commit({operationId}),/OUTBOX_UNSUPPORTED/);
+ assert.equal(x.events.length,0);}
 {const x=mock({rowState:'CONFLICT'});await assert.rejects(x.service.commit({operationId}),/SOURCE_CONFLICT/);
  assert.equal(x.gate.state,'UNCERTAIN');assert.ok(!x.events.includes('rowApply'));assert.ok(!x.events.includes('settle'));}
 {const x=mock({auditorId:'auditor-1',leaseMinutes:5});

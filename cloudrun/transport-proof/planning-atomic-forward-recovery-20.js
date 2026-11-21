@@ -1,4 +1,4 @@
-/** Explicit DEV-only rescue of one quarantined, already committed PLAN outbox.
+/** Explicit DEV-only rescue of one quarantined, already committed outbox.
  * No new planning command, no backfill and no unverified fence release.
  * A timeout after starting Sheets writes leaves RECOVERING locked for operator
  * investigation, rather than attempting a blind retry.
@@ -11,7 +11,7 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
  async function commit({operationId}={}){
   if(!/^[a-f0-9]{64}$/.test(String(operationId||'')))throw Error('ATOMIC_FORWARD_RECOVERY_ID_INVALID');
   const entry=await store.readOutbox(operationId);
-  if(!entry||entry.operationId!==operationId||!['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry.action)||
+  if(!entry||entry.operationId!==operationId||!['PLAN','CANCEL','EXT_APPLY','EXT_UNDO'].includes(entry.action)||
      !['UNCERTAIN','PENDING'].includes(entry.state)||entry.multi===true||
      !entry.auditId||!entry.snapshot||
      !Array.isArray(entry.snapshot.projectionWrites)||!entry.snapshot.projectionWrites.length||
@@ -45,7 +45,7 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
       currentAudit?.pendingOperationId!==operationId||currentAudit?.revision!==entry.revision)
     throw Error('ATOMIC_FORWARD_RECOVERY_CHANGED_DURING_FENCE');
    stage='READ_ROWS_BEFORE';
-   const plan=entry.action==='PLAN'?entry.snapshot:await projector.prepareExtensionDateRecovery(entry.snapshot);
+   const plan=['EXT_APPLY','EXT_UNDO'].includes(entry.action)?await projector.prepareExtensionDateRecovery(entry.snapshot):entry.snapshot;
    const first=await projector.inspect(plan);
    stage='READ_APPEND_BEFORE';
    const appendBefore=await appendProjector.inspect(entry.snapshot.appendIntents);

@@ -47,6 +47,7 @@ jobs:
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
           service=ams-fase12-dev
+          account=ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
           previous=ams-fase12-dev-00366-puc
           tag="realized-authority-${RUN_ID}"
           auto_apply=false
@@ -67,16 +68,32 @@ jobs:
             fi
             printf '%s' "$url"
           }
+          issue_iap_token() {
+            local audience="$1" name="$2" now token
+            now=$(date +%s)
+            jq -n --arg account "$account" --arg audience "$audience" --argjson now "$now" \
+              '{iss:$account,sub:$account,aud:$audience,iat:$now,exp:($now+300)}' > "$RUNNER_TEMP/$name-claims.json"
+            gcloud iam service-accounts sign-jwt "$RUNNER_TEMP/$name-claims.json" "$RUNNER_TEMP/$name.jwt" \
+              --iam-account="$account" --project=audit-management-system-dev
+            token=$(cat "$RUNNER_TEMP/$name.jwt")
+            echo "::add-mask::$token"
+          }
           verify_candidate() {
-            local url="$1" jar="$RUNNER_TEMP/manager-cookie.txt" login_code preview_code
+            local url="$1" jar="$RUNNER_TEMP/manager-cookie.txt" login_code preview_code login_url preview_url login_token preview_token
+            login_url="$url/auth/dev-login"
+            preview_url="$url/api/v1/manager/realized-audits/backfill-preview"
+            issue_iap_token "$login_url" manager-login
+            login_token=$(cat "$RUNNER_TEMP/manager-login.jwt")
             login_code=$(curl --silent --max-time 30 --max-redirs 0 --output "$RUNNER_TEMP/login-body.txt" --write-out '%{http_code}' \
-              --cookie-jar "$jar" --header "Origin: $url" --header 'Sec-Fetch-Site: same-origin' \
+              --cookie-jar "$jar" --header "Authorization: Bearer $login_token" --header "Origin: $url" --header 'Sec-Fetch-Site: same-origin' \
               --header 'Sec-Fetch-Mode: navigate' --header 'Sec-Fetch-Dest: document' \
-              --data 'role=Manager' "$url/auth/dev-login")
+              --data 'role=Manager' "$login_url")
             echo "DEV_MANAGER_LOGIN_HTTP=$login_code"
             [[ "$login_code" == 303 ]]
+            issue_iap_token "$preview_url" manager-preview
+            preview_token=$(cat "$RUNNER_TEMP/manager-preview.jwt")
             preview_code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/preview.json" --write-out '%{http_code}' \
-              --cookie "$jar" "$url/api/v1/manager/realized-audits/backfill-preview")
+              --header "Authorization: Bearer $preview_token" --cookie "$jar" "$preview_url")
             echo "MANAGER_PREVIEW_HTTP=$preview_code"
             [[ "$preview_code" == 200 ]]
             jq -e '.ok == true and .readOnly == true and .writeAuthorized == false and .firestoreDocuments == 377 and .alreadyPresent == 377 and .toCreate == 0 and .blockingIssues == 1 and .identityVersions == "USED" and ((.issues | tostring) | contains("AUDIT_ID_INVALID"))' \
@@ -156,8 +173,12 @@ jobs:
               exit 1
             }
             url=$(candidate_url "$candidate_item")
-            code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' "$url/api/v1/manager/realized-audits/backfill-preview")
-            echo "UNAUTHENTICATED_PREVIEW_HTTP=$code"
+            preview_url="$url/api/v1/manager/realized-audits/backfill-preview"
+            issue_iap_token "$preview_url" manager-unauthenticated
+            preview_token=$(cat "$RUNNER_TEMP/manager-unauthenticated.jwt")
+            code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' \
+              --header "Authorization: Bearer $preview_token" "$preview_url")
+            echo "NO_MANAGER_SESSION_PREVIEW_HTTP=$code"
             [[ "$code" == 401 || "$code" == 403 || "$code" == 302 ]]
             verify_candidate "$url"
             echo "CANDIDATE_REVISION=$revision"

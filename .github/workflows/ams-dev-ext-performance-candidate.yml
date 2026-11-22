@@ -32,12 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = 13059fc2772be742042ed3bce9bac578bb4956a8
-          test "$(sha256sum .github/workflows/ams-dev-ext-performance.patch | cut -d' ' -f1)" = ac88973b9ee8647645d007823ff3cbc7c4db9cdc70f07e4846e31e9aa98f1b7d
-          test "$(sha256sum cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs | cut -d' ' -f1)" = 422cd572d01ee32f93f2ffc4694b9bd4f0fc2e30d39f83e09897dea8a2fb3047
-          test "$(sha256sum cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs | cut -d' ' -f1)" = 4b7256b47e99190170d4c1eedced139a4120842eba65ba705bcbfdb7e91838f5
-          test "$(sha256sum cloudrun/transport-proof/manager-dev-write-route-20-test.mjs | cut -d' ' -f1)" = b759788893eba18b7ade2c14434853dcc1d2a7052f8f86e2711f496095169765
-          test "$(sha256sum cloudrun/transport-proof/fase12-extension-undo-regression-test.mjs | cut -d' ' -f1)" = 3e77bc57dd494758cc73b7a9e0d1ed3655dcbac6cf0cbb7454490d28a5f2ace1
+          test "$(git rev-parse HEAD^)" = 7e66c54cca02d67d60f150f35d4eb81c92ac19d4
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
           mkdir "$RUNNER_TEMP/ext-source"
@@ -55,10 +50,10 @@ jobs:
           git apply "$RUNNER_TEMP/ext.patch"
           cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs" cloudrun/transport-proof/
           cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs" cloudrun/transport-proof/
-          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs" cloudrun/transport-proof/
-          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs" cloudrun/transport-proof/
-          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/manager-dev-write-route-20-test.mjs" cloudrun/transport-proof/
-          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/fase12-extension-undo-regression-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/dev-model-c-sheet-serial-date-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/planning-atomic-extension-service-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/manager-dev-write-route-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/fase12-extension-undo-regression-test.mjs" cloudrun/transport-proof/
           git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
           git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
           test "$(sha256sum cloudrun/transport-proof/server-r4.js | cut -d' ' -f1)" = b90a24d06d198a7a539a04978934b9e6b437db930d96f8d08bcd013d8bd0e6b8

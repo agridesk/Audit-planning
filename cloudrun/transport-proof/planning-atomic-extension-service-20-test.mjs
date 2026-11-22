@@ -136,7 +136,7 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 assert.ok(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension"));
 assert.ok(r4.includes("return buildAtomicExtensionWriteset20({plan,source,cbEvent,cbEvents,revisionOf:directRowRevision})"));
 assert.ok(r4.includes("EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN"));
-assert.ok(r4.includes("const planningRows=atomicPreflight?canonicalPlanningRows:dates.planning"),
+assert.ok(r4.includes("const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20(valueRenderOption):dates.planning"),
  'EXT/Undo CAS must use the bounded canonical Sheets read');
 {
  const start=r4.indexOf('async function readCanonicalPlanningRowsForAtomic20(');

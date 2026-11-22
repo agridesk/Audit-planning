@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {inspectDevScopeExtension20 as inspect,planDevScopeExtension20 as plan} from './model-c-extension-dev-direct-20.mjs';
+import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
 const oh=['Obligation_ID','Company_UID','ScopeCode','Trigger_Source','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To','Extension_Applied','Extension_Metadata_JSON'];
 const lh=['Audit_ID','Obligation_ID','Link_State'],ph=['Audit ID','Status','Extended Expiration Date','Extension applied','Planning window from','Planning window to'];
 const sh=['ScopeCode','Extension','Planning from','Planning to'];
@@ -118,6 +119,13 @@ const parentOnly={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]]],
 const parentCommand={...pairCommand,obligationId:'G'};
 const singleApply=plan({...parentCommand,snapshot:inspect(parentOnly)});
 assert.deepEqual(singleApply.obligationChanges.map(x=>x.obligationId),['G'],'parent without an active child can be extended alone');
+const singleValues=Array(16).fill('');
+singleValues[0]='event-G';singleValues[3]='G';
+const singleEvent={eventId:singleValues[0],values:singleValues};
+const singleProof=buildAtomicExtensionWriteset20({plan:singleApply,source:parentOnly,cbEvent:singleEvent,revisionOf:()=> 'revision'});
+assert.equal(singleProof.projectionWrites.length,9,'single EXT prepares only its obligation and audit projection');
+assert.equal(singleProof.projectionPreconditions.length,9);
+assert.deepEqual(singleProof.appendIntents[0].values,[singleValues],'single EXT prepares one notification intent, not a missing child');
 const separateScope={...pairSource,obligationRows:[pairHeaders,[...pairRows[1]],
  ['S','C','MPS-SQ','CERTIFICATE','2027-01-31','2027-01-31','2026-09-30','2026-12-31','','','2027','OPEN']],
  linkRows:[lh,['P','G','ACTIVE'],['P','S','ACTIVE']],
@@ -147,6 +155,9 @@ assert.throws(()=>plan({...parentCommand,snapshot:inspect(otherVisit)}),/SHARED_
 const unlinkedChild={...pairSource,linkRows:[lh,['P','G','ACTIVE']]};
 assert.throws(()=>plan({...parentCommand,snapshot:inspect(unlinkedChild)}),/SHARED_EXPIRY_GROUP_NOT_ELIGIBLE/,'an unlinked active child cannot be ignored');
 const paired=plan({...pairCommand,snapshot:inspect(pairSource)});
+const pairedFromParent=plan({...parentCommand,snapshot:inspect(pairSource)});
+const groupResult=({obligationId,scopeCode,expected,...result})=>result;
+assert.deepEqual(groupResult(pairedFromParent),groupResult(paired),'both scope entrypoints must produce the same complete paired writes and provenance');
 assert.equal(paired.updates.length,14);
 assert.deepEqual(paired.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-05-31','2027-05-31']);
 for(const {obligationId,expected} of paired.obligationChanges){
@@ -154,11 +165,12 @@ for(const {obligationId,expected} of paired.obligationChanges){
  row.splice(5,5,expected.effectiveExpiry,expected.windowFrom,expected.windowTo,'Yes',expected.extensionMetadata);
 }
 const pairUndo=plan({...pairCommand,command:'undo',requestId:'UNDO',obligationId:'G',snapshot:inspect(pairSource)});
+const pairUndoFromChild=plan({...pairCommand,command:'undo',requestId:'UNDO',snapshot:inspect(pairSource)});
+assert.deepEqual(groupResult(pairUndoFromChild),groupResult(pairUndo),'Undo from either scope must restore both members using identical writes');
 assert.deepEqual(pairUndo.obligationChanges.map(x=>x.expected.effectiveExpiry),['2027-01-31','2027-01-31']);
 pairRows[2][9]=pairRows[2][9].replace('"transactionId":"TX"','"transactionId":"OTHER"');
 assert.throws(()=>plan({...pairCommand,command:'undo',snapshot:inspect(pairSource)}),/SHARED_EXPIRY_PROVENANCE_CONFLICT/);
 console.log('Shared expiry planner: paired Apply, paired Undo, and mismatched transaction rejection PASS');
-const {buildAtomicExtensionWriteset20}=await import('./planning-atomic-extension-writeset-20.mjs');
 const events=paired.obligationChanges.map(({obligationId})=>{
  const values=Array(16).fill('');
  values[0]='event-'+obligationId; values[3]=obligationId;
@@ -168,6 +180,10 @@ const pairedProof=buildAtomicExtensionWriteset20({plan:paired,source:pairSource,
 assert.equal(pairedProof.projectionWrites.length,14);
 assert.equal(pairedProof.projectionPreconditions.length,14);
 assert.equal(pairedProof.appendIntents[0].values.length,2);
+const parentProof=buildAtomicExtensionWriteset20({plan:pairedFromParent,source:pairSource,cbEvents:events,cbEvent:events[0],revisionOf:()=> 'revision'});
+assert.deepEqual(parentProof.projectionWrites,pairedProof.projectionWrites);
+assert.deepEqual(parentProof.projectionPreconditions,pairedProof.projectionPreconditions);
+assert.deepEqual(parentProof.appendIntents,pairedProof.appendIntents,'single-parent fix must retain both paired notification intents');
 assert.throws(()=>buildAtomicExtensionWriteset20({plan:paired,source:pairSource,cbEvents:[events[0],events[0]],cbEvent:events[0],revisionOf:()=> 'revision'}),/MEMBERSHIP_INVALID/);
 console.log('Shared expiry writeset: both obligations and both event intents verified');
 

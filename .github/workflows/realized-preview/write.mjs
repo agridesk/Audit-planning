@@ -31,7 +31,7 @@ try{
  const plan=planRealizedAuditsBackfill20({logValues:filtered,auditorValues:auditors,identityVersions:versions,existingIds:[]});
  if(plan.identityVersions!=='USED')throw Error('AUDITOR_UID_IDENTITY_VERSIONS_NOT_USED');
  if(!plan.ready||plan.blockingIssues!==0||plan.documents.length!==377||plan.toCreate!==377||plan.rowsRead!==377)throw Error('PLAN_SCOPE_OR_VALIDATION_CHANGED');
- if(plan.documents.some(d=>!d.auditorUid||encodeURIComponent(d.auditId)!==d.auditId))throw Error('DOCUMENT_ID_OR_UID_NOT_SAFE_FOR_CREATE');
+ if(plan.documents.some(d=>!d.auditorUid))throw Error('DOCUMENT_UID_MISSING');
  out.rowsRead=plan.rowsRead;out.documentsAuthorized=plan.documents.length;out.planDigest=plan.digest;out.issueCodes=plan.issues;
  const result=await store.createMany(plan.documents);out.created=result.created;
  const after=await store.listAll();out.firestoreDocumentsAfter=after.length;

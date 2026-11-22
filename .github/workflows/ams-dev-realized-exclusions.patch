@@ -473,6 +473,7 @@ index 0000000..5a2fd08
 +assert.equal(calls.filter(c=>c.startsWith('GET')).length,2);
 +assert.equal(a.find(d=>d.auditId==='BULK-000').hoursDedicated,7.5);
 +await realized.listAll();assert.equal(calls.filter(c=>c.startsWith('GET')).length,2);
++const specialDocument={...plan.documents[0],auditId:'AUD #1'};assert.equal((await realized.createMany([specialDocument])).created,1);assert.ok(db.has('AUD%20%231'));assert.equal((await realized.listAll()).some(d=>d.auditId==='AUD #1'),true);
 +await assert.rejects(()=>realized.createMany([many[0]]),/REALIZED_FIRESTORE_ALREADY_EXISTS/);
 +await assert.rejects(()=>realized.createMany(Array.from({length:401},()=>many[0])),/REALIZED_FIRESTORE_BATCH_INVALID/);
 +db.set('CORRUPT',{payload:enc({schema:'AMS_REALIZED_AUDIT_V1',auditId:'OTHER'})});
@@ -739,7 +740,7 @@ index 0000000..3cda97b
 +  if(!Array.isArray(documents)||documents.length>400)throw Error('REALIZED_FIRESTORE_BATCH_INVALID');
 +  for(const d of documents)if(d?.schema!==REALIZED_AUDIT_SCHEMA_20||!validId(d.auditId))throw Error('REALIZED_FIRESTORE_DOCUMENT_INVALID');
 +  if(!documents.length)return {created:0};
-+  const writes=documents.map(d=>({update:{name:root+'/'+collection+'/'+d.auditId,fields:{payload:encode(d)}},currentDocument:{exists:false}}));
++  const writes=documents.map(d=>({update:{name:root+'/'+collection+'/'+encodeURIComponent(d.auditId),fields:{payload:encode(d)}},currentDocument:{exists:false}}));
 +  const r=await request(base+':commit','POST',{writes});
 +  if([409,412].includes(r.status))throw Error('REALIZED_FIRESTORE_ALREADY_EXISTS');
 +  if(!r.ok)throw Error('REALIZED_FIRESTORE_COMMIT_'+r.status);

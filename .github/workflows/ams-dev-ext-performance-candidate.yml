@@ -1,6 +1,10 @@
 name: Deploy EXT performance DEV candidate
 
 on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/ams-dev-ext-performance-candidate.yml
   workflow_dispatch:
 
 permissions:
@@ -28,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = 54ef846ecf47f52ffe3675a5c23a28972d3e88a4
+          test "$(git rev-parse HEAD^)" = 13059fc2772be742042ed3bce9bac578bb4956a8
           test "$(sha256sum .github/workflows/ams-dev-ext-performance.patch | cut -d' ' -f1)" = ac88973b9ee8647645d007823ff3cbc7c4db9cdc70f07e4846e31e9aa98f1b7d
           test "$(sha256sum cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs | cut -d' ' -f1)" = 422cd572d01ee32f93f2ffc4694b9bd4f0fc2e30d39f83e09897dea8a2fb3047
           test "$(sha256sum cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs | cut -d' ' -f1)" = 4b7256b47e99190170d4c1eedced139a4120842eba65ba705bcbfdb7e91838f5

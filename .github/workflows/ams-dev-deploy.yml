@@ -7,7 +7,7 @@ on:
         description: Single EXT release operation
         required: true
         type: choice
-        options: [deploy, preview, promote, source-check, rollback, logs, promote-ext-perf, rollback-ext-perf, promote-ext-perf2, rollback-ext-perf2]
+        options: [deploy, preview, promote, source-check, rollback, logs, promote-ext-perf, rollback-ext-perf, promote-ext-perf2, rollback-ext-perf2, promote-planner-status, rollback-planner-status]
       revision:
         description: Candidate revision for preview or promotion
         required: false
@@ -83,8 +83,13 @@ jobs:
           current=$(describe)
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
           jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
-          if [[ "$OPERATION" =~ ^(promote|rollback)-ext-perf2?$ ]]; then
-            if [[ "$OPERATION" == *perf2 ]]; then
+          if [[ "$OPERATION" =~ ^(promote|rollback)-(ext-perf2?|planner-status)$ ]]; then
+            if [[ "$OPERATION" == *planner-status ]]; then
+              stable=ams-fase12-dev-00361-yif
+              perf=ams-fase12-dev-00363-koj
+              perf_tag=planner-status-45021939941
+              perf_sha=db2674cdf0aae1cccc59125ed954011e3171e845
+            elif [[ "$OPERATION" == *perf2 ]]; then
               stable=ams-fase12-dev-00359-rar
               perf=ams-fase12-dev-00361-yif
               perf_tag=ext-perf-45019807926

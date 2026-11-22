@@ -1,0 +1,29 @@
+﻿name: AMS DEV Alohaflor read-only probe (no writes)
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/ams-dev-alohaflor-readonly-probe.yml'
+      - '.github/scripts/ams-dev-alohaflor-readonly-probe.mjs'
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  probe:
+    if: github.ref == 'refs/heads/dev' && github.repository == 'agridesk/Audit-planning'
+    environment: ams-dev-migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Read-only Firestore scan
+        run: |
+          test "$(gcloud config get-value project)" = "audit-management-system-dev"
+          node .github/scripts/ams-dev-alohaflor-readonly-probe.mjs

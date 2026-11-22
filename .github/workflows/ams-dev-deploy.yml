@@ -86,9 +86,9 @@ jobs:
           if [[ "$OPERATION" =~ ^(promote|rollback)-(ext-perf2?|planner-status|fs-availability)$ ]]; then
             if [[ "$OPERATION" == *fs-availability ]]; then
               stable=ams-fase12-dev-00363-koj
-              perf=ams-fase12-dev-00365-zec
-              perf_tag=fs-availability-45027482382
-              perf_sha=d71ef3a6772c5382572c60c58fec8ca3daef2204
+              perf=ams-fase12-dev-00366-puc
+              perf_tag=fs-availability-45030318869
+              perf_sha=629112622e20ab20304ebf72febed36d82624d33
             elif [[ "$OPERATION" == *planner-status ]]; then
               stable=ams-fase12-dev-00361-yif
               perf=ams-fase12-dev-00363-koj

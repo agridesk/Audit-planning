@@ -95,7 +95,8 @@ jobs:
           traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
           current=$(describe)
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
-          jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED != "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null
+          jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null
+          gcloud run revisions describe "$live" "${args[@]}" --format=json | jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED != "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' >/dev/null
           jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
           before=$(traffic <<<"$current")
           gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \

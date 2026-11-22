@@ -1,0 +1,132 @@
+name: AMS DEV realized-audits authority cutover
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Prepare an isolated candidate, promote it to DEV traffic, or roll back
+        required: true
+        type: choice
+        options: [prepare, promote, rollback]
+      revision:
+        description: Exact candidate revision for promote or rollback
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ams-fase12-dev-isolated-deploy
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Apply guarded DEV authority operation
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REVISION: ${{ inputs.revision }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
+          service=ams-fase12-dev
+          previous=ams-fase12-dev-00366-puc
+          tag="realized-authority-${RUN_ID}"
+          describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
+          traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
+          envmap='[.spec.containers[0].env[]? | {key:.name,value:(.value // "<secret-ref>")}] | from_entries'
+          verify_candidate() {
+            local url="$1" jar="$RUNNER_TEMP/manager-cookie.txt" login_code preview_code
+            login_code=$(curl --silent --max-time 30 --max-redirs 0 --output "$RUNNER_TEMP/login-body.txt" --write-out '%{http_code}' \
+              --cookie-jar "$jar" --header "Origin: $url" --header 'Sec-Fetch-Site: same-origin' \
+              --header 'Sec-Fetch-Mode: navigate' --header 'Sec-Fetch-Dest: document' \
+              --data 'role=Manager' "$url/auth/dev-login")
+            echo "DEV_MANAGER_LOGIN_HTTP=$login_code"
+            [[ "$login_code" == 303 ]]
+            preview_code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/preview.json" --write-out '%{http_code}' \
+              --cookie "$jar" "$url/api/v1/manager/realized-audits/backfill-preview")
+            echo "MANAGER_PREVIEW_HTTP=$preview_code"
+            [[ "$preview_code" == 200 ]]
+            jq -e '.ok == true and .readOnly == true and .writeAuthorized == false and .firestoreDocuments == 377 and .alreadyPresent == 377 and .toCreate == 0 and .blockingIssues == 1 and .identityVersions == "USED" and ((.issues | tostring) | contains("AUDIT_ID_INVALID"))' \
+              "$RUNNER_TEMP/preview.json" >/dev/null
+            jq -c '{ready,writeAuthorized,firestoreDocuments,toCreate,alreadyPresent,blockingIssues,identityVersions,issues}' \
+              "$RUNNER_TEMP/preview.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          }
+          current=$(describe)
+          jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
+          if [[ "$OPERATION" == prepare ]]; then
+            jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null
+            jq -e --arg previous "$previous" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
+            jq -e --arg previous "$previous" '.status.latestReadyRevisionName == $previous' <<<"$current" >/dev/null
+            revision_json=$(gcloud run revisions describe "$previous" "${args[@]}" --format=json)
+            jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true"' <<<"$revision_json" >/dev/null
+            before=$(traffic <<<"$current")
+            gcloud run services update "$service" "${args[@]}" --no-traffic --tag="$tag" --update-env-vars=AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED=true
+            current=$(describe)
+            [[ "$(traffic <<<"$current")" == "$before" ]]
+            revision=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+            candidate=$(gcloud run revisions describe "$revision" "${args[@]}" --format=json)
+            jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$candidate" >/dev/null
+            jq -e 'any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$candidate" >/dev/null
+            [[ "$(jq -c '.spec.containers[].image' <<<"$candidate")" == "$(jq -c '.spec.template.spec.containers[].image' <<<"$revision_json")" ]]
+            [[ "$(jq -cS "$envmap" <<<"$candidate")" == "$(jq -cS "$envmap | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED = \"true\"" <<<"$revision_json")" ]] || {
+              echo "::error::Candidate contains unexpected environment drift"
+              exit 1
+            }
+            url=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .url' <<<"$current")
+            code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' "$url/api/v1/manager/realized-audits/backfill-preview")
+            echo "UNAUTHENTICATED_PREVIEW_HTTP=$code"
+            [[ "$code" == 401 || "$code" == 403 || "$code" == 302 ]]
+            verify_candidate "$url"
+            echo "CANDIDATE_REVISION=$revision"
+            echo "CANDIDATE_URL=$url"
+            echo "REGULAR_TRAFFIC_UNCHANGED=$before"
+            echo "Promotion remains a separate explicit operation."
+            exit 0
+          fi
+          [[ "$OPERATION" == promote || "$OPERATION" == rollback ]]
+          [[ "$REVISION" =~ ^ams-fase12-dev-[0-9]+-[a-z0-9]+$ ]]
+          candidate=$(gcloud run revisions describe "$REVISION" "${args[@]}" --format=json)
+          if [[ "$OPERATION" == promote ]]; then
+            jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null
+            jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$candidate" >/dev/null
+            jq -e 'any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$candidate" >/dev/null
+            jq -e --arg revision "$REVISION" '[.status.traffic[] | select(.revisionName == $revision and (.tag|startswith("realized-authority-")) and (.percent // 0) == 0)] | length == 1' <<<"$current" >/dev/null
+            jq -e --arg previous "$previous" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
+            from_env=$(gcloud run revisions describe "$previous" "${args[@]}" --format=json | jq -cS "$envmap | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED = \"true\"")
+            to_env=$(jq -cS "$envmap" <<<"$candidate")
+            [[ "$from_env" == "$to_env" ]] || { echo "::error::Candidate environment differs beyond the realized-audits flag"; exit 1; }
+            old_image=$(gcloud run revisions describe "$previous" "${args[@]}" --format=json | jq -c '.spec.containers[].image')
+            [[ "$old_image" == "$(jq -c '.spec.containers[].image' <<<"$candidate")" ]]
+            url=$(jq -er --arg revision "$REVISION" '.status.traffic[] | select(.revisionName == $revision and (.tag|startswith("realized-authority-")) and (.percent // 0) == 0) | .url' <<<"$current")
+            verify_candidate "$url"
+            gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$REVISION=100" >/dev/null
+            jq -e --arg revision "$REVISION" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $revision and .[0].percent == 100' <<<"$(describe)" >/dev/null
+            echo "PROMOTED=$REVISION"
+          else
+            jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true"' <<<"$current" >/dev/null
+            jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true"' <<<"$candidate" >/dev/null
+            jq -e --arg revision "$REVISION" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $revision and .[0].percent == 100' <<<"$current" >/dev/null
+            before=$(traffic <<<"$current")
+            gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$previous=100" >/dev/null
+            current=$(describe)
+            jq -e --arg previous "$previous" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
+            [[ "$(traffic <<<"$current")" != "$before" ]]
+            gcloud run services update "$service" "${args[@]}" --no-traffic --update-env-vars=AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED=false
+            current=$(describe)
+            jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true"' <<<"$current" >/dev/null
+            jq -e --arg previous "$previous" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
+            echo "ROLLED_BACK_TO=$previous"
+          fi

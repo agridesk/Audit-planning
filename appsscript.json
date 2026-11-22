@@ -8,6 +8,7 @@
   },
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/datastore",
     "https://www.googleapis.com/auth/script.container.ui",
     "https://www.googleapis.com/auth/script.scriptapp",
     "https://mail.google.com/",

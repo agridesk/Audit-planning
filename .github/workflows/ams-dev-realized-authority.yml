@@ -169,7 +169,7 @@ jobs:
             candidate=$(gcloud run revisions describe "$revision" "${args[@]}" --format=json)
             jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$candidate" >/dev/null
             jq -e 'any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$candidate" >/dev/null
-            [[ "$(jq -c '.spec.containers[].image' <<<"$candidate")" == "$(jq -c '.spec.template.spec.containers[].image' <<<"$revision_json")" ]]
+            [[ "$(jq -c '.spec.containers[].image' <<<"$candidate")" == "$(jq -c '.spec.containers[].image' <<<"$revision_json")" ]]
             [[ "$(jq -cS "$envmap" <<<"$candidate")" == "$(jq -cS "$envmap | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED = \"true\"" <<<"$revision_json")" ]] || {
               echo "::error::Candidate contains unexpected environment drift"
               exit 1

@@ -1,13 +1,18 @@
 name: AMS DEV realized-audits authority cutover
 
 on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/ams-dev-realized-authority.yml
   workflow_dispatch:
     inputs:
       operation:
         description: Prepare an isolated candidate, promote it to DEV traffic, or roll back
         required: true
         type: choice
-        options: [prepare, promote, rollback]
+        default: apply
+        options: [apply, prepare, promote, rollback]
       revision:
         description: Exact candidate revision for promote or rollback
         required: false
@@ -34,7 +39,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
       - name: Apply guarded DEV authority operation
         env:
-          OPERATION: ${{ inputs.operation }}
+          OPERATION: ${{ inputs.operation || 'apply' }}
           REVISION: ${{ inputs.revision }}
           RUN_ID: ${{ github.run_id }}
         shell: bash
@@ -44,6 +49,7 @@ jobs:
           service=ams-fase12-dev
           previous=ams-fase12-dev-00366-puc
           tag="realized-authority-${RUN_ID}"
+          auto_apply=false
           describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
           traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
           envmap='[.spec.containers[0].env[]? | {key:.name,value:(.value // "<secret-ref>")}] | from_entries'
@@ -64,9 +70,30 @@ jobs:
             jq -c '{ready,writeAuthorized,firestoreDocuments,toCreate,alreadyPresent,blockingIssues,identityVersions,issues}' \
               "$RUNNER_TEMP/preview.json" | tee -a "$GITHUB_STEP_SUMMARY"
           }
+          rollback_on_failure() {
+            local rc=$?
+            if [[ "$auto_apply" == true && -n "${REVISION:-}" && "$rc" -ne 0 ]]; then
+              local active current_after
+              current_after=$(describe) || exit "$rc"
+              active=$(jq -r '[.status.traffic[] | select((.percent // 0) > 0) | .revisionName] | if length == 1 then .[0] else "" end' <<<"$current_after")
+              if [[ "$active" == "$REVISION" ]]; then
+                gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$previous=100" >/dev/null || {
+                  echo "::error::Automatic traffic rollback failed"
+                  exit "$rc"
+                }
+                gcloud run services update "$service" "${args[@]}" --no-traffic --update-env-vars=AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED=false || {
+                  echo "::error::Automatic flag rollback failed"
+                  exit "$rc"
+                }
+                echo "AUTOMATIC_ROLLBACK_TO=$previous"
+              fi
+            fi
+            exit "$rc"
+          }
+          trap rollback_on_failure EXIT
           current=$(describe)
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
-          if [[ "$OPERATION" == prepare ]]; then
+          if [[ "$OPERATION" == prepare || "$OPERATION" == apply ]]; then
             jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null
             jq -e --arg previous "$previous" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
             jq -e --arg previous "$previous" '.status.latestReadyRevisionName == $previous' <<<"$current" >/dev/null
@@ -93,10 +120,16 @@ jobs:
             echo "CANDIDATE_REVISION=$revision"
             echo "CANDIDATE_URL=$url"
             echo "REGULAR_TRAFFIC_UNCHANGED=$before"
-            echo "Promotion remains a separate explicit operation."
-            exit 0
+            if [[ "$OPERATION" == prepare ]]; then
+              echo "Promotion remains a separate explicit operation."
+              trap - EXIT
+              exit 0
+            fi
+            REVISION=$revision
+            auto_apply=true
           fi
-          [[ "$OPERATION" == promote || "$OPERATION" == rollback ]]
+          [[ "$OPERATION" == promote || "$OPERATION" == rollback || "$OPERATION" == apply ]]
+          if [[ "$OPERATION" == apply ]]; then OPERATION=promote; fi
           [[ "$REVISION" =~ ^ams-fase12-dev-[0-9]+-[a-z0-9]+$ ]]
           candidate=$(gcloud run revisions describe "$REVISION" "${args[@]}" --format=json)
           if [[ "$OPERATION" == promote ]]; then
@@ -114,6 +147,7 @@ jobs:
             verify_candidate "$url"
             gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$REVISION=100" >/dev/null
             jq -e --arg revision "$REVISION" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $revision and .[0].percent == 100' <<<"$(describe)" >/dev/null
+            if [[ "$auto_apply" == true ]]; then verify_candidate "$url"; fi
             echo "PROMOTED=$REVISION"
           else
             jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true"' <<<"$current" >/dev/null

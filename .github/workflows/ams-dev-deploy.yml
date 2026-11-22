@@ -7,7 +7,7 @@ on:
         description: Single EXT release operation
         required: true
         type: choice
-        options: [deploy, preview, promote, source-check, rollback, logs, promote-ext-perf, rollback-ext-perf]
+        options: [deploy, preview, promote, source-check, rollback, logs, promote-ext-perf, rollback-ext-perf, promote-ext-perf2, rollback-ext-perf2]
       revision:
         description: Candidate revision for preview or promotion
         required: false
@@ -83,14 +83,22 @@ jobs:
           current=$(describe)
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
           jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
-          if [[ "$OPERATION" == promote-ext-perf || "$OPERATION" == rollback-ext-perf ]]; then
-            stable=ams-fase12-dev-00349-lux
-            perf=ams-fase12-dev-00359-rar
-            perf_tag=ext-perf-45017520422
-            if [[ "$OPERATION" == promote-ext-perf ]]; then
+          if [[ "$OPERATION" =~ ^(promote|rollback)-ext-perf2?$ ]]; then
+            if [[ "$OPERATION" == *perf2 ]]; then
+              stable=ams-fase12-dev-00359-rar
+              perf=ams-fase12-dev-00361-yif
+              perf_tag=ext-perf-45019807926
+              perf_sha=562b406a22c67d6473909e7645cc7eea2b57b2c5
+            else
+              stable=ams-fase12-dev-00349-lux
+              perf=ams-fase12-dev-00359-rar
+              perf_tag=ext-perf-45017520422
+              perf_sha=2e1946b33463273b85249ac93cfd817ca05205da
+            fi
+            if [[ "$OPERATION" == promote-* ]]; then
               [[ "$(jq -er --arg tag "$perf_tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")" == "$perf" ]]
               revision_json=$(gcloud run revisions describe "$perf" "${args[@]}" --format=json)
-              jq -e '.metadata.labels["commit-sha"] == "2e1946b33463273b85249ac93cfd817ca05205da" and any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$revision_json" >/dev/null
+              jq -e --arg sha "$perf_sha" '.metadata.labels["commit-sha"] == $sha and any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$revision_json" >/dev/null
               from="$stable"; to="$perf"
             else
               revision_json=$(gcloud run revisions describe "$stable" "${args[@]}" --format=json)

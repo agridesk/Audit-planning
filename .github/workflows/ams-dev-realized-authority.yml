@@ -86,7 +86,7 @@ jobs:
             issue_iap_token "$login_url" manager-login
             login_token=$(cat "$RUNNER_TEMP/manager-login.jwt")
             login_code=$(curl --silent --max-time 30 --max-redirs 0 --output "$RUNNER_TEMP/login-body.txt" --write-out '%{http_code}' \
-              --cookie-jar "$jar" --header "Authorization: Bearer $login_token" --header "Origin: $url" --header 'Sec-Fetch-Site: same-origin' \
+              --cookie-jar "$jar" --header "Authorization: Bearer $login_token" --header "Origin: $service_origin" --header 'Sec-Fetch-Site: same-origin' \
               --header 'Sec-Fetch-Mode: navigate' --header 'Sec-Fetch-Dest: document' \
               --data 'role=Manager' "$login_url")
             echo "DEV_MANAGER_LOGIN_HTTP=$login_code"
@@ -128,6 +128,7 @@ jobs:
           }
           trap rollback_on_failure EXIT
           current=$(describe)
+          service_origin=$(jq -er '.status.url' <<<"$current")
           jq -c '{statusTraffic:[.status.traffic[]? | {revisionName,percent,tag}],specTraffic:[.spec.traffic[]? | {revisionName,percent,tag,latestRevision}],latestReadyRevisionName:.status.latestReadyRevisionName}' <<<"$current" | sed 's/^/DEV_TRAFFIC_STATE=/'
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
           if [[ "$OPERATION" == prepare || "$OPERATION" == apply ]] && [[ "$(jq -r '[.spec.template.spec.containers[0].env[]? | select(.name=="AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED") | .value][0] // ""' <<<"$current")" == true ]]; then

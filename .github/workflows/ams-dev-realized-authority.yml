@@ -45,6 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'rc=$?; echo "FAILED_AT_SCRIPT_LINE=$LINENO"; exit "$rc"' ERR
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
           service=ams-fase12-dev
           account=ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
@@ -127,6 +128,7 @@ jobs:
           }
           trap rollback_on_failure EXIT
           current=$(describe)
+          jq -c '{statusTraffic:[.status.traffic[]? | {revisionName,percent,tag}],specTraffic:[.spec.traffic[]? | {revisionName,percent,tag,latestRevision}],latestReadyRevisionName:.status.latestReadyRevisionName}' <<<"$current" | sed 's/^/DEV_TRAFFIC_STATE=/'
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
           if [[ "$OPERATION" == prepare || "$OPERATION" == apply ]] && [[ "$(jq -r '[.spec.template.spec.containers[0].env[]? | select(.name=="AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED") | .value][0] // ""' <<<"$current")" == true ]]; then
             jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED == "true" and .AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED != "true"' <<<"$current" >/dev/null

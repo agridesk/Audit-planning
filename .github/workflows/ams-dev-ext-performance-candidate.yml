@@ -55,6 +55,8 @@ jobs:
           cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/fase12-extension-undo-regression-test.mjs" cloudrun/transport-proof/
           git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
           git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
+          git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance-2.patch"
+          git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance-2.patch"
           echo "CANDIDATE_SERVER_R4_SHA256=$(sha256sum cloudrun/transport-proof/server-r4.js | cut -d' ' -f1)"
           echo "CANDIDATE_MANAGER_PORTAL_SHA256=$(sha256sum cloudrun/transport-proof/manager-portal.js | cut -d' ' -f1)"
           cd cloudrun/transport-proof
@@ -72,7 +74,7 @@ jobs:
           set -euo pipefail
           args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
           service=ams-fase12-dev
-          live=ams-fase12-dev-00349-lux
+          live=ams-fase12-dev-00359-rar
           tag="ext-perf-${GITHUB_RUN_ID}"
           describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
           traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
@@ -82,7 +84,7 @@ jobs:
           jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
           before=$(traffic <<<"$current")
           gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \
-            --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1,ext-perf=parallel-read-v1"
+            --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1,ext-perf=fewer-roundtrips-v2"
           current=$(describe)
           [[ "$(traffic <<<"$current")" == "$before" ]]
           revision=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")

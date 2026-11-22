@@ -200,6 +200,10 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          echo "=== EXT TIMING ams-fase12-dev-00359-rar ==="
+          gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"ams-fase12-dev-00359-rar\" AND textPayload:\"_TIMING\"" --project=audit-management-system-dev --freshness=2d --limit=40 --format=json | jq -r '.[] | [.timestamp, (.textPayload // "" | .[0:600])] | @tsv' || echo "TIMING_LOG_READ_FAILED"
+          echo "=== EXT REQUEST LATENCY ams-fase12-dev-00359-rar ==="
+          gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"ams-fase12-dev-00359-rar\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=2d --limit=40 --format=json | jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("[?].*";""))] | @tsv' || echo "REQUEST_LOG_READ_FAILED"
           for rev in ams-fase12-dev-00349-lux ams-fase12-dev-00345-huc; do
             echo "=== REQUESTS $rev ==="
             gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json | jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("[?].*";""))] | @tsv'

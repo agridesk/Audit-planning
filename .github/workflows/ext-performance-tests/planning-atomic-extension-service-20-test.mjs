@@ -57,7 +57,7 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
   },
   preflight:async args=>{events.push('preflight');if(hooks.preflight)await hooks.preflight(args);return preflight},
   projector:{
-   apply:async()=>events.push('projectRows'),
+   apply:async({prefetchMetadata})=>{assert.equal(prefetchMetadata,true,'EXT row projection overlaps metadata with its first read');events.push('projectRows')},
    inspect:async()=>{if(hooks.rowInspect)await hooks.rowInspect();return {state:inspection,detail:[{matched:true}]}}
   },
   appendProjector:{

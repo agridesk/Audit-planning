@@ -98,7 +98,7 @@ for(const command of ['apply','undo']){
   }else{
    assert.deepEqual(log,{entry:'dossier',command,commandMs:2400,refreshMs:1000,totalMs:3400,projected:true});
    assert.equal(refreshes,1,'authoritative refresh remains mandatory');
-   assert.match(feedback.textContent,/verified.*3\.4 s$/);
+   assert.match(feedback.textContent,/verified.*2\.4 s$/,'verified feedback is reported before the background refresh');
    assert.deepEqual(changes,['MPS-GAP','GRASP'].map(scope=>({scope,applied:command==='apply'})));
   }
  }

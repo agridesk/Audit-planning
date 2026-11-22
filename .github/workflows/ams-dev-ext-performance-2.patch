@@ -1,0 +1,58 @@
+diff --git a/cloudrun/transport-proof/manager-portal.js b/cloudrun/transport-proof/manager-portal.js
+index 982048d..26b1365 100644
+--- a/cloudrun/transport-proof/manager-portal.js
++++ b/cloudrun/transport-proof/manager-portal.js
+@@ -1620,6 +1620,10 @@ if(tab==='scopes'){
+     patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
+     patch.planningWindow=patch.planningWindowText;
+     mergeRowInPlace(o.auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:o.scopeCode,extensionApplied:predictedApplied}]).forEach(function(change){updateExtendedScopeCodes20(o.auditId,change.scopeCode,change.extensionApplied===true)});
++    // Server readback already verified the change; report it before the table refresh.
++    var doneText='EXT '+(command==='undo'?'undone':'applied')+' · verified · '+((Date.now()-started)/1000).toFixed(1)+' s';
++    if(info&&info.isConnected)info.textContent=doneText;
++    if(button&&button.isConnected)button.textContent=predictedApplied?'Undo':'EXT';
+     if(extCurrent()){var refreshStarted=Date.now();await loadExtObligations();refreshMs=Date.now()-refreshStarted;}
+    }else{
+     if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
+@@ -1628,7 +1632,7 @@ if(tab==='scopes'){
+     verified=true;
+     if(extCurrent()){var refreshStarted=Date.now();await loadExtObligations();refreshMs=Date.now()-refreshStarted;}
+    }
+-   if(extCurrent()){var feedback=extContent.querySelector('[data-ext-feedback]');if(feedback)feedback.textContent='EXT '+(command==='undo'?'undone':'applied')+' · verified · '+((Date.now()-started)/1000).toFixed(1)+' s';}
++   if(extCurrent()){var feedback=extContent.querySelector('[data-ext-feedback]');if(feedback)feedback.textContent=doneText||'EXT '+(command==='undo'?'undone':'applied')+' · verified · '+((Date.now()-started)/1000).toFixed(1)+' s';}
+   }catch(e){
+    if(extCurrent()){
+     if(!committed&&extensionCell){extensionCell.textContent=oldCellText;extensionCell.style.fontWeight=''}
+diff --git a/cloudrun/transport-proof/planning-atomic-extension-service-20.js b/cloudrun/transport-proof/planning-atomic-extension-service-20.js
+index 62029ee..e1fb01d 100644
+--- a/cloudrun/transport-proof/planning-atomic-extension-service-20.js
++++ b/cloudrun/transport-proof/planning-atomic-extension-service-20.js
+@@ -92,7 +92,7 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
+    const receipt=await measure('commitMs',()=>store.commit({auditId,operationId,actorId,expectedRevision:previous.revision,
+     nextSnapshot:snapshot,auditorId:null,blocks:[],action:command==='apply'?'EXT_APPLY':'EXT_UNDO'}));
+    if(receipt.replayed)throw Error('EXT_ATOMIC_UNEXPECTED_REPLAY');
+-   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
++   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot,prefetchMetadata:true}));
+    await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
+    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
+     projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)
+diff --git a/cloudrun/transport-proof/server-r4.js b/cloudrun/transport-proof/server-r4.js
+index c50bf94..aa33c7a 100644
+--- a/cloudrun/transport-proof/server-r4.js
++++ b/cloudrun/transport-proof/server-r4.js
+@@ -2385,13 +2385,13 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return
+         ||!clean(body.requestId)||clean(body.requestId).length>180)return send(res,400,{ok:false,error:'EXT_DEV_DIRECT_INPUT_INVALID'});
+       try{
+         const result=await withDirectManagerActionLock(auditId,async()=>{
+-          const source=await readIsolatedDevModelCExt20(
+-           body.authorityPreflight===true?body.sourceValueRenderOption:'FORMATTED_VALUE');
++          const [source,cbSource]=await Promise.all([readIsolatedDevModelCExt20(
++           body.authorityPreflight===true?body.sourceValueRenderOption:'FORMATTED_VALUE'),
++           sheetsBatchGet(['Certification_Bodies!A1:H200'])]);
+           const before=inspectDevScopeExtension20({...source,companyUid});
+           const plan=planDevScopeExtension20({snapshot:before,auditId,companyUid,obligationId,command:body.command,requestId:clean(body.requestId),actorUid:clean(session.uid||session.auditorUid||session.email)});
+           // Resolve CB from the immutable obligation snapshot, not from an ECAS default.
+           // Prepare before mutation so missing or mismatched provenance cannot silently proceed.
+-          const cbSource=await sheetsBatchGet(['Certification_Bodies!A1:H200']);
+           const planningAudit=before.auditRows.get(auditId);
+           const companyIndex=before.planningHead.indexOf('Company');
+           const cbEvents=plan.obligationChanges.map(change=>prepareCbExtensionEvent20({

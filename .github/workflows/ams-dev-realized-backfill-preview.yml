@@ -1,0 +1,64 @@
+name: AMS DEV realized-audits backfill preview (read-only)
+on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/ams-dev-realized-backfill-preview.yml
+      - .github/workflows/realized-preview/run.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  preview:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      DEPLOY_SA: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      RUNTIME_SA: 510075419067-compute@developer.gserviceaccount.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract realized-audits module from candidate patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --include='cloudrun/transport-proof/realized-audits-firestore-20.js' .github/workflows/ams-dev-realized-exclusions.patch
+          test -f cloudrun/transport-proof/realized-audits-firestore-20.js
+          ! grep -n 'createMany(' .github/workflows/realized-preview/run.mjs
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Read-only preview (counts and codes only)
+        shell: bash
+        env:
+          DEPLOY_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          sid=$(gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format=json \
+            | jq -r '[.spec.template.spec.containers[0].env[]? | select(.name=="AMS_SSOT_SPREADSHEET_ID" or .name=="DEV_SSOT_SPREADSHEET_ID") | .value][0] // ""')
+          echo "::add-mask::$sid"
+          body='{"scope":["https://www.googleapis.com/auth/spreadsheets.readonly","https://www.googleapis.com/auth/datastore"],"lifetime":"600s"}'
+          code=$(curl -sS -o "$RUNNER_TEMP/imp.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" -H 'content-type: application/json' \
+            -d "$body" "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${RUNTIME_SA}:generateAccessToken")
+          echo "Runtime SA impersonation HTTP status: $code" | tee -a "$GITHUB_STEP_SUMMARY"
+          results=()
+          if [[ "$code" == 200 ]]; then
+            rt=$(jq -r .accessToken "$RUNNER_TEMP/imp.json"); echo "::add-mask::$rt"
+            set +e; SID="$sid" SHEETS_TOKEN="$rt" FIRESTORE_TOKEN="$rt" node .github/workflows/realized-preview/run.mjs > "$RUNNER_TEMP/runtime.json"; rc=$?; set -e
+            echo "### Runtime SA" >> "$GITHUB_STEP_SUMMARY"; jq -c . "$RUNNER_TEMP/runtime.json" | tee -a "$GITHUB_STEP_SUMMARY"
+            [[ $rc == 0 ]] && exit 0
+          fi
+          set +e; SID="$sid" SHEETS_TOKEN="$DEPLOY_TOKEN" FIRESTORE_TOKEN="$DEPLOY_TOKEN" node .github/workflows/realized-preview/run.mjs > "$RUNNER_TEMP/deploy.json"; rc=$?; set -e
+          echo "### Deploy SA" >> "$GITHUB_STEP_SUMMARY"; jq -c . "$RUNNER_TEMP/deploy.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc

@@ -1,5 +1,5 @@
 // Read-only realized-audits backfill preview. Prints counts, issue codes and a digest only.
-import {planRealizedAuditsBackfill20,createRealizedAuditsFirestoreStore20} from '../../../cloudrun/transport-proof/realized-audits-firestore-20.js';
+import {planRealizedAuditsBackfill20,createRealizedAuditsFirestoreStore20,realizedAuditorIndex20,realizedDocumentFromLogRow20} from '../../../cloudrun/transport-proof/realized-audits-firestore-20.js';
 
 const clean=v=>String(v==null?'':v).trim();
 const key=v=>clean(v).toLowerCase().replace(/\s+/g,'_');
@@ -28,6 +28,16 @@ try{
   try{existing=await store.listAll();out.firestoreStatus='OK';}catch(e){out.firestoreStatus=code(e);throw Error('FIRESTORE_LIST_FAILED');}
   let versions=null;try{versions=identityVersions(vr[2]?.values||[]);}catch{}
   const plan=planRealizedAuditsBackfill20({logValues:vr[0]?.values||[],auditorValues:vr[1]?.values||[],identityVersions:versions,existingIds:existing.map(d=>d.auditId)});
+  // Sheet row numbers and reason classes only; never cell values.
+  const logValues=vr[0]?.values||[],index=realizedAuditorIndex20(vr[1]?.values||[],versions),idCol=col(logValues[0]||[],['Audit ID','Audit_ID','AuditId','Audit Id']);
+  out.issueRows=[];
+  logValues.slice(1).forEach((row,i)=>{
+    if(!Array.isArray(row)||!row.some(v=>clean(v)))return;
+    const m=realizedDocumentFromLogRow20(logValues[0],row,index);
+    if(!m.issue||m.issue==='NOT_COMPLETED')return;
+    const id=val(row,idCol);
+    out.issueRows.push({sheetRow:i+2,issue:m.issue,...(m.issue==='AUDIT_ID_INVALID'?{containsSlash:/\//.test(id),containsBackslash:/\\/.test(id),length:id.length}:{})});
+  });
   Object.assign(out,{ok:true,collection:store.collection,rowsRead:plan.rowsRead,toCreate:plan.toCreate,alreadyPresent:plan.alreadyPresent,firestoreDocuments:existing.length,issues:plan.issues,blockingIssues:plan.blockingIssues,identityVersions:plan.identityVersions,ready:plan.ready,planDigest:plan.digest});
 }catch(e){
   out.ok=false;out.error=code(e)||'PREVIEW_FAILED';

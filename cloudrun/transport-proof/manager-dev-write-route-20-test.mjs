@@ -75,7 +75,7 @@ assert(self.indexOf('devManagerDirectWritesConfigAllowed20(cfg)')<self.indexOf("
 const extStart=inner.indexOf('async function readIsolatedDevModelCExt20(');
 const extEnd=inner.indexOf('function isolatedExtPilot20(){',extStart);
 const ext=inner.slice(extStart,extEnd);
-assert(ext.includes('const [project,r]=await Promise.all(['),'EXT independent read-only checks can overlap');
+assert(ext.includes('const [project,r,canonicalPlanningRows]=await Promise.all(['),'EXT independent read-only checks can overlap');
 assert(ext.includes("if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED')"),'EXT retains project identity hard gate');
 assert(ext.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))"),'EXT retains DEV writer-mode hard gate');
 assert(grid.includes('DEV configuration gates blocking EXT:'));

@@ -1,0 +1,977 @@
+diff --git a/cloudrun/transport-proof/Dockerfile b/cloudrun/transport-proof/Dockerfile
+index a2f0bbd..d2a0de9 100644
+--- a/cloudrun/transport-proof/Dockerfile
++++ b/cloudrun/transport-proof/Dockerfile
+@@ -72,6 +72,7 @@ COPY availability-*.js ./
+ COPY planning-firestore-authority-20.js ./
+ COPY planning-*.js ./
+ COPY realized-hours-atomic-service-20.js ./
++COPY realized-audits-firestore-20.js ./
+ COPY planning-atomic-extension-writeset-20.mjs ./
+ COPY planning-cutover-compatibility-20.mjs ./
+ COPY availability-manager-calendar-20.html ./
+diff --git a/cloudrun/transport-proof/assignment-validation-v211-test.mjs b/cloudrun/transport-proof/assignment-validation-v211-test.mjs
+index 2d78069..bf58c62 100644
+--- a/cloudrun/transport-proof/assignment-validation-v211-test.mjs
++++ b/cloudrun/transport-proof/assignment-validation-v211-test.mjs
+@@ -28,6 +28,8 @@ import {
+   v211QualificationWithdrawalConstraint,
+   v211ResolveAuditorEmail,
+   v211CompanyAuditorExclusions,
++  v211ParseAuditorExclusionKeys,
++  v211ExpandAuditorExclusions,
+   v211MinimumIntervalConstraint,
+   v211AssignmentHardCheck,
+   v211RotationHardCheck
+@@ -84,6 +86,26 @@ assert.equal(v211CompanyAuditorExclusions(companies.concat(companies.slice(1)),'
+ assert.equal(v211CompanyAuditorExclusions(companies,'C2','Grower A').size,0);
+ assert.equal(v211CompanyAuditorExclusions(companies.concat([['C2','Grower A','other@example.com']]),'','Grower A').size,0);
+ 
++// Auditor_UID exclusions: UID entries, mixed entries and roster expansion (email <-> UID).
++const exclusionUidAuditors=[
++  ['Name','E-mail','Active','Role','MPS-ABC','MPS-GAP','GRASP','Auditor_UID'],
++  ['David','david@example.com','YES','Auditor','x','x','','AUD-0001'],
++  ['Other','other@example.com','YES','Auditor','x','','x','AUD-0002']
++];
++const uidCompanies=[['Company_UID','Company','Auditor_Exclusions'],['C1','Grower A',JSON.stringify(['AUD-0001',{auditorUid:'AUD-0003',active:false},{auditorUid:'AUD-0004'}])]];
++const uidKeys=v211CompanyAuditorExclusions(uidCompanies,'C1','Grower A');
++assert.deepEqual([...uidKeys].sort(),['aud-0001','aud-0004']);
++assert.deepEqual([...v211ExpandAuditorExclusions(uidKeys,exclusionUidAuditors)].sort(),['aud-0001','aud-0004','david@example.com']);
++assert.deepEqual([...v211ExpandAuditorExclusions(new Set(['other@example.com']),exclusionUidAuditors)].sort(),['aud-0002','other@example.com']);
++assert.equal(v211ParseAuditorExclusionKeys('David Name; other@example.com').has('david name'),false);
++assert.equal(v211ParseAuditorExclusionKeys('not json AUD-0001').size,0);
++const uidExcluded=v211AssignmentHardCheck({auditorEmail:'david@example.com',auditorValues:exclusionUidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:uidCompanies,companyUid:'C1',companyName:'Grower A',logValues:[],requestedDates:[]});
++assert.equal(uidExcluded.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),true);
++const uidByIdentity=v211AssignmentHardCheck({auditorEmail:'AUD-0001',auditorValues:exclusionUidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:[['Company_UID','Company','Auditor_Exclusions'],['C1','Grower A','["david@example.com"]']],companyUid:'C1',companyName:'Grower A',logValues:[],requestedDates:[]});
++assert.equal(uidByIdentity.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),true);
++const uidNotExcluded=v211AssignmentHardCheck({auditorEmail:'other@example.com',auditorValues:exclusionUidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:uidCompanies,companyUid:'C1',companyName:'Grower A',logValues:[],requestedDates:[]});
++assert.equal(uidNotExcluded.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),false);
++
+ const log=[
+   ['Company_UID','Company','Status','Date completed','MPS-ABC','MPS-GAP','GRASP'],
+   ['C1','Grower A','Completed','2026-01-31','x','',''],
+diff --git a/cloudrun/transport-proof/assignment-validation-v211.js b/cloudrun/transport-proof/assignment-validation-v211.js
+index 55c55a2..4fd5651 100644
+--- a/cloudrun/transport-proof/assignment-validation-v211.js
++++ b/cloudrun/transport-proof/assignment-validation-v211.js
+@@ -36,15 +36,31 @@ export function v211CompanyAuditorExclusions(values,companyUid,companyName){
+     if(nameMatches.length!==1)return out;
+   }
+   const raw=clean(row[cx]);if(!raw)return out;
+-  const add=v=>{const s=clean(v).toLowerCase();if(s&&s.includes('@'))out.add(s);};
++  v211ParseAuditorExclusionKeys(raw).forEach(k=>out.add(k));
++  return out;
++}
++
++export function v211ParseAuditorExclusionKeys(raw){
++  const out=new Set(),text=clean(raw);if(!text)return out;
++  const add=v=>{const s=clean(v).toLowerCase();if(s&&(s.includes('@')||/^[a-z0-9][a-z0-9_.:-]{2,127}$/.test(s)))out.add(s);};
+   try{
+-    const j=JSON.parse(raw),arr=Array.isArray(j)?j:(Array.isArray(j?.exclusions)?j.exclusions:Array.isArray(j?.items)?j.items:[]);
++    const j=JSON.parse(text),arr=Array.isArray(j)?j:(Array.isArray(j?.exclusions)?j.exclusions:Array.isArray(j?.items)?j.items:[]);
+     for(const x of arr){
+       if(typeof x==='string'){add(x);continue;}
+       if(!x||typeof x!=='object'||x.active===false||String(x.active).toLowerCase()==='false')continue;
+-      add(x.auditorEmail||x.email||x.auditor||x.userEmail);
++      add(x.auditorUid||x.Auditor_UID||x.uid);add(x.auditorEmail||x.email||x.auditor||x.userEmail);
+     }
+-  }catch{raw.split(/[;,|\n]/).forEach(add);}
++  }catch{text.split(/[;,|\n]/).forEach(v=>{if(clean(v).includes('@'))add(v);});}
++  return out;
++}
++
++export function v211ExpandAuditorExclusions(keys,auditorValues){
++  const out=new Set(keys||[]);if(!out.size||!Array.isArray(auditorValues)||!auditorValues.length)return out;
++  const h=auditorValues[0]||[],u=col(h,['Auditor_UID','Auditor UID','AuditorUid']),e=col(h,['E-mail','Email','E-mail address','Mail']);
++  for(const r of auditorValues.slice(1)){
++    const uid=u>=0?val(r,u).toLowerCase():'',email=e>=0?val(r,e).toLowerCase():'';
++    if((uid&&out.has(uid))||(email&&out.has(email))){if(uid)out.add(uid);if(email)out.add(email);}
++  }
+   return out;
+ }
+ 
+@@ -191,12 +207,14 @@ export function v211AssignmentHardCheck({
+   if(requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations))reasons.push('CANONICAL_QUALIFICATIONS_NOT_LOADED');
+   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
+   if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[],requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations)?[]:qualificationRelations))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+-  const exclusions=v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName);
++  const exclusions=v211ExpandAuditorExclusions(v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName),auditorValues||[]);
+   const identityRow=v211AuditorRowByIdentity(auditorValues||[],auditorEmail);
+   const identityHeader=(auditorValues||[])[0]||[];
+   const emailIndex=col(identityHeader,['E-mail','Email','E-mail address','Mail']);
++  const uidIndex=col(identityHeader,['Auditor_UID','Auditor UID','AuditorUid']);
+   const canonicalEmail=identityRow&&emailIndex>=0?val(identityRow,emailIndex).toLowerCase():'';
+-  if(exclusions.has(clean(auditorEmail).toLowerCase())||(canonicalEmail&&exclusions.has(canonicalEmail)))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
++  const canonicalUid=identityRow&&uidIndex>=0?val(identityRow,uidIndex).toLowerCase():'';
++  if(exclusions.has(clean(auditorEmail).toLowerCase())||(canonicalEmail&&exclusions.has(canonicalEmail))||(canonicalUid&&exclusions.has(canonicalUid)))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
+   const withdrawal=v211QualificationWithdrawalConstraint({auditorValues:auditorValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],auditorEmail,requestedDates:requestedDates||[]});reasons.push(...withdrawal.reasons);
+   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});
+   if(minInterval.ambiguousLegacyCompany)reasons.push('MIN_INTERVAL_LEGACY_COMPANY_AMBIGUOUS');
+diff --git a/cloudrun/transport-proof/company-management-contract-test.mjs b/cloudrun/transport-proof/company-management-contract-test.mjs
+index 4bbd6df..81eadaf 100644
+--- a/cloudrun/transport-proof/company-management-contract-test.mjs
++++ b/cloudrun/transport-proof/company-management-contract-test.mjs
+@@ -45,6 +45,10 @@ assert.ok(ui.includes("Locations · "), 'Location overview shows active count');
+ assert.ok(ui.includes("'All active company locations'"),'All company locations mapped');
+ assert.ok(server.includes("INVALID_AUDITOR_EXCLUSIONS"),'Auditor exclusion validator remains active');
+ assert.ok(server.includes("exclusions.some(v=>"),'Exclusion emails validated');
++assert.ok(server.includes("AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED==='true'")&&server.includes("process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED"),'UID exclusion writes are DEV-flag gated');
++assert.ok(server.includes("item.value=JSON.stringify(uids.sort())")&&server.includes("AUDITOR_EXCLUSION_UID_UNRESOLVED"),'UID mode normalizes exclusions to unique Auditor_UID values');
++assert.ok(server.includes("v211ExpandAuditorExclusions(companyAuditorExclusions("),'Planner exclusions match by email or Auditor_UID');
++assert.ok(ui.includes("auditorExclusionKeyMode=result.auditorExclusionKey==='uid'?'uid':'email'")&&ui.includes("useUidExclusions&&a.uid?a.uid:a.email"),'Frontend writes UID exclusions only in UID mode');
+ assert.ok(ui.includes('map.fitBounds(bounds,42)'),'Google Maps frames all locations');
+ assert.ok(ui.includes("gestureHandling:'cooperative'"),'Map wheel handling does not trap the page');
+ assert.ok(ui.includes('function endOptions()'),'Dependent end-time options');
+diff --git a/cloudrun/transport-proof/manager-portal.js b/cloudrun/transport-proof/manager-portal.js
+index b54566b..f57b937 100644
+--- a/cloudrun/transport-proof/manager-portal.js
++++ b/cloudrun/transport-proof/manager-portal.js
+@@ -1535,7 +1535,7 @@ close.onclick=function(){var dirty=pendingEdits.some(function(e){return String(e
+ })();
+ (function(){
+ var open=document.getElementById('companyManagement20'),panel=document.getElementById('companyManagement20Panel'),close=document.getElementById('companyManagement20Close'),search=document.getElementById('companyManagement20Search'),filter=document.getElementById('companyManagement20Filter'),status=document.getElementById('companyManagement20Status'),rows=document.getElementById('companyManagement20Rows'),dossier=document.getElementById('companyManagement20Dossier'),name=document.getElementById('companyManagement20Name'),details=document.getElementById('companyManagement20Details');
+-var companies=[],selected=null,tab='company',pending={},busy=false,companyCatalog=[],activeAuditors=[],saveError='',extensionTargetAuditId20='',extensionTargetCompanyUid20='';
++var companies=[],selected=null,tab='company',pending={},busy=false,companyCatalog=[],activeAuditors=[],auditorExclusionKeyMode='email',saveError='',extensionTargetAuditId20='',extensionTargetCompanyUid20='';
+ function extCompanyFocus20(){var focused=!!extensionTargetAuditId20;panel.classList.toggle('ams-ext-focus20',focused);for(var node of [search.parentElement,document.getElementById('companyManagement20Table').parentElement]){if(node)node.style.display=focused?'none':''}var heading=panel.querySelector('h2');if(heading)heading.textContent=focused?'Audit extensions':'Companies';}
+ function el(tag,value){var n=document.createElement(tag);if(value!==undefined)n.textContent=String(value??'');return n}
+ function line(label,control){var wrap=el('div');wrap.style.cssText='display:grid;grid-template-columns:minmax(160px,230px) minmax(250px,1fr);gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9';var title=el('label',label);wrap.append(title,control);details.appendChild(wrap);return wrap}
+@@ -1735,12 +1735,12 @@ if(tab==='planning'){
+ }
+ if(tab==='governance'){
+  plain('Data quality',selected.warnings.length?selected.warnings.join(', '):'No location warnings');
+- var rawExclusions=selected.auditorExclusions||'',chosen=new Set();
+- try{var parsed=JSON.parse(rawExclusions||'[]');(Array.isArray(parsed)?parsed:parsed.exclusions||parsed.items||[]).forEach(function(v){var email=typeof v==='string'?v:v&&(v.auditorEmail||v.email||v.auditor||v.userEmail);if(email)chosen.add(String(email).toLowerCase())})}catch(e){rawExclusions.split(/[;,|\\n]/).forEach(function(v){if(v.trim().includes('@'))chosen.add(v.trim().toLowerCase())})}
++ var rawExclusions=selected.auditorExclusions||'',chosen=new Set(),useUidExclusions=auditorExclusionKeyMode==='uid';
++ try{var parsed=JSON.parse(rawExclusions||'[]');(Array.isArray(parsed)?parsed:parsed.exclusions||parsed.items||[]).forEach(function(v){var keyValue=typeof v==='string'?v:v&&(v.auditorUid||v.Auditor_UID||v.uid||v.auditorEmail||v.email||v.auditor||v.userEmail);if(keyValue)chosen.add(String(keyValue).toLowerCase())})}catch(e){rawExclusions.split(/[;,|\\n]/).forEach(function(v){if(v.trim().includes('@'))chosen.add(v.trim().toLowerCase())})}
+  var holder=el('div');holder.style.cssText='display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13px';
+- var known=new Set(activeAuditors.map(function(a){return a.email}));
+- activeAuditors.forEach(function(a){var label=el('label'),cb=el('input');cb.type='checkbox';cb.checked=chosen.has(a.email);cb.onchange=function(){if(cb.checked)chosen.add(a.email);else chosen.delete(a.email);var value=JSON.stringify(Array.from(chosen).sort());if(value===rawExclusions||(!chosen.size&&!rawExclusions))delete pending.Auditor_Exclusions;else pending.Auditor_Exclusions={expected:rawExclusions,value:value};refreshSave()};label.append(cb,document.createTextNode(' '+a.name));label.title=a.email;holder.appendChild(label)});
+- var unknown=Array.from(chosen).filter(function(email){return !known.has(email)});if(unknown.length){var note=el('span','Existing exclusions not in active list: '+unknown.join(', '));note.style.color='#b45309';holder.appendChild(note)}
++ var known=new Set();activeAuditors.forEach(function(a){known.add(a.email);if(a.uid)known.add(String(a.uid).toLowerCase())});
++ activeAuditors.forEach(function(a){var label=el('label'),cb=el('input'),uidKey=a.uid?String(a.uid).toLowerCase():'';cb.type='checkbox';cb.checked=chosen.has(a.email)||(!!uidKey&&chosen.has(uidKey));cb.onchange=function(){chosen.delete(a.email);if(uidKey){chosen.delete(uidKey);chosen.delete(a.uid)}if(cb.checked)chosen.add(useUidExclusions&&a.uid?a.uid:a.email);var mapped=Array.from(chosen).map(function(k){var lk=String(k).toLowerCase(),m=activeAuditors.find(function(x){return x.email===lk||(x.uid&&String(x.uid).toLowerCase()===lk)});return m?(useUidExclusions&&m.uid?m.uid:m.email):k}),value=JSON.stringify(Array.from(new Set(mapped)).sort());if(value===rawExclusions||(!chosen.size&&!rawExclusions))delete pending.Auditor_Exclusions;else pending.Auditor_Exclusions={expected:rawExclusions,value:value};refreshSave()};label.append(cb,document.createTextNode(' '+a.name));label.title=a.email;holder.appendChild(label)});
++ var unknown=Array.from(chosen).filter(function(email){return !known.has(String(email).toLowerCase())});if(unknown.length){var note=el('span','Existing exclusions not in active list: '+unknown.join(', '));note.style.color='#b45309';holder.appendChild(note)}
+  if(!activeAuditors.length)holder.appendChild(el('span','No active auditors available'));
+  holder.title='Selected auditors cannot be assigned to new audits at this company. Existing historical assignments are unchanged.';
+  var exclusionRow=line('Auditor exclusions ⓘ',holder);var exclusionLabel=exclusionRow.querySelector('label');exclusionLabel.title=holder.title;exclusionLabel.style.cursor='help';var exclusionIcon=el('span','ⓘ');exclusionIcon.title=holder.title;exclusionIcon.setAttribute('aria-label',holder.title);exclusionIcon.style.cssText='cursor:help;margin-left:4px';exclusionLabel.textContent='Auditor exclusions';exclusionLabel.appendChild(exclusionIcon);
+@@ -1756,7 +1756,7 @@ if(!extensionTargetAuditId20)saveBar();if(String(actorRole).toLowerCase()==='aud
+  var st=document.getElementById('companyManagement20SaveStatus');if(st)st.textContent=tab==='company'?'Contact details and Auditor comments save directly':tab==='planning'?'Unavailable weekdays and available hours save directly':'Read-only · structural updates require Manager approval';var saveControl=document.getElementById('companyManagement20Save'),discardControl=document.getElementById('companyManagement20Discard');if(saveControl)saveControl.hidden=tab!=='company'&&tab!=='planning';if(discardControl)discardControl.hidden=tab!=='company'&&tab!=='planning';
+ }}
+ function render(){var q=extensionTargetCompanyUid20?'':search.value.trim().toLowerCase(),mode=extensionTargetCompanyUid20?'all':filter.value;rows.replaceChildren();var shown=companies.filter(function(c){return(!extensionTargetCompanyUid20||String(c.companyUid||'').trim()===extensionTargetCompanyUid20)&&(!q||[c.name,c.region,c.country,...c.scopes.map(function(x){return x.scopeCode})].join(' ').toLowerCase().includes(q))&&(mode==='all'||mode==='active'&&c.status.toLowerCase()==='active'||mode==='attention'&&c.warnings.length>0)});shown.forEach(function(c){var tr=el('tr');[c.name,c.scopes.filter(function(x){return x.active}).map(function(x){return x.scopeCode}).join(', '),c.region,c.activeLocationCount,c.status].forEach(function(value,i){var td=el('td');if(i===0){var btn=el('button',value);btn.type='button';btn.className='company-name-link';btn.onclick=function(){if(Object.keys(pending).length){status.textContent='Save changes before switching company';return}selected=c;tab='company';renderDossier();dossier.scrollIntoView({block:'nearest',behavior:'smooth'})};td.appendChild(btn)}else {td.textContent=String(value);if(i===1)td.style.cssText='white-space:normal;overflow-wrap:anywhere;line-height:1.4';if(i===3||i===4)td.style.textAlign='center'}if(i===0&&c.warnings.length){var indicator=el('span',' ⚠');indicator.title=c.warnings.join(', ');indicator.style.color='#b45309';td.appendChild(indicator)}td.style.overflowWrap='anywhere';tr.appendChild(td)});rows.appendChild(tr)});status.textContent=extensionTargetCompanyUid20?'':shown.length+' / '+companies.length+' companies'}
+-async function load(uid){var response=await fetch(String(actorRole).toLowerCase()==='auditor'?'/api/v1/auditor/company-management':'/api/v1/manager/company-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.detail||result.error||'COMPANY_READ_FAILED');companies=result.companies||[];companyCatalog=result.scopeCatalog||[];activeAuditors=result.activeAuditors||[];if(uid){selected=companies.find(function(x){return x.companyUid===uid})||null;if(selected)renderDossier()}render()}
++async function load(uid){var response=await fetch(String(actorRole).toLowerCase()==='auditor'?'/api/v1/auditor/company-management':'/api/v1/manager/company-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.detail||result.error||'COMPANY_READ_FAILED');companies=result.companies||[];companyCatalog=result.scopeCatalog||[];activeAuditors=result.activeAuditors||[];auditorExclusionKeyMode=result.auditorExclusionKey==='uid'?'uid':'email';if(uid){selected=companies.find(function(x){return x.companyUid===uid})||null;if(selected)renderDossier()}render()}
+ open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toLowerCase()))return;extensionTargetCompanyUid20='';extensionTargetAuditId20='';extCompanyFocus20();document.getElementById('scopeManagement20Panel').hidden=true;panel.hidden=false;load().catch(function(e){status.textContent=e.message})};
+ window.addEventListener('ams:open-company-scopes',async function(event){
+  if(String(actorRole).toLowerCase()!=='manager')return;
+diff --git a/cloudrun/transport-proof/package.json b/cloudrun/transport-proof/package.json
+index 3fcde20..652e1be 100644
+--- a/cloudrun/transport-proof/package.json
++++ b/cloudrun/transport-proof/package.json
+@@ -8,14 +8,14 @@
+   },
+   "scripts": {
+     "audit:prod-evidence": "node prod-release-evidence-20.mjs",
+-    "test:planning-authority-p0": "node planning-firestore-authority-20-test.mjs && node planning-sheets-projector-20-test.mjs && node planning-distributed-gate-20-test.mjs && node planning-outbox-reconciler-20-test.mjs && node planning-atomic-firestore-store-20-test.mjs && node planning-atomic-backfill-20-test.mjs && node planning-atomic-parity-verifier-20-test.mjs && node planning-global-claims-parity-20-test.mjs && node planning-cutover-data-audit-20-test.mjs && node planning-sheets-writeset-projector-20-test.mjs && node planning-sheets-append-projector-20-test.mjs && node planning-append-r1c-failure-injection-test.mjs && node planning-atomic-command-service-20-test.mjs && node planning-batch-route-20-test.mjs && node planning-lifecycle-atomic-service-20-test.mjs && node planning-multi-lifecycle-service-20-test.mjs && node planning-atomic-transfer-service-20-test.mjs && node planning-multi-cutover-integration-20-test.mjs && node planning-lifecycle-writeset-20-test.mjs && node planning-runtime-import-closure-20-test.mjs && node planning-multi-e2e-simulator-20-test.mjs && node planning-atomic-recovery-20-test.mjs && node planning-atomic-self-planning-rescue-20-test.mjs && node planning-atomic-self-planning-service-20-test.mjs && node planning-atomic-extension-service-20-test.mjs && node planning-atomic-scope-admin-20-test.mjs && node planning-atomic-company-scopes-20-test.mjs && node planning-atomic-auditor-governance-20-test.mjs && node planning-atomic-auditor-identity-20-test.mjs && node planning-atomic-config-bridge-20-test.mjs && node planning-atomic-notification-scalar-20-test.mjs && node planning-atomic-cutover-guard-20-test.mjs && node planning-cutover-compatibility-20-test.mjs && node --check server-r4.js && node --check server-r15.js && node visit-composition-atomic-service-20-test.mjs && node visit-composition-together-r4-preflight-20-test.mjs && node planning-workspace-visit-composition-entry-20-test.mjs && node visit-composition-separate-authority-preflight-20-test.mjs && node multi-scope-planning-parity-20-test.mjs",
++    "test:planning-authority-p0": "node planning-firestore-authority-20-test.mjs && node planning-sheets-projector-20-test.mjs && node planning-distributed-gate-20-test.mjs && node planning-outbox-reconciler-20-test.mjs && node planning-atomic-firestore-store-20-test.mjs && node realized-audits-firestore-20-test.mjs && node planning-atomic-backfill-20-test.mjs && node planning-atomic-parity-verifier-20-test.mjs && node planning-global-claims-parity-20-test.mjs && node planning-cutover-data-audit-20-test.mjs && node planning-sheets-writeset-projector-20-test.mjs && node planning-sheets-append-projector-20-test.mjs && node planning-append-r1c-failure-injection-test.mjs && node planning-atomic-command-service-20-test.mjs && node planning-batch-route-20-test.mjs && node planning-lifecycle-atomic-service-20-test.mjs && node planning-multi-lifecycle-service-20-test.mjs && node planning-atomic-transfer-service-20-test.mjs && node planning-multi-cutover-integration-20-test.mjs && node planning-lifecycle-writeset-20-test.mjs && node planning-runtime-import-closure-20-test.mjs && node planning-multi-e2e-simulator-20-test.mjs && node planning-atomic-recovery-20-test.mjs && node planning-atomic-self-planning-rescue-20-test.mjs && node planning-atomic-self-planning-service-20-test.mjs && node planning-atomic-extension-service-20-test.mjs && node planning-atomic-scope-admin-20-test.mjs && node planning-atomic-company-scopes-20-test.mjs && node planning-atomic-auditor-governance-20-test.mjs && node planning-atomic-auditor-identity-20-test.mjs && node planning-atomic-config-bridge-20-test.mjs && node planning-atomic-notification-scalar-20-test.mjs && node planning-atomic-cutover-guard-20-test.mjs && node planning-cutover-compatibility-20-test.mjs && node --check server-r4.js && node --check server-r15.js && node visit-composition-atomic-service-20-test.mjs && node visit-composition-together-r4-preflight-20-test.mjs && node planning-workspace-visit-composition-entry-20-test.mjs && node visit-composition-separate-authority-preflight-20-test.mjs && node multi-scope-planning-parity-20-test.mjs",
+     "test:prod-evidence": "node prod-release-evidence-20-test.mjs",
+     "test:prod-config": "node --check prod-release-blocker-regression-20.mjs && node prod-contract-20-regression-test.mjs && node prod-environment-isolation-20-test.mjs && node prod-release-blocker-regression-20.mjs && node prod-realized-hours-parity-20-test.mjs && node prod-runtime-identity-20-test.mjs",
+     "test:prod-readiness": "npm run test:prod-config && node gas-trigger-source-inventory-20.mjs && node prod-readiness-contract-20.mjs",
+     "start": "node server-r15.js",
+     "test": "npm run test:part-1 && npm run test:part-2 && npm run test:part-3 && npm run test:part-4 && npm run test:quota-429",
+     "test:quota-429": "node manager-open-sheets-quota-20-test.mjs && node planning-cancel-sheets-quota-20-test.mjs",
+-    "test:part-1": "node planning-firestore-authority-20-test.mjs && node planning-sheets-projector-20-test.mjs && node planning-distributed-gate-20-test.mjs && node planning-outbox-reconciler-20-test.mjs && node planning-atomic-firestore-store-20-test.mjs && node planning-atomic-backfill-20-test.mjs && node planning-atomic-parity-verifier-20-test.mjs && node planning-global-claims-parity-20-test.mjs && node planning-cutover-data-audit-20-test.mjs && node planning-sheets-writeset-projector-20-test.mjs && node planning-sheets-append-projector-20-test.mjs && node planning-append-r1c-failure-injection-test.mjs && node planning-atomic-command-service-20-test.mjs && node planning-lifecycle-atomic-service-20-test.mjs && node planning-multi-lifecycle-service-20-test.mjs && node planning-atomic-transfer-service-20-test.mjs && node planning-multi-cutover-integration-20-test.mjs && node planning-lifecycle-writeset-20-test.mjs && node planning-runtime-import-closure-20-test.mjs && node planning-multi-e2e-simulator-20-test.mjs && node planning-atomic-recovery-20-test.mjs && node planning-atomic-self-planning-rescue-20-test.mjs && node planning-atomic-self-planning-service-20-test.mjs && node planning-atomic-extension-service-20-test.mjs && node planning-atomic-scope-admin-20-test.mjs && node planning-atomic-company-scopes-20-test.mjs && node planning-atomic-auditor-governance-20-test.mjs && node planning-atomic-auditor-identity-20-test.mjs && node planning-atomic-config-bridge-20-test.mjs && node planning-atomic-notification-scalar-20-test.mjs && node planning-atomic-cutover-guard-20-test.mjs && node availability-firestore-adapter-20-test.mjs && node availability-http-api-20-test.mjs && node availability-planning-hard-gate-20-test.mjs && node availability-audit-planning-bridge-20-test.mjs && node availability-manager-overview-20-test.mjs && node availability-manager-rca-regression-test.mjs && node --check auditor-email-dev-preflight.mjs && node --check assignment-validation-v211.js && node --check actor-capabilities-v211.js && node --check company-management-readmodel-20.js && node --check company-scope-hours-snapshot-20.js && node --check company-scope-hours-backfill-20.js && node --check company-scope-hours-migration-20.js && node --check company-scope-hours-storage-20.js && node --check company-scope-hours-resolver-20.js && node --check scope-create-20.js && node --check scope-certification-body-20.js && node --check scope-scheme-version-20.js && node --check scope-policy-20.js && node --check scope-hours-version-20.js && node --check auditor-identity-versions.js && node --check auditor-uid-backfill-preview.js && node --check server-r4.js && node --check manager-portal.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node --check server-r12.js && node --check ../../EntryV5.js && node visit-composition-atomic-service-20-test.mjs && node visit-composition-together-r4-preflight-20-test.mjs && node planning-workspace-visit-composition-entry-20-test.mjs && node visit-composition-separate-authority-preflight-20-test.mjs && node --check visit-composition-manager-page-20.mjs && node multi-scope-planning-parity-20-test.mjs",
++    "test:part-1": "node planning-firestore-authority-20-test.mjs && node planning-sheets-projector-20-test.mjs && node planning-distributed-gate-20-test.mjs && node planning-outbox-reconciler-20-test.mjs && node planning-atomic-firestore-store-20-test.mjs && node realized-audits-firestore-20-test.mjs && node planning-atomic-backfill-20-test.mjs && node planning-atomic-parity-verifier-20-test.mjs && node planning-global-claims-parity-20-test.mjs && node planning-cutover-data-audit-20-test.mjs && node planning-sheets-writeset-projector-20-test.mjs && node planning-sheets-append-projector-20-test.mjs && node planning-append-r1c-failure-injection-test.mjs && node planning-atomic-command-service-20-test.mjs && node planning-lifecycle-atomic-service-20-test.mjs && node planning-multi-lifecycle-service-20-test.mjs && node planning-atomic-transfer-service-20-test.mjs && node planning-multi-cutover-integration-20-test.mjs && node planning-lifecycle-writeset-20-test.mjs && node planning-runtime-import-closure-20-test.mjs && node planning-multi-e2e-simulator-20-test.mjs && node planning-atomic-recovery-20-test.mjs && node planning-atomic-self-planning-rescue-20-test.mjs && node planning-atomic-self-planning-service-20-test.mjs && node planning-atomic-extension-service-20-test.mjs && node planning-atomic-scope-admin-20-test.mjs && node planning-atomic-company-scopes-20-test.mjs && node planning-atomic-auditor-governance-20-test.mjs && node planning-atomic-auditor-identity-20-test.mjs && node planning-atomic-config-bridge-20-test.mjs && node planning-atomic-notification-scalar-20-test.mjs && node planning-atomic-cutover-guard-20-test.mjs && node availability-firestore-adapter-20-test.mjs && node availability-http-api-20-test.mjs && node availability-planning-hard-gate-20-test.mjs && node availability-audit-planning-bridge-20-test.mjs && node availability-manager-overview-20-test.mjs && node availability-manager-rca-regression-test.mjs && node --check auditor-email-dev-preflight.mjs && node --check assignment-validation-v211.js && node --check actor-capabilities-v211.js && node --check company-management-readmodel-20.js && node --check company-scope-hours-snapshot-20.js && node --check company-scope-hours-backfill-20.js && node --check company-scope-hours-migration-20.js && node --check company-scope-hours-storage-20.js && node --check company-scope-hours-resolver-20.js && node --check scope-create-20.js && node --check scope-certification-body-20.js && node --check scope-scheme-version-20.js && node --check scope-policy-20.js && node --check scope-hours-version-20.js && node --check auditor-identity-versions.js && node --check auditor-uid-backfill-preview.js && node --check server-r4.js && node --check manager-portal.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node --check server-r12.js && node --check ../../EntryV5.js && node visit-composition-atomic-service-20-test.mjs && node visit-composition-together-r4-preflight-20-test.mjs && node planning-workspace-visit-composition-entry-20-test.mjs && node visit-composition-separate-authority-preflight-20-test.mjs && node --check visit-composition-manager-page-20.mjs && node multi-scope-planning-parity-20-test.mjs",
+     "test:part-2": "node --check ../../OpenAuditsGrid2Service.js && node --check ../../Grid2SelectionService.js && node --check ../../PlanningWorkspaceRpc.js && node --check ../../PlanningWorkspaceDecisionReadModel.js && node --check ../../zz_ExternalPlanningWorkspaceHandoff.js && node --check ../../zz_PlanningWorkspaceEntryRouteOverride.js && node --check ../../ModelCAnnualCycleRuntime.js && node --check ../../ConfigScopesMinIntervalMigration.js && node --check ../../CompaniesAuditorExclusionsMigration.js && node --check ../../V211PlanningSchemaMigration.js && node --check ../../ConfigScopesService.js && node --check ../../CompaniesBackend.js && node --check ../../AvailabilityPlanningReconciler.js && node --check ../../zzz_ExternalAuditorPlanningSessionHandoff.js && node assignment-validation-v211-test.mjs && node actor-capabilities-v211-test.mjs && node auditor-planning-mode-contract-test.mjs && node shared-grid2-auditor-contract-test.mjs && node auditor-preassignment-display-contract-test.mjs && node manager-auditor-portal-separation-stress-test.mjs && node portal-review-20261005-contract-test.mjs && node login-auth-v211-contract-test.mjs && node portal2-direct-login-contract-test.mjs && node runtime-entrypoint-test.mjs && node generated-planning-client-syntax-test.mjs && node manager-action-micro-refresh-test.mjs && node complete-v29-contract-test.mjs && node realized-hours-direct-contract-test.mjs && node grid2-selection-contract-test.mjs && node scheduling-delta-test.mjs && node planning-toolkit-v210-contract-test.mjs && node contract-test.mjs && node combined-visit-contract-test.mjs && node issue87-combined-calendar-behavior-test.mjs && node planning-calendar-window-hard-constraints-20-test.mjs && node planning-scope-min-interval-20-test.mjs && node scope-dependency-policy-20-test.mjs && node atomic-backfill-get-dry-run-20-test.mjs && node atomic-cutover-evidence-readonly-20-test.mjs && node planning-backfill-source-revision-cas-20-test.mjs && node system-write-guard-cutover-20-test.mjs && node gas-trigger-source-inventory-20-test.mjs && node dev-cutover-freeze-20-test.mjs && node dev-cutover-console-20-test.mjs && node issue87-canonical-window-test.mjs && node issue87-mode-switch-state-test.mjs && node issue87-canonical-qualification-client-test.mjs && node open-audits-grid2-contract-test.mjs && node open-audits-grid2-gas-contract-test.mjs && node legacy-hours-remnant-scan-test.mjs && node recurring-company-hours-v211-test.mjs && node company-scope-hours-snapshot-20-test.mjs && node company-scope-hours-backfill-20-test.mjs && node company-scope-hours-migration-20-test.mjs && node company-scope-hours-storage-20-test.mjs && node company-scope-hours-resolver-20-test.mjs && node scope-create-20-test.mjs && node scope-certification-body-20-test.mjs && node certification-body-routing-20-test.mjs && node certification-body-scope-management-contract-20-test.mjs && node certification-body-extension-outbox-20-test.mjs && node cb-extension-notification-gas-20-test.mjs && node certification-body-notification-overview-20-test.mjs && node cb-notifications-dashboard-contract-20-test.mjs && node certification-body-integration-contract-20-test.mjs && node scope-scheme-version-20-test.mjs && node scope-policy-20-test.mjs && node scope-hours-version-20-test.mjs && node scope-slot-bridge-v211-test.mjs && node scope-owner-hours-contract-test.mjs && node company-management-readmodel-20-test.mjs && node company-management-contract-test.mjs && node company-auditor-permissions-20-test.mjs && node fase12-extension-compact-dossier-20-test.mjs && node fase12-map-column-grid-20-test.mjs && node manager-self-planning-post-ext-20-test.mjs && node self-planning-proxy-origin-20-test.mjs && node manager-dev-write-route-20-test.mjs && node dev-model-c-sheet-serial-date-20-test.mjs",
+     "test:part-3": "node auditor-management-20-contract-test.mjs && node auditor-identity-versions-test.mjs && node auditor-uid-backfill-preview-test.mjs && node availability-release-preflight-20.mjs && node availability-hard-history-migration-20-test.mjs && node availability-uid-gas-contract-test.mjs && node availability-mutations-20-test.mjs && node availability-storage-service-20-test.mjs && node availability-planning-overlay-service-20-test.mjs && node availability-planning-read-cache-20-test.mjs && node availability-my-auditor-ui-contract-test.mjs && node availability-manager-ui-contract-test.mjs && node --check auth-session-policy.mjs && node ../../tests/auth-session-policy.test.mjs && node ../../tests/auth-login-2-0-contract.test.mjs && node notification-email-action-policy-20-test.mjs && node notification-email-action-flow-20-test.mjs && node notification-email-deeplink-20-test.mjs && node notification-email-actions-prod-parity-20-test.mjs && node notification-device-trust-20-test.mjs && node notification-portal-settings-policy-20-test.mjs && node notification-overview-20-test.mjs && node --check server-r4.js && node --check server-r15.js && node auth-cloudrun-login-contract.test.mjs && node auth-session-revocation-20-test.mjs && node auth-fast-otp-20-test.mjs && node auth-fast-otp-contract-test.mjs && node auth-cookie-proxy-contract-test.mjs && node auth-2-0-closeout-contract-test.mjs && node auth-remember-cookie-contract-test.mjs && node auth-mail-acceptance-contract-test.mjs && node rotation-dynamic-scopes-20-test.mjs && node issue87-model-c-rotation-gate-test.mjs && node rotation-preassignment-enforcement-20-test.mjs && node rotation-config-schema-migration-20-test.mjs && node rotation-policy-diagnostics-20-test.mjs && node rotation-ams-log-identity-20-test.mjs && node rotation-canonical-coverage-20-test.mjs && node rotation-canonical-policy-validation-20-test.mjs && node rotation-policy-edgecases-20-test.mjs && node rotation-overview-readmodel-20-test.mjs && node rotation-gas-service-contract-20-test.mjs && node --check rotation-manager-20.mjs && node --check rotation-manager-20.js && node rotation-manager-20-test.mjs && node rotation-manager-access-20-test.mjs && node runtime-environment-20-test.mjs && node canonical-dev-entry-20-test.mjs && node preflight-browser-auth-gate-20-test.mjs && node notifications-auth-rotation-compat-20-test.mjs && node notifications-gas-contract-20-test.mjs && node notification-batching-window-20-test.mjs && node notification-email-actions-runtime-20-test.mjs",
+     "test:part-4": "node notification-rolling-digest-contract-test.mjs && node notification-digest-send-simulation-test.mjs && node notification-digest-config-writer-20-test.mjs && node notification-weekly-envelope-20-test.mjs && node notification-external-digest-integrity-20-test.mjs && node notification-weekly-queue-idempotency-20-test.mjs && node swap-gas-clasp-cleanup-20-test.mjs && node swap-proposal-20-test.mjs && node swap-commit-gate-20-test.mjs && node swap-manager-commit-timings-20-test.mjs && node swap-coordinator-recovery-20-test.mjs && node auditor-accept-direct-sheets-20-test.mjs && node auditor-accept-direct-sheets-20-route-test.mjs && node lifecycle-accept-cutover-20-test.mjs && node lifecycle-atomic-accept-20-test.mjs && node lifecycle-auditor-accept-direct-20-test.mjs && node lifecycle-auditor-accept-orchestrator-20-test.mjs && node scope-20-legacy-gap-check.mjs && node auditor-scope-qualifications-20-test.mjs && node auditor-scope-qualifications-migration-20-test.mjs && node auditor-scope-qualifications-parity-20-test.mjs && node auditor-scope-qualifications-migration-plan-20-test.mjs && node auditor-scope-qualifications-migration-apply-20-test.mjs && node auditor-scope-qualifications-migration-sheets-20-test.mjs && node auditor-scope-qualifications-firestore-lock-20-test.mjs && node fase1-integration-known-gaps-20-test.mjs && node model-c-new-obligation-provenance-20-test.mjs && node model-c-provenance-projector-e2e-synthetic-20-test.mjs && node model-c-successor-writer-gate-20-test.mjs && node model-c-annual-scope20-headerless-test.mjs && node model-c-gas-annual-hours-snapshot-20-test.mjs && node auditor-uid-owner-resolution-20-test.mjs && node auditor-uid-revision-fingerprint-20-test.mjs && node scope20-gas-canonical-preassignment-test.mjs && node scope20-auditor-read-cutover-20-test.mjs && node auditor-r15-roster-identity-20-test.mjs && node runtime-docker-import-closure-20-test.mjs && node availability-day-details-behavior-20-test.mjs && node availability-fase12-ui-contract-test.mjs && node availability-planner-calendar-projection-20-test.mjs && node availability-firestore-authority-preflight-20-test.mjs && npm run test:fase12",
+diff --git a/cloudrun/transport-proof/planning-atomic-firestore-store-20-test.mjs b/cloudrun/transport-proof/planning-atomic-firestore-store-20-test.mjs
+index a9fd705..24ecfe3 100644
+--- a/cloudrun/transport-proof/planning-atomic-firestore-store-20-test.mjs
++++ b/cloudrun/transport-proof/planning-atomic-firestore-store-20-test.mjs
+@@ -11,7 +11,7 @@ const encode=v=>{
+  if(Array.isArray(v))return {arrayValue:{values:v.map(encode)}};
+  return {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,encode(x)]))}};
+ };
+-const decode=v=>'nullValue'in v?null:'stringValue'in v?v.stringValue:'integerValue'in v?Number(v.integerValue):'booleanValue'in v?v.booleanValue:'arrayValue'in v?(v.arrayValue.values||[]).map(decode):Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));
++const decode=v=>'nullValue'in v?null:'stringValue'in v?v.stringValue:'integerValue'in v?Number(v.integerValue):'doubleValue'in v?Number(v.doubleValue):'booleanValue'in v?v.booleanValue:'arrayValue'in v?(v.arrayValue.values||[]).map(decode):Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));
+ const response=(status,json)=>({ok:status>=200&&status<300,status,async json(){return copy(json)}});
+ const fetchImpl=async(url,init={})=>{
+  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
+@@ -174,4 +174,41 @@ assert.equal((await authority.seed({auditId:accentedId,snapshot:accentedSnapshot
+ assert.equal((await authority.readAudit(accentedId)).snapshot.auditId,accentedId);
+ assert.ok(store.has('ams_planning_20_dev_audits/'+accentedId));
+ assert.ok(!store.has('ams_planning_20_dev_audits/'+encodeURIComponent(accentedId)));
++// Realized-audit authority: Complete creates one create-only history document in the same transaction.
++const realizedColl='ams_realized_audits_20_dev';
++const realizedAuthority=createPlanningAtomicFirestoreStore({projectId:'audit-management-system-dev',getToken:async()=>'token',fetchImpl,realizedCollection:realizedColl});
++const seedAccepted=id=>store.set('ams_planning_20_dev_audits/'+id,{name:db+'/ams_planning_20_dev_audits/'+id,updateTime:'t0',fields:{payload:encode({auditId:id,revision:0,snapshot:{auditId:id,status:'Accepted'},auditorId:'aud-r',blocks:[],claimIds:[],pendingOperationId:null})}});
++const rPlan={projectionWrites:[],projectionPreconditions:[],appendIntents:[]};
++const rArgs=(id,op,extra={})=>({operationId:op,actorId:'manager',action:'COMPLETE',entities:[{auditId:id,expectedRevision:0,remove:true,nextSnapshot:{auditId:id,status:'Completed'}}],projectionPlan:rPlan,...extra});
++const rRecord=id=>({schema:'AMS_REALIZED_AUDIT_V1',auditId:id,status:'Completed',auditorUid:'aud-r',hoursDedicated:4});
++seedAccepted('R_PARENT');
++await assert.rejects(()=>authority.commitMulti(rArgs('R_PARENT','r-no-coll',{realizedRecord:rRecord('R_PARENT')})),/PLANNING_MULTI_REALIZED_RECORD_INVALID/);
++await assert.rejects(()=>realizedAuthority.commitMulti(rArgs('R_PARENT','r-wrong-id',{realizedRecord:rRecord('R_OTHER')})),/PLANNING_MULTI_REALIZED_RECORD_INVALID/);
++await assert.rejects(()=>realizedAuthority.commitMulti(rArgs('R_PARENT','r-reject',{action:'REJECT',realizedRecord:rRecord('R_PARENT')})),/PLANNING_MULTI_REALIZED_RECORD_INVALID/);
++await assert.rejects(()=>realizedAuthority.commitMulti(rArgs('R_PARENT','r-no-uid',{realizedRecord:{...rRecord('R_PARENT'),auditorUid:''}})),/PLANNING_MULTI_REALIZED_RECORD_INVALID/);
++const rDone=await realizedAuthority.commitMulti(rArgs('R_PARENT','r-complete',{realizedRecord:rRecord('R_PARENT')}));
++assert.equal(rDone.state,'PENDING');
++const rStored=decode(store.get(realizedColl+'/R_PARENT').fields.payload);
++assert.equal(rStored.auditorUid,'aud-r');assert.equal(rStored.sourceOperationId,'r-complete');assert.ok(rStored.createdAt);
++assert.equal((await realizedAuthority.commitMulti(rArgs('R_PARENT','r-complete',{realizedRecord:rRecord('R_PARENT')}))).replayed,true);
++await assert.rejects(()=>realizedAuthority.commitMulti(rArgs('R_PARENT','r-complete',{realizedRecord:{...rRecord('R_PARENT'),hoursDedicated:5}})),/PLANNING_MULTI_REPLAY_CONFLICT/);
++seedAccepted('R_OTHER');
++store.set(realizedColl+'/R_OTHER',{name:db+'/'+realizedColl+'/R_OTHER',updateTime:'t0',fields:{payload:encode(rRecord('R_OTHER'))}});
++await assert.rejects(()=>realizedAuthority.commitMulti(rArgs('R_OTHER','r-duplicate',{realizedRecord:rRecord('R_OTHER')})),/PLANNING_MULTI_REALIZED_ALREADY_EXISTS/);
++assert.equal(decode(store.get('ams_planning_20_dev_audits/R_OTHER').fields.payload).snapshot.status,'Accepted');
++assert.equal(decode(store.get(realizedColl+'/R_OTHER').fields.payload).hoursDedicated,4);
++// Without a realized record (flag off) Complete behaves exactly as before.
++seedAccepted('R_PLAIN');
++assert.equal((await realizedAuthority.commitMulti(rArgs('R_PLAIN','r-plain'))).state,'PENDING');
++assert.ok(!store.has(realizedColl+'/R_PLAIN'));
++// Realized-hours corrections update the Firestore history document under the same stale guard.
++await realizedAuthority.markProjected({auditId:'R_PARENT',operationId:'r-complete',proof:{verified:true,auditId:'R_PARENT',rowHash:'9'.repeat(64)}});
++const rHours={auditId:'R_PARENT',operationId:'r-hours',actorId:'manager',expectedRevision:1,oldHours:4,newHours:4.5,projectionPlan:{auditId:'R_PARENT'}};
++await assert.rejects(()=>realizedAuthority.commitRealizedHours({...rHours,operationId:'r-hours-stale',oldHours:3}),/STALE_REALIZED_HOURS/);
++assert.equal((await realizedAuthority.commitRealizedHours(rHours)).state,'PENDING');
++const rAfterHours=decode(store.get(realizedColl+'/R_PARENT').fields.payload);
++assert.equal(rAfterHours.hoursDedicated,4.5);assert.equal(rAfterHours.hoursOperationId,'r-hours');
++await realizedAuthority.markProjected({auditId:'R_PLAIN',operationId:'r-plain',proof:{verified:true,auditId:'R_PLAIN',rowHash:'8'.repeat(64)}});
++await assert.rejects(()=>realizedAuthority.commitRealizedHours({...rHours,auditId:'R_PLAIN',operationId:'r-hours-missing',projectionPlan:{auditId:'R_PLAIN'}}),/REALIZED_HOURS_REALIZED_DOCUMENT_MISSING/);
++assert.throws(()=>createPlanningAtomicFirestoreStore({projectId:'audit-management-system-dev',getToken:async()=>'token',fetchImpl,realizedCollection:'bad/name'}),/PLANNING_FIRESTORE_CONFIG_INVALID/);
+ console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');
+diff --git a/cloudrun/transport-proof/planning-atomic-firestore-store-20.js b/cloudrun/transport-proof/planning-atomic-firestore-store-20.js
+index e8b6b08..fe1ddb8 100644
+--- a/cloudrun/transport-proof/planning-atomic-firestore-store-20.js
++++ b/cloudrun/transport-proof/planning-atomic-firestore-store-20.js
+@@ -54,10 +54,11 @@ function claimsFor(blocks,auditorId){
+  }
+  return [...result.values()].sort((a,b)=>a.claimId.localeCompare(b.claimId));
+ }
+-export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl=fetch,databaseId='(default)',prefix='ams_planning_20_dev'}={}){
++export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl=fetch,databaseId='(default)',prefix='ams_planning_20_dev',realizedCollection=null}={}){
+  if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!validId(prefix)||!databaseId)throw Error('PLANNING_FIRESTORE_CONFIG_INVALID');
++ if(realizedCollection!==null&&!/^[A-Za-z0-9_]+$/.test(realizedCollection))throw Error('PLANNING_FIRESTORE_CONFIG_INVALID');
+  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
+- const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox'};
++ const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox',...(realizedCollection?{realized:realizedCollection}:{})};
+  const doc=(type,id)=>{if(!coll[type]||!validId(id))throw Error('PLANNING_FIRESTORE_ID_INVALID');return base+'/'+coll[type]+'/'+encodeURIComponent(id)};
+  // Firestore Write.update.name / Write.delete require a resource name, not an HTTP URL.
+  const writeName=(type,id)=>{
+@@ -227,15 +228,16 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
+   * Writes every affected audit, ownership claim and one projection outbox in
+   * the SAME Firestore transaction. No Sheets mutation occurs inside this call.
+   */
+- async function commitMulti({operationId,actorId,action,entities,projectionPlan}){
++ async function commitMulti({operationId,actorId,action,entities,projectionPlan,realizedRecord}){
+   if(!validId(operationId)||!validId(actorId)||!str(action)||!Array.isArray(entities)||!entities.length||entities.length>15||!projectionPlan||typeof projectionPlan!=='object')throw Error('PLANNING_MULTI_INPUT_INVALID');
++  if(realizedRecord!==undefined&&(!coll.realized||action!=='COMPLETE'||!realizedRecord||realizedRecord.auditId!==entities[0]?.auditId||!str(realizedRecord.auditorUid)))throw Error('PLANNING_MULTI_REALIZED_RECORD_INVALID');
+   const auditIds=entities.map(e=>e?.auditId);
+   if(new Set(auditIds).size!==auditIds.length||auditIds.some(x=>!validId(x)))throw Error('PLANNING_MULTI_AUDIT_ID_INVALID');
+   for(const e of entities){
+    if(!e.nextSnapshot||e.nextSnapshot.auditId!==e.auditId||!(e.expectedRevision===null||Number.isSafeInteger(e.expectedRevision)&&e.expectedRevision>=0)||e.remove!==undefined&&typeof e.remove!=='boolean')throw Error('PLANNING_MULTI_ENTITY_INVALID');
+   }
+   const sorted=entities.slice().sort((a,b)=>a.auditId.localeCompare(b.auditId));
+-  const digest=hex(JSON.stringify({operationId,actorId,action,entities:sorted,projectionPlan}));
++  const digest=hex(JSON.stringify({operationId,actorId,action,entities:sorted,projectionPlan,...(realizedRecord?{realizedRecord}:{})}));
+   return transaction(async tx=>{
+    const previous=await tx.get('outbox',operationId);
+    if(previous){
+@@ -256,6 +258,8 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
+     for(const c of nextClaims){if(newIds.has(c.claimId))throw Error('PLANNING_MULTI_INTERNAL_SLOT_CONFLICT');newIds.add(c.claimId);}
+     for(const id of old?.value?.claimIds||[])oldIds.add(id);
+    }
++   // Realized history is create-only: a completed audit is never overwritten.
++   if(realizedRecord&&await tx.get('realized',realizedRecord.auditId))throw Error('PLANNING_MULTI_REALIZED_ALREADY_EXISTS');
+    const ids=[...new Set([...oldIds,...newIds])].sort();
+    if(ids.length>450)throw Error('PLANNING_MULTI_CLAIMS_TOO_MANY');
+    const claims=new Map();
+@@ -282,6 +286,7 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
+    }
+    for(const id of oldIds)if(!newIds.has(id))tx.remove('claim',id);
+    for(const e of sorted)for(const c of newClaimGroups.get(e.auditId))tx.set('claim',c.claimId,{...c,auditId:e.auditId,revision:receipts.find(x=>x.auditId===e.auditId).revision,operationId});
++   if(realizedRecord)tx.set('realized',realizedRecord.auditId,{...clone(realizedRecord),sourceOperationId:operationId,createdAt:now});
+    // The public operation identity is the initiating audit, not the lexically
+    // first sorted audit. Sorting is only a deadlock-prevention detail.
+    tx.set('outbox',operationId,{operationId,auditId:entities[0].auditId,auditIds,entities:receipts,actorId,action,requestDigest:digest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now,multi:true});
+@@ -306,6 +311,12 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
+    if(current?.snapshot.hoursDedicated!==undefined&&current.snapshot.hoursDedicated!==oldHours)
+     throw Error('STALE_REALIZED_HOURS');
+    const revision=(expectedRevision??-1)+1,now=new Date().toISOString();
++   if(coll.realized){
++    const realized=await tx.get('realized',auditId);
++    if(!realized)throw Error('REALIZED_HOURS_REALIZED_DOCUMENT_MISSING');
++    if(realized.value.hoursDedicated!==null&&realized.value.hoursDedicated!==undefined&&realized.value.hoursDedicated!==oldHours)throw Error('STALE_REALIZED_HOURS');
++    tx.set('realized',auditId,{...realized.value,hoursDedicated:newHours,hoursOperationId:operationId,updatedAt:now});
++   }
+    const archived=current??{auditId,removed:true,auditorId:null,blocks:[],claimIds:[],snapshot:{auditId,status:'Completed'}};
+    tx.set('audit',auditId,{...archived,revision,snapshot:{...archived.snapshot,hoursDedicated:newHours},pendingOperationId:operationId,lastOperationId:operationId,updatedAt:now});
+    tx.set('outbox',operationId,{auditId,operationId,actorId,action,revision,requestDigest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now});
+diff --git a/cloudrun/transport-proof/planning-multi-lifecycle-service-20-test.mjs b/cloudrun/transport-proof/planning-multi-lifecycle-service-20-test.mjs
+index 9638e02..f73cc6a 100644
+--- a/cloudrun/transport-proof/planning-multi-lifecycle-service-20-test.mjs
++++ b/cloudrun/transport-proof/planning-multi-lifecycle-service-20-test.mjs
+@@ -60,4 +60,29 @@ const parallelService=createPlanningMultiLifecycleService({atomicStore:parallelS
+ failProjection=false;
+ assert.equal((await parallelService.commit({actor,body,action:'REJECT'})).success,true);
+ assert.equal(startedParent,true);
++// Realized-audit authority hook: only COMPLETE carries a realized record, built from the preflight log row.
++{
++ const seen=[],built=[];
++ const hookStore={async readOutbox(){return null;},async readAudit(){return {revision:1,auditorId:'aud-uid',pendingOperationId:null,snapshot:{sourceRevision:'hook-rev',status:'Accepted'}};},
++  async commitMulti(args){seen.push(args);return {replayed:false,entities:[]};},async markProjected(){}};
++ const hookGate={async acquire(){return {token:'hook'};},async release(){},async uncertain(){}};
++ const logRow={headers:['Audit ID','Status'],row:['parent','Completed']};
++ let hookPreview={...preview,expectedSourceRevision:'hook-rev',canonicalSnapshot:{auditId:'parent',status:'Completed'},successorSnapshots:[],realizedLogRow:logRow};
++ const hookSvc=createPlanningMultiLifecycleService({atomicStore:hookStore,gate:hookGate,projector,appendProjector,preflight:async()=>hookPreview,
++  realizedRecordFor:input=>{built.push(input);return {auditId:'parent',auditorUid:input.auditorUid,source:'TEST'};}});
++ await hookSvc.commit({actor,body:{...body,action:'hook-complete'},action:'COMPLETE'});
++ assert.deepEqual(seen[0].realizedRecord,{auditId:'parent',auditorUid:'aud-uid',source:'TEST'});
++ assert.equal(built[0].auditorUid,'aud-uid');assert.equal(built[0].completedByUid,'manager');assert.deepEqual(built[0].row,logRow.row);
++ hookPreview={...hookPreview,canonicalSnapshot:{auditId:'parent',status:'Rejected'}};
++ await hookSvc.commit({actor,body:{...body,action:'hook-reject'},action:'REJECT'});
++ assert.equal('realizedRecord' in seen[1],false);
++ hookPreview={...hookPreview,canonicalSnapshot:{auditId:'parent',status:'Completed'},realizedLogRow:null};
++ await assert.rejects(()=>hookSvc.commit({actor,body:{...body,action:'hook-missing'},action:'COMPLETE'}),/PLANNING_MULTI_REALIZED_ROW_MISSING/);
++ assert.equal(seen.length,2);
++ assert.throws(()=>createPlanningMultiLifecycleService({atomicStore:hookStore,gate:hookGate,projector,appendProjector,preflight:async()=>hookPreview,realizedRecordFor:'yes'}),/PLANNING_MULTI_SERVICE_CONFIG_INVALID/);
++ // Flag off: no hook, Complete payload is unchanged.
++ const plainSvc=createPlanningMultiLifecycleService({atomicStore:hookStore,gate:hookGate,projector,appendProjector,preflight:async()=>({...hookPreview,realizedLogRow:logRow})});
++ await plainSvc.commit({actor,body:{...body,action:'plain-complete'},action:'COMPLETE'});
++ assert.equal('realizedRecord' in seen[2],false);
++}
+ console.log('Multi lifecycle: completion successor, reject, replay and unknown Sheets outcome OK');
+diff --git a/cloudrun/transport-proof/planning-multi-lifecycle-service-20.js b/cloudrun/transport-proof/planning-multi-lifecycle-service-20.js
+index 51d9025..e4d3012 100644
+--- a/cloudrun/transport-proof/planning-multi-lifecycle-service-20.js
++++ b/cloudrun/transport-proof/planning-multi-lifecycle-service-20.js
+@@ -7,7 +7,8 @@ import {createHash} from 'node:crypto';
+ const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+ const str=x=>String(x??'').trim();
+ const norm=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
+-export function createPlanningMultiLifecycleService({atomicStore,gate,projector,appendProjector,preflight}={}){
++export function createPlanningMultiLifecycleService({atomicStore,gate,projector,appendProjector,preflight,realizedRecordFor=null}={}){
++ if(realizedRecordFor!==null&&typeof realizedRecordFor!=='function')throw Error('PLANNING_MULTI_SERVICE_CONFIG_INVALID');
+  if(typeof atomicStore?.commitMulti!=='function'||typeof atomicStore?.readAudit!=='function'||typeof atomicStore?.readOutbox!=='function'||typeof atomicStore?.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof preflight!=='function')throw Error('PLANNING_MULTI_SERVICE_CONFIG_INVALID');
+  async function commit({actor,body,action,onCommitted}){
+   action=norm(action);
+@@ -41,8 +42,15 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
+     {auditId,expectedRevision:parent.revision,remove:true,auditorId:null,blocks:[],nextSnapshot:plan},
+     ...snapshots.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,auditorId:null,blocks:[],nextSnapshot:x}))
+    ];
++   // Firestore realized-audit authority: one create-only history document,
++   // keyed by Auditor_UID, committed with the tombstone in the same transaction.
++   let realizedRecord;
++   if(action==='COMPLETE'&&realizedRecordFor){
++    if(!preview.realizedLogRow)throw Error('PLANNING_MULTI_REALIZED_ROW_MISSING');
++    realizedRecord=realizedRecordFor({...preview.realizedLogRow,auditorUid:parent.auditorId,completedByUid:actor.auditorId,operationId});
++   }
+    attempted=true;
+-   const accepted=await measure('commitMs',()=>atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan}));
++   const accepted=await measure('commitMs',()=>atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan,...(realizedRecord?{realizedRecord}:{})}));
+    committed=true;
+    if(accepted.replayed)throw Error('PLANNING_MULTI_UNEXPECTED_REPLAY');
+    // The receipt is observational. A lost client connection cannot interrupt projection.
+diff --git a/cloudrun/transport-proof/realized-audits-firestore-20-test.mjs b/cloudrun/transport-proof/realized-audits-firestore-20-test.mjs
+new file mode 100644
+index 0000000..5a2fd08
+--- /dev/null
++++ b/cloudrun/transport-proof/realized-audits-firestore-20-test.mjs
+@@ -0,0 +1,103 @@
++import assert from 'node:assert/strict';
++import {realizedAuditsAuthorityEnabled20,realizedAuditorIndex20,realizedDocumentFromLogRow20,planRealizedAuditsBackfill20,
++ logRowsFromRealizedDocuments20,realizedDocumentForCompletion20,createRealizedAuditsFirestoreStore20,REALIZED_AUDITS_COLLECTION_20} from './realized-audits-firestore-20.js';
++
++assert.equal(realizedAuditsAuthorityEnabled20({AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED:'true'}),true);
++assert.equal(realizedAuditsAuthorityEnabled20({AMS_RUNTIME_ENV:'PROD',AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED:'true'}),false);
++assert.equal(realizedAuditsAuthorityEnabled20({AMS_RUNTIME_ENV:'DEV'}),false);
++
++const auditors=[['Name','E-mail','Auditor_UID'],['A','a@x.test','UID-A'],['B','b@x.test','UID-B'],['Nouid','n@x.test','']];
++assert.throws(()=>realizedAuditorIndex20([['Name','E-mail']]),/REALIZED_AUDITORS_SCHEMA_INVALID/);
++assert.throws(()=>realizedAuditorIndex20([...auditors,['Dup','d@x.test','UID-A']]),/REALIZED_AUDITORS_DUPLICATE_UID/);
++const index=realizedAuditorIndex20(auditors);
++assert.equal(index.uidForEmail(' A@X.test '),'UID-A');assert.equal(index.emailForUid('UID-B'),'b@x.test');assert.equal(index.versionsStatus,'NONE');
++// Historical alias resolves through identity versions; an inconsistent version tab is reported, not fatal.
++const versions=[{uid:'UID-A',email:'old-a@x.test',state:'EXPIRED',validFrom:'2020-01-01T00:00:00Z',validTo:'2024-01-01T00:00:00Z'},
++ {uid:'UID-A',email:'a@x.test',state:'ACTIVE',validFrom:'2024-01-01T00:00:00Z',validTo:''},
++ {uid:'UID-B',email:'b@x.test',state:'ACTIVE',validFrom:'2020-01-01T00:00:00Z',validTo:''}];
++const historical=realizedAuditorIndex20(auditors,versions);
++assert.equal(historical.versionsStatus,'USED');assert.equal(historical.uidForEmail('old-a@x.test','2023-05-01'),'UID-A');
++assert.match(realizedAuditorIndex20(auditors,[{uid:'UID-X',email:'x@x.test',state:'ACTIVE',validFrom:'2020-01-01'}]).versionsStatus,/^UNUSABLE_IDENTITY_ORPHAN_VERSION/);
++
++const headers=['Audit ID','Company','Location','Company UID','Auditor','Auditor_UID','Status','Year','Date planned','Date accepted','Date completed','Date approved',
++ 'SCOPE_01','SCOPE_02','Hours planned','Hours dedicated','Hours to be planned','Scopes list','Manager email','Remarks'];
++const row=(id,email,uid,extra={})=>{const r=[id,'Farm','Loc','C-1',email,uid,'Completed','2025','01/03/2025','2025-02-20',45726,'2025-02-10','x','','8','7,5',8,'GAP','m@x.test',''];
++ for(const [k,v] of Object.entries(extra))r[headers.indexOf(k)]=v;return r;};
++const mapped=realizedDocumentFromLogRow20(headers,row('AUD-1','a@x.test','',{Remarks:'note'}),index).document;
++assert.equal(mapped.auditorUid,'UID-A');assert.equal(mapped.companyUid,'C-1');assert.equal(mapped.datePlanned,'2025-03-01');
++assert.equal(mapped.dateCompleted,'2025-03-10');assert.equal(mapped.hoursDedicated,7.5);assert.equal(mapped.hoursToBePlanned,8);
++assert.deepEqual(mapped.scopeSlotKeys,['SCOPE_01']);assert.equal(mapped.year,2025);assert.deepEqual(mapped.extra,{Remarks:'note'});
++assert.equal(mapped.completedByEmail,'m@x.test');assert.equal(mapped.completedByUid,null);
++assert.equal(realizedDocumentFromLogRow20(headers,row('AUD-2','','UID-B'),index).document.auditorUid,'UID-B');
++assert.equal(realizedDocumentFromLogRow20(headers,row('','a@x.test',''),index).issue,'MISSING_AUDIT_ID');
++assert.equal(realizedDocumentFromLogRow20(headers,row('A/B','a@x.test',''),index).issue,'AUDIT_ID_INVALID');
++assert.equal(realizedDocumentFromLogRow20(headers,row('AUD-3','a@x.test','',{Status:'Accepted'}),index).issue,'NOT_COMPLETED');
++assert.equal(realizedDocumentFromLogRow20(headers,row('AUD-4','','UID-Z'),index).issue,'AUDITOR_UID_UNKNOWN');
++assert.equal(realizedDocumentFromLogRow20(headers,row('AUD-5','a@x.test','UID-B'),index).issue,'AUDITOR_UID_EMAIL_CONFLICT');
++assert.equal(realizedDocumentFromLogRow20(headers,row('AUD-6','ghost@x.test',''),index).issue,'AUDITOR_UNRESOLVED');
++
++const log=[headers,row('AUD-1','a@x.test',''),row('AUD-2','','UID-B'),row('AUD-DUP','a@x.test',''),row('AUD-DUP','a@x.test',''),
++ row('AUD-OPEN','a@x.test','',{Status:'Accepted'}),row('AUD-GHOST','ghost@x.test',''),row('AUD-OLD','old-a@x.test','',{'Date completed':'2023-06-01'}),[]];
++const plan=planRealizedAuditsBackfill20({logValues:log,auditorValues:auditors,identityVersions:versions,existingIds:['AUD-2']});
++assert.equal(plan.dryRun,true);assert.equal(plan.rowsRead,7);assert.equal(plan.toCreate,2);assert.equal(plan.alreadyPresent,1);
++assert.deepEqual(plan.issues,{DUPLICATE_AUDIT_ID:1,NOT_COMPLETED_SKIPPED:1,AUDITOR_UNRESOLVED:1});
++assert.equal(plan.blockingIssues,2);assert.equal(plan.ready,false);assert.equal(plan.identityVersions,'USED');
++assert.deepEqual(plan.documents.map(d=>d.auditId).sort(),['AUD-1','AUD-OLD']);
++assert.equal(plan.documents.find(d=>d.auditId==='AUD-OLD').auditorUid,'UID-A');
++assert.equal(plan.digest,planRealizedAuditsBackfill20({logValues:log,auditorValues:auditors,identityVersions:versions,existingIds:['AUD-2']}).digest);
++assert.throws(()=>planRealizedAuditsBackfill20({logValues:[],auditorValues:auditors}),/REALIZED_LOG_SCHEMA_MISSING/);
++
++// Projection: Auditor e-mail is derived from the current roster via UID; scope slots sit between Date approved and Hours planned.
++const changedRoster=[['Name','E-mail','Auditor_UID'],['A','a-new@x.test','UID-A'],['B','b@x.test','UID-B']];
++const projected=logRowsFromRealizedDocuments20([...plan.documents,{schema:'OTHER',auditId:'X'}],changedRoster);
++const ph=projected[0],col=n=>ph.indexOf(n);
++assert.equal(projected.length,3);
++assert.ok(col('Date approved')<col('SCOPE_01')&&col('SCOPE_08')<col('Hours planned'));
++const projectedRow=projected.find(r=>r[0]==='AUD-1');
++assert.equal(projectedRow[col('Auditor')],'a-new@x.test');assert.equal(projectedRow[col('Auditor_UID')],'UID-A');
++assert.equal(projectedRow[col('Status')],'Completed');assert.equal(projectedRow[col('SCOPE_01')],'x');assert.equal(projectedRow[col('SCOPE_02')],'');
++assert.equal(projectedRow[col('Hours dedicated')],7.5);assert.equal(projectedRow[col('Date completed')],'2025-03-10');
++assert.equal(projected[0][0],'Audit ID');
++// Round trip: projected rows map back to the same documents.
++const roundTrip=planRealizedAuditsBackfill20({logValues:logRowsFromRealizedDocuments20(plan.documents,auditors),auditorValues:auditors});
++assert.deepEqual(roundTrip.documents.map(d=>({...d,source:null,completedByUid:null})).sort((a,b)=>a.auditId.localeCompare(b.auditId)),
++ plan.documents.map(d=>({...d,source:null,completedByUid:null})).sort((a,b)=>a.auditId.localeCompare(b.auditId)));
++
++const completion=realizedDocumentForCompletion20({headers,row:row('AUD-NEW','a@x.test',''),auditorUid:'UID-A',completedByUid:'UID-M',operationId:'op-1'});
++assert.equal(completion.auditorUid,'UID-A');assert.equal(completion.completedByUid,'UID-M');assert.equal(completion.source,'LIFECYCLE_COMPLETE');assert.equal(completion.sourceOperationId,'op-1');
++assert.throws(()=>realizedDocumentForCompletion20({headers,row:row('AUD-NEW','a@x.test',''),auditorUid:''}),/REALIZED_COMPLETION_AUDITOR_UID_REQUIRED/);
++assert.throws(()=>realizedDocumentForCompletion20({headers,row:row('AUD-NEW','a@x.test','UID-B'),auditorUid:'UID-A'}),/REALIZED_COMPLETION_AUDITOR_UID_UNKNOWN/);
++
++// REST store: paginated list, short cache, corrupt-document guard and create-only batches.
++const db=new Map(),calls=[];
++const enc=v=>v===null?{nullValue:null}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{booleanValue:v}:typeof v==='number'?(Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v}):
++ Array.isArray(v)?{arrayValue:{values:v.map(enc)}}:{mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,enc(x)]))}};
++const fetchImpl=async(url,init={})=>{
++ const u=new URL(url);calls.push((init.method||'GET')+' '+u.pathname);
++ if(init.method==='POST'){
++  const {writes}=JSON.parse(init.body);
++  for(const w of writes){assert.deepEqual(w.currentDocument,{exists:false});if(db.has(w.update.name.split('/').at(-1)))return {ok:false,status:409,async json(){return {}}};}
++  for(const w of writes)db.set(w.update.name.split('/').at(-1),w.update.fields);
++  return {ok:true,status:200,async json(){return {}}};
++ }
++ const all=[...db.entries()].sort(),offset=Number(u.searchParams.get('pageToken')||0),size=Number(u.searchParams.get('pageSize'));
++ const page=all.slice(offset,offset+size).map(([id,fields])=>({name:'projects/p/databases/(default)/documents/'+REALIZED_AUDITS_COLLECTION_20+'/'+id,fields}));
++ return {ok:true,status:200,async json(){return {documents:page,...(offset+size<all.length?{nextPageToken:String(offset+size)}:{})}}};
++};
++assert.throws(()=>createRealizedAuditsFirestoreStore20({projectId:'Bad Project',getToken:async()=>'t'}),/REALIZED_FIRESTORE_CONFIG_INVALID/);
++const realized=createRealizedAuditsFirestoreStore20({projectId:'audit-management-system-dev',getToken:async()=>'t',fetchImpl,cacheMs:60000});
++assert.deepEqual(await realized.createMany([]),{created:0});
++await assert.rejects(()=>realized.createMany([{auditId:'X'}]),/REALIZED_FIRESTORE_DOCUMENT_INVALID/);
++const many=Array.from({length:301},(_,i)=>({...plan.documents[0],auditId:'BULK-'+String(i).padStart(3,'0')}));
++assert.equal((await realized.createMany(many)).created,301);
++const [a,b]=await Promise.all([realized.listAll(),realized.listAll()]);
++assert.equal(a.length,301);assert.deepEqual(a,b);
++assert.equal(calls.filter(c=>c.startsWith('GET')).length,2);
++assert.equal(a.find(d=>d.auditId==='BULK-000').hoursDedicated,7.5);
++await realized.listAll();assert.equal(calls.filter(c=>c.startsWith('GET')).length,2);
++await assert.rejects(()=>realized.createMany([many[0]]),/REALIZED_FIRESTORE_ALREADY_EXISTS/);
++await assert.rejects(()=>realized.createMany(Array.from({length:401},()=>many[0])),/REALIZED_FIRESTORE_BATCH_INVALID/);
++db.set('CORRUPT',{payload:enc({schema:'AMS_REALIZED_AUDIT_V1',auditId:'OTHER'})});
++const fresh=createRealizedAuditsFirestoreStore20({projectId:'audit-management-system-dev',getToken:async()=>'t',fetchImpl});
++await assert.rejects(()=>fresh.listAll(),/REALIZED_FIRESTORE_CORRUPT/);
++console.log('Realized audits Firestore: mapping, issues, backfill plan, UID projection, completion record and create-only store OK');
+diff --git a/cloudrun/transport-proof/realized-audits-firestore-20.js b/cloudrun/transport-proof/realized-audits-firestore-20.js
+new file mode 100644
+index 0000000..3cda97b
+--- /dev/null
++++ b/cloudrun/transport-proof/realized-audits-firestore-20.js
+@@ -0,0 +1,263 @@
++/** DEV-only Firestore authority for realized (completed) audits.
++ * Firestore stores one document per Audit ID keyed by Auditor_UID; the
++ * "Log realized audits" tab is only a derived projection. The Auditor e-mail
++ * column is derived at read time from the current Auditors roster via UID.
++ */
++import {createHash} from 'node:crypto';
++import {buildAuditorIdentityIndex,resolveAuditorUid} from './auditor-identity-versions.js';
++
++export const REALIZED_AUDITS_COLLECTION_20='ams_realized_audits_20_dev';
++export const REALIZED_AUDIT_SCHEMA_20='AMS_REALIZED_AUDIT_V1';
++const SCOPE_SLOTS=Array.from({length:8},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0'));
++const clean=v=>String(v??'').trim();
++const key=v=>clean(v).toLowerCase().replace(/[\s_-]+/g,'_');
++const validId=x=>typeof x==='string'&&x.length>0&&x.length<=180&&!/[\\/]/.test(x)&&x!=='.'&&x!=='..';
++const yes=v=>v===true||['x','yes','true','1','ja'].includes(clean(v).toLowerCase());
++
++export function realizedAuditsAuthorityEnabled20(env=process.env){
++ return env.AMS_RUNTIME_ENV==='DEV'&&env.AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED==='true';
++}
++
++const FIELDS={
++ auditId:['Audit ID','Audit_ID','AuditId','Audit Id'],
++ status:['Status'],
++ auditorEmail:['Auditor','Auditor Email','Auditor_Email','Email','E-mail'],
++ auditorUid:['Auditor_UID','Auditor UID'],
++ company:['Company'],
++ companyUid:['Company_UID','Company UID','CompanyUid'],
++ location:['Location'],
++ year:['Year'],
++ datePlanned:['Date planned','Date - Planned'],
++ dateApproved:['Date approved','Date - Approved'],
++ dateAccepted:['Date accepted','Date - Accepted'],
++ dateCompleted:['Date completed','Completed date'],
++ hoursPlanned:['Hours planned'],
++ hoursDedicated:['Hours dedicated'],
++ hoursToBePlanned:['Hours to be planned'],
++ scopesList:['Scopes list'],
++ completedByEmail:['Manager_Email','Manager email','Manager e-mail']
++};
++function indexHeaders(headers){
++ const byKey=new Map();
++ headers.forEach((h,i)=>{const k=key(h);if(k&&!byKey.has(k))byKey.set(k,i);});
++ const at=names=>{for(const n of names){const i=byKey.get(key(n));if(i!==undefined)return i;}return -1;};
++ const mapped=new Set(),cols={};
++ for(const [field,names] of Object.entries(FIELDS)){
++  cols[field]=at(names);
++  for(const n of names){const i=byKey.get(key(n));if(i!==undefined)mapped.add(i);}
++ }
++ const scopes=SCOPE_SLOTS.map(slot=>({slot,i:at([slot])}));
++ scopes.forEach(s=>{if(s.i>=0)mapped.add(s.i);});
++ return {cols,scopes,mapped};
++}
++function isoDate(v){
++ if(typeof v==='number'&&Number.isFinite(v)&&v>20000&&v<80000)
++  return new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000).toISOString().slice(0,10);
++ const s=clean(v);if(!s)return '';
++ let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
++ m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
++ if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
++ return s;
++}
++function hours(v){
++ if(v===''||v===null||v===undefined)return null;
++ const n=typeof v==='number'?v:Number(clean(v).replace(',','.'));
++ return Number.isFinite(n)?n:null;
++}
++
++/** Index of the Auditors roster: e-mail (current or historical) -> UID. */
++export function realizedAuditorIndex20(auditorValues,identityVersions=null){
++ const values=Array.isArray(auditorValues)?auditorValues:[];
++ const h=values[0]||[];
++ const find=names=>{for(const n of names){const i=h.findIndex(x=>key(x)===key(n));if(i>=0)return i;}return -1;};
++ const ue=find(['E-mail','Email']),uu=find(['Auditor_UID','Auditor UID']);
++ if(ue<0||uu<0)throw Error('REALIZED_AUDITORS_SCHEMA_INVALID');
++ const emailByUid=new Map(),uidByEmail=new Map(),rows=[];
++ for(const r of values.slice(1)){
++  const email=clean(r[ue]).toLowerCase(),uid=clean(r[uu]);
++  if(!uid)continue;
++  if(emailByUid.has(uid))throw Error('REALIZED_AUDITORS_DUPLICATE_UID');
++  emailByUid.set(uid,email);
++  if(email){uidByEmail.set(email,uid);rows.push({uid,email});}
++ }
++ // Identity versions only add historical aliases; an inconsistent version tab
++ // must not block the current-roster mapping, so the error is reported instead.
++ let versionIndex=null,versionsStatus='NONE';
++ if(identityVersions){try{versionIndex=buildAuditorIdentityIndex(rows,identityVersions);versionsStatus='USED';}catch(e){versionsStatus='UNUSABLE_'+String(e?.message||'ERROR').replace(/[^A-Z0-9_]/g,'').slice(0,60);}}
++ return {
++  versionsStatus,
++  emailForUid:uid=>emailByUid.get(clean(uid))||'',
++  hasUid:uid=>emailByUid.has(clean(uid)),
++  uidForEmail:(email,at=null)=>{
++   const e=clean(email).toLowerCase();if(!e)return '';
++   if(versionIndex){
++    const day=clean(at).slice(0,10),instant=/^\d{4}-\d{2}-\d{2}$/.test(day)?day+'T12:00:00Z':null;
++    const uid=resolveAuditorUid(versionIndex,e,instant);if(uid)return uid;
++   }
++   return uidByEmail.get(e)||'';
++  }
++ };
++}
++
++/** Maps one legacy log row to a Firestore realized-audit document. */
++export function realizedDocumentFromLogRow20(headers,row,auditorIndex,{source='SHEETS_BACKFILL'}={}){
++ const {cols,scopes,mapped}=indexHeaders(headers||[]);
++ const at=field=>cols[field]>=0?row[cols[field]]:'';
++ const auditId=clean(at('auditId'));
++ if(!auditId)return {issue:'MISSING_AUDIT_ID'};
++ if(!validId(auditId))return {issue:'AUDIT_ID_INVALID'};
++ const status=clean(at('status'))||'Completed';
++ if(key(status)!=='completed'&&key(status)!=='realized')return {issue:'NOT_COMPLETED',auditId};
++ const dateCompleted=isoDate(at('dateCompleted')),loggedUid=clean(at('auditorUid')),email=clean(at('auditorEmail'));
++ const resolved=email?auditorIndex.uidForEmail(email,dateCompleted||null):'';
++ if(loggedUid&&!auditorIndex.hasUid(loggedUid))return {issue:'AUDITOR_UID_UNKNOWN',auditId};
++ if(loggedUid&&resolved&&resolved!==loggedUid)return {issue:'AUDITOR_UID_EMAIL_CONFLICT',auditId};
++ const auditorUid=loggedUid||resolved;
++ if(!auditorUid)return {issue:'AUDITOR_UNRESOLVED',auditId};
++ const completedBy=clean(at('completedByEmail')).toLowerCase();
++ const extra={};
++ (headers||[]).forEach((h,i)=>{const name=clean(h),v=row[i];if(!name||mapped.has(i)||v===''||v===null||v===undefined)return;extra[name]=typeof v==='number'||typeof v==='boolean'?v:clean(v);});
++ const year=parseInt(clean(at('year')),10);
++ const document={
++  schema:REALIZED_AUDIT_SCHEMA_20,auditId,status:'Completed',auditorUid,
++  companyUid:clean(at('companyUid')),company:clean(at('company')),location:clean(at('location')),
++  year:Number.isFinite(year)?year:null,
++  datePlanned:isoDate(at('datePlanned')),dateApproved:isoDate(at('dateApproved')),
++  dateAccepted:isoDate(at('dateAccepted')),dateCompleted,
++  hoursPlanned:hours(at('hoursPlanned')),hoursDedicated:hours(at('hoursDedicated')),hoursToBePlanned:hours(at('hoursToBePlanned')),
++  scopeSlotKeys:scopes.filter(s=>s.i>=0&&yes(row[s.i])).map(s=>s.slot),
++  scopesList:clean(at('scopesList')),
++  completedByUid:completedBy?auditorIndex.uidForEmail(completedBy)||null:null,
++  completedByEmail:completedBy||null,
++  extra,source
++ };
++ return {document};
++}
++
++/** Dry-run backfill plan. Returns documents plus PII-free counters only. */
++export function planRealizedAuditsBackfill20({logValues,auditorValues,identityVersions=null,existingIds=[]}={}){
++ if(!Array.isArray(logValues)||!Array.isArray(logValues[0]))throw Error('REALIZED_LOG_SCHEMA_MISSING');
++ const index=realizedAuditorIndex20(auditorValues,identityVersions),headers=logValues[0];
++ const existing=new Set(existingIds),seen=new Map(),issues={},documents=[];
++ let rowsRead=0,alreadyPresent=0;
++ const bump=code=>{issues[code]=(issues[code]||0)+1;};
++ for(const row of logValues.slice(1)){
++  if(!Array.isArray(row)||!row.some(v=>clean(v)))continue;
++  rowsRead++;
++  const mapped=realizedDocumentFromLogRow20(headers,row,index);
++  if(mapped.issue){if(mapped.issue!=='NOT_COMPLETED')bump(mapped.issue);else bump('NOT_COMPLETED_SKIPPED');continue;}
++  const id=mapped.document.auditId;
++  if(seen.has(id)){bump('DUPLICATE_AUDIT_ID');seen.set(id,null);continue;}
++  seen.set(id,mapped.document);
++ }
++ for(const [id,document] of seen){
++  if(!document)continue;
++  if(existing.has(id)){alreadyPresent++;continue;}
++  documents.push(document);
++ }
++ const blocking=Object.entries(issues).filter(([code])=>code!=='NOT_COMPLETED_SKIPPED').reduce((n,[,c])=>n+c,0);
++ return {dryRun:true,rowsRead,toCreate:documents.length,alreadyPresent,issues,blockingIssues:blocking,identityVersions:index.versionsStatus,
++  ready:blocking===0,digest:createHash('sha256').update(JSON.stringify(documents)).digest('hex'),documents};
++}
++
++const PROJECTION_HEADERS=['Audit ID','Company','Location','Company_UID','Auditor','Auditor_UID','Status','Year',
++ 'Date planned','Date accepted','Date completed','Date approved',...SCOPE_SLOTS,
++ 'Hours planned','Hours dedicated','Hours to be planned','Scopes list','Manager_Email'];
++
++/** Derived Sheets-shaped view used by existing readers (rotation, interval, archive). */
++export function logRowsFromRealizedDocuments20(documents,auditorValues){
++ const index=realizedAuditorIndex20(auditorValues);
++ const docs=(documents||[]).filter(d=>d&&d.schema===REALIZED_AUDIT_SCHEMA_20&&clean(d.auditId));
++ const extraNames=[...new Set(docs.flatMap(d=>Object.keys(d.extra||{})))].filter(n=>!PROJECTION_HEADERS.some(h=>key(h)===key(n))).sort();
++ const headers=[...PROJECTION_HEADERS,...extraNames];
++ const num=v=>Number.isFinite(v)?v:'';
++ const rows=docs.slice().sort((a,b)=>clean(a.dateCompleted).localeCompare(clean(b.dateCompleted))||a.auditId.localeCompare(b.auditId)).map(d=>{
++  const slots=new Set(d.scopeSlotKeys||[]);
++  return [d.auditId,clean(d.company),clean(d.location),clean(d.companyUid),index.emailForUid(d.auditorUid),clean(d.auditorUid),
++   'Completed',Number.isFinite(d.year)?String(d.year):'',clean(d.datePlanned),clean(d.dateAccepted),clean(d.dateCompleted),clean(d.dateApproved),
++   ...SCOPE_SLOTS.map(s=>slots.has(s)?'x':''),num(d.hoursPlanned),num(d.hoursDedicated),num(d.hoursToBePlanned),clean(d.scopesList),clean(d.completedByEmail),
++   ...extraNames.map(n=>d.extra?.[n]??'')];
++ });
++ return [headers,...rows];
++}
++
++/** Realized document for a new completion, built from the lifecycle log row. */
++export function realizedDocumentForCompletion20({headers,row,auditorUid,operationId,completedByUid=null}){
++ const index={hasUid:uid=>clean(uid)===clean(auditorUid),uidForEmail:()=>clean(auditorUid)};
++ if(!validId(clean(auditorUid)))throw Error('REALIZED_COMPLETION_AUDITOR_UID_REQUIRED');
++ const mapped=realizedDocumentFromLogRow20(headers,row,index,{source:'LIFECYCLE_COMPLETE'});
++ if(mapped.issue)throw Error('REALIZED_COMPLETION_'+mapped.issue);
++ // The stub index only knows the assigned auditor; the completer comes from the session.
++ return {...mapped.document,completedByUid:clean(completedByUid)||null,sourceOperationId:clean(operationId)||null};
++}
++
++function decode(v){
++ if('nullValue'in v)return null;
++ if('stringValue'in v)return v.stringValue;
++ if('booleanValue'in v)return v.booleanValue;
++ if('integerValue'in v)return Number(v.integerValue);
++ if('doubleValue'in v)return Number(v.doubleValue);
++ if('arrayValue'in v)return (v.arrayValue.values||[]).map(decode);
++ if('mapValue'in v)return Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));
++ throw Error('REALIZED_FIRESTORE_DECODE_INVALID');
++}
++function encode(v){
++ if(v===null)return {nullValue:null};
++ if(typeof v==='string')return {stringValue:v};
++ if(typeof v==='boolean')return {booleanValue:v};
++ if(typeof v==='number'&&Number.isSafeInteger(v))return {integerValue:String(v)};
++ if(typeof v==='number'&&Number.isFinite(v))return {doubleValue:v};
++ if(Array.isArray(v))return {arrayValue:{values:v.map(encode)}};
++ if(v&&typeof v==='object')return {mapValue:{fields:Object.fromEntries(Object.entries(v).filter(([,x])=>x!==undefined).map(([k,x])=>[k,encode(x)]))}};
++ throw Error('REALIZED_FIRESTORE_INVALID_VALUE');
++}
++
++/** REST store. Documents use the same {payload} envelope as the planning store. */
++export function createRealizedAuditsFirestoreStore20({projectId,getToken,fetchImpl=fetch,databaseId='(default)',collection=REALIZED_AUDITS_COLLECTION_20,cacheMs=2000,maxDocuments=6000}={}){
++ if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!/^[A-Za-z0-9_]+$/.test(collection))throw Error('REALIZED_FIRESTORE_CONFIG_INVALID');
++ const root='projects/'+projectId+'/databases/'+databaseId+'/documents';
++ const base='https://firestore.googleapis.com/v1/'+root.replace(databaseId,encodeURIComponent(databaseId));
++ let cache=null,inflight=null;
++ async function request(url,method='GET',body){
++  const token=await getToken();if(!token)throw Error('REALIZED_FIRESTORE_TOKEN_REQUIRED');
++  return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
++ }
++ async function load(){
++  const documents=[];let pageToken='';
++  do{
++   const u=new URL(base+'/'+collection);u.searchParams.set('pageSize','300');
++   if(pageToken)u.searchParams.set('pageToken',pageToken);
++   const r=await request(u.toString());
++   if(!r.ok)throw Error('REALIZED_FIRESTORE_LIST_'+r.status);
++   const data=await r.json();
++   for(const raw of data.documents||[]){
++    const id=decodeURIComponent(String(raw.name||'').split('/').at(-1)||'');
++    if(!raw.fields?.payload)throw Error('REALIZED_FIRESTORE_CORRUPT');
++    const value=decode(raw.fields.payload);
++    if(value?.auditId!==id||value?.schema!==REALIZED_AUDIT_SCHEMA_20)throw Error('REALIZED_FIRESTORE_CORRUPT');
++    documents.push(value);
++   }
++   if(documents.length>maxDocuments)throw Error('REALIZED_FIRESTORE_TOO_MANY_DOCUMENTS');
++   pageToken=data.nextPageToken||'';
++  }while(pageToken);
++  return documents;
++ }
++ async function listAll(){
++  if(cache&&Date.now()-cache.at<cacheMs)return structuredClone(cache.documents);
++  if(!inflight)inflight=load().then(documents=>{cache={at:Date.now(),documents};return documents;}).finally(()=>{inflight=null;});
++  return structuredClone(await inflight);
++ }
++ /** Create-only batch (exists:false). Callers must hold explicit data-write approval. */
++ async function createMany(documents){
++  if(!Array.isArray(documents)||documents.length>400)throw Error('REALIZED_FIRESTORE_BATCH_INVALID');
++  for(const d of documents)if(d?.schema!==REALIZED_AUDIT_SCHEMA_20||!validId(d.auditId))throw Error('REALIZED_FIRESTORE_DOCUMENT_INVALID');
++  if(!documents.length)return {created:0};
++  const writes=documents.map(d=>({update:{name:root+'/'+collection+'/'+d.auditId,fields:{payload:encode(d)}},currentDocument:{exists:false}}));
++  const r=await request(base+':commit','POST',{writes});
++  if([409,412].includes(r.status))throw Error('REALIZED_FIRESTORE_ALREADY_EXISTS');
++  if(!r.ok)throw Error('REALIZED_FIRESTORE_COMMIT_'+r.status);
++  cache=null;
++  return {created:documents.length};
++ }
++ return Object.freeze({listAll,createMany,collection});
++}
+diff --git a/cloudrun/transport-proof/server-r15.js b/cloudrun/transport-proof/server-r15.js
+index e0a24d0..fa9891b 100644
+--- a/cloudrun/transport-proof/server-r15.js
++++ b/cloudrun/transport-proof/server-r15.js
+@@ -62,6 +62,7 @@ import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifie
+ import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
+ import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
+ import {createRealizedHoursAtomicService20,createRealizedHoursBatchProjector20} from './realized-hours-atomic-service-20.js';
++import {realizedAuditsAuthorityEnabled20,createRealizedAuditsFirestoreStore20,logRowsFromRealizedDocuments20,realizedDocumentForCompletion20,REALIZED_AUDITS_COLLECTION_20} from './realized-audits-firestore-20.js';
+ import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
+ import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
+ import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
+@@ -168,7 +169,13 @@ if(compositionWriteRequested&&(!runtime.isDev||!planningAtomicEnabled||
+ // activate Firestore authority, global write fencing or lifecycle dispatch.
+ const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
+ validatePlanningAtomicRuntime20({enabled:planningAtomicEnabled,legacyWriterRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',backfillParityVerified:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true',otherAuthorityEnabled:planningAuthorityEnabled,deferredManagementRoutes:planningAtomicDeferredManagementRoutes20});
+-const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
++const realizedAuditsAuthority=runtime.isDev&&realizedAuditsAuthorityEnabled20(process.env);
++const realizedAuditsStore=realizedAuditsAuthority?createRealizedAuditsFirestoreStore20({projectId:project,getToken}):null;
++async function realizedLogValues20(auditorRows){
++ return logRowsFromRealizedDocuments20(await realizedAuditsStore.listAll(),auditorRows);
++}
++const realizedRecordFor=realizedAuditsAuthority?realizedDocumentForCompletion20:null;
++const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken,...(realizedAuditsAuthority?{realizedCollection:REALIZED_AUDITS_COLLECTION_20}:{})}):null;
+ const planningGlobalGate=(planningAuthorityEnabled||planningAtomicEnabled)?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
+ async function readPlanningRows(){
+  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
+@@ -425,6 +432,7 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
+     throw Error('VISIT_COMPOSITION_SOURCE_TRUNCATED_'+sources[i][0]);
+    tables[sources[i][0]]=rows;
+   }
++  if(realizedAuditsAuthority)tables['Log realized audits']=await realizedLogValues20(tables['Auditors']);
+   const planningRows=tables['Audit planning'],
+    sourceCanonical=await planningAtomicStore.readAudit(body.auditId);
+   const people=tables['Auditors'],header=people[0]||[],
+@@ -515,7 +523,7 @@ const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomi
+ }):null;
+ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleService({
+  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+- appendProjector:planningAtomicAppendProjector,
++ appendProjector:planningAtomicAppendProjector,realizedRecordFor,
+  preflight:async({actor,body,action})=>{
+   const path=action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
+   const r=actor.role==='auditor'?await auditorLifecyclePreflight({cookie:actor.cookie,body,action}):
+@@ -528,7 +536,7 @@ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleS
+ }):null;
+ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLifecycleService({
+  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+- appendProjector:planningAtomicAppendProjector,
++ appendProjector:planningAtomicAppendProjector,realizedRecordFor,
+  preflight:async({body})=>{
+   const key=String(process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'');
+   if(!key)throw Error('AUDITOR_COMPLETE_ATOMIC_BRIDGE_UNCONFIGURED');
+@@ -2832,6 +2840,7 @@ http.createServer(async(req,res)=>{
+     if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
+     data.push((await response.json()).values||[]);
+    }
++   if(realizedAuditsAuthority)data[2]=await realizedLogValues20(data[1]);
+    const personal=actor.role==='auditor';
+    const includeTestData=runtime.isDev&&!personal&&u.searchParams.get('includeTestData')==='1';
+    const result=buildRotationManager20(...data,{includeTestData});
+diff --git a/cloudrun/transport-proof/server-r4.js b/cloudrun/transport-proof/server-r4.js
+index 0395c78..22afa71 100644
+--- a/cloudrun/transport-proof/server-r4.js
++++ b/cloudrun/transport-proof/server-r4.js
+@@ -36,7 +36,7 @@ import {URL} from 'node:url';
+ import {readFileSync} from 'node:fs';
+ import rotationDirectPlanGate20 from './rotation-direct-plan-gate-20.cjs';
+ import {createHmac,createHash,timingSafeEqual,randomUUID} from 'node:crypto';
+-import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail} from './assignment-validation-v211.js';
++import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail,v211ParseAuditorExclusionKeys,v211ExpandAuditorExclusions} from './assignment-validation-v211.js';
+ import {v211ActorCapabilities} from './actor-capabilities-v211.js';
+ import {currentAuditorUid20,assignedUid20} from './auditor-uid-owner-resolution-20.js';
+ import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
+@@ -52,6 +52,7 @@ import {buildCompanyManagementReadModel20} from './company-management-readmodel-
+ import {validateAuditorCompanyChanges} from './company-auditor-permissions-20.js';
+ import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid,planAuditorEmailTransition} from './auditor-identity-versions.js';
+ import {previewSheet} from './auditor-uid-backfill-preview.js';
++import {realizedAuditsAuthorityEnabled20,createRealizedAuditsFirestoreStore20,logRowsFromRealizedDocuments20,planRealizedAuditsBackfill20} from './realized-audits-firestore-20.js';
+ const PORT=Number(process.env.PORT||8080);
+ const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
+ const ORIGIN=process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'';
+@@ -72,7 +73,26 @@ async function accessToken(){
+   const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');
+   accessTokenCache={token:j.access_token,expiresAt:now+(Number(j.expires_in)||300)*1000};return accessTokenCache.token;
+ }
+-function sheetsBatchGet(ranges,serialDates=false){
++function sheetsBatchGet(ranges,serialDates=false,options={}){
++  // Row-addressed Sheets writers (Complete, realized-hours) and serial-date
++  // migration tools keep the raw tab; all other readers use Firestore.
++  if(!serialDates&&options?.rawRealizedLog!==true&&realizedAuditsAuthorityEnabled20()&&ranges.some(r=>String(r).startsWith('Log realized audits!')))
++    return realizedAwareBatchGet20(ranges);
++  return sheetsBatchGetWithRetry20(ranges,serialDates);
++}
++let realizedAuditsStore20=null;
++async function realizedAwareBatchGet20(ranges){
++  const project=await verifiedAuditorLockDevProject();
++  if(project!=='audit-management-system-dev')throw Error('REALIZED_AUDITS_PROJECT_NOT_DEV');
++  realizedAuditsStore20??=createRealizedAuditsFirestoreStore20({projectId:project,getToken:accessToken});
++  const sheetRanges=ranges.filter(r=>!String(r).startsWith('Log realized audits!'));
++  const rosterRange='Auditors!A1:AZ1000';
++  const [values,documents]=await Promise.all([sheetsBatchGetWithRetry20([...sheetRanges,rosterRange],false),realizedAuditsStore20.listAll()]);
++  const projected=logRowsFromRealizedDocuments20(documents,values[sheetRanges.length]?.values||[]);
++  let next=0;
++  return ranges.map(r=>String(r).startsWith('Log realized audits!')?{range:r,majorDimension:'ROWS',values:structuredClone(projected)}:values[next++]);
++}
++function sheetsBatchGetWithRetry20(ranges,serialDates=false){
+   return (async()=>{
+     let last;
+     for(let attempt=0;attempt<3;attempt++){
+@@ -507,6 +527,18 @@ function sha256Hex(v){return createHash('sha256').update(clean(v)).digest('hex')
+ function revoked(v){return v===true||['YES','TRUE'].includes(clean(v).toUpperCase());}
+ function sheetSerialMs(v){if(typeof v==='number'&&Number.isFinite(v))return Math.round((v-25569)*86400000);const n=Number(v);if(Number.isFinite(n)&&clean(v)!=='')return Math.round((n-25569)*86400000);const t=Date.parse(clean(v));return Number.isFinite(t)?t:NaN;}
+ async function validateLegacyIdentity(rawToken,role,deviceId){rawToken=clean(rawToken);role=clean(role);deviceId=clean(deviceId);if(!rawToken)return{ok:false,error:'NO_TOKEN'};if(!deviceId)return{ok:false,error:'MISSING_DEVICE_ID'};if(!role)return{ok:false,error:'MISSING_ROLE'};const tokenHash=sha256Hex(rawToken),deviceHash=sha256Hex(deviceId),vr=await sheetsBatchGet(['Auditor_Tokens!A1:Z1024'],true),rows=vr[0]?.values||[];if(rows.length<2)return{ok:false,error:'TOKEN_NOT_FOUND'};const h=rows[0],ce=col(h,['Email']),cr=col(h,['Role']),ct=col(h,['Token_Hash']),cd=col(h,['Device_Fingerprint','Device_Fingerprin','Device_Fingerprint_Hash']),cx=col(h,['Expires_At']),cv=col(h,['Revoked']);if([ce,cr,ct,cd,cx,cv].some(x=>x<0))throw new Error('AUDITOR_TOKENS_HEADER_MISSING');for(let i=1;i<rows.length;i++){const row=rows[i];if(clean(row[cr]).toLowerCase()!==role.toLowerCase()||clean(row[ct])!==tokenHash)continue;if(revoked(row[cv]))return{ok:false,error:'TOKEN_REVOKED'};const exp=sheetSerialMs(row[cx]);if(!Number.isFinite(exp)||exp<Date.now())return{ok:false,error:'TOKEN_EXPIRED'};const stored=clean(row[cd]);if(!stored||stored!==deviceHash)return{ok:false,error:'DEVICE_MISMATCH'};const email=clean(row[ce]).toLowerCase();if(!email)return{ok:false,error:'TOKEN_EMAIL_EMPTY'};if(role.toLowerCase()==='auditor'){const valid=await validateVersionedAuditorLogin(email);if(!valid.ok)return valid;return{ok:true,email,role,auditorUid:valid.uid||'',legacyTokenExpiresAt:exp};}return{ok:true,email,role,legacyTokenExpiresAt:exp};}return{ok:false,error:'TOKEN_NOT_FOUND'};}
++async function realizedAuditsBackfillPreview20(){
++  const project=await verifiedAuditorLockDevProject();
++  if(project!=='audit-management-system-dev')throw Error('REALIZED_AUDITS_PROJECT_NOT_DEV');
++  realizedAuditsStore20??=createRealizedAuditsFirestoreStore20({projectId:project,getToken:accessToken});
++  const [vr,existing]=await Promise.all([
++    sheetsBatchGet(['Log realized audits!A1:AZ10000','Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000'],false,{rawRealizedLog:true}),
++    realizedAuditsStore20.listAll()
++  ]);
++  const plan=planRealizedAuditsBackfill20({logValues:vr[0]?.values||[],auditorValues:vr[1]?.values||[],identityVersions:(()=>{try{return rotationIdentityVersions(vr[2]?.values||[]);}catch{return null;}})(),existingIds:existing.map(d=>d.auditId)});
++  // Counts and issue codes only: never return company, auditor or audit identifiers.
++  return {ok:true,readOnly:true,writeAuthorized:false,collection:realizedAuditsStore20.collection,rowsRead:plan.rowsRead,toCreate:plan.toCreate,alreadyPresent:plan.alreadyPresent,firestoreDocuments:existing.length,issues:plan.issues,blockingIssues:plan.blockingIssues,identityVersions:plan.identityVersions,ready:plan.ready,planDigest:plan.digest};
++}
+ async function auditorUidBackfillPreviewRead(){
+  const vr=await sheetsBatchGet(['Auditors!A1:AZ1000'],true);
+  return {ok:true,...previewSheet(vr[0]?.values||[])};
+@@ -613,15 +645,14 @@ function executionConstraint(auditId,catalog,obValues,linkValues){
+   if(!deadlines.length)return out;deadlines.sort((a,b)=>a.deadline.localeCompare(b.deadline));out.cycleKey=deadlines[0].cycle;out.mustCompleteBy=deadlines[0].deadline;out.source='CONFIG_SCOPES_NON_RECURRING_CYCLE';out.scopeCodes=[...new Set(deadlines.map(x=>x.code))];return out;
+ }
+ 
++function auditorExclusionUidWriteEnabled20(){return process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_AUDITOR_EXCLUSIONS_UID_WRITE_ENABLED==='true';}
+ function companyAuditorExclusions(values,companyUid,companyName){
+   const out=new Set();if(!values.length)return out;
+   const h=values[0],cu=col(h,['Company_UID','Company UID','UID']),cn=col(h,['Company']),cx=col(h,['Auditor_Exclusions','Auditor Exclusions','Auditor exclusions']);
+   if(cx<0)return out;const uid=key(companyUid),name=key(companyName);let row=null;
+   for(const r of values.slice(1)){if(uid&&cu>=0&&key(r[cu])===uid){row=r;break}if(!row&&name&&cn>=0&&key(r[cn])===name)row=r;}
+-  if(!row)return out;const raw=clean(row[cx]);if(!raw)return out;
+-  const add=v=>{const s=clean(v).toLowerCase();if(s&&s.includes('@'))out.add(s);};
+-  try{const j=JSON.parse(raw),arr=Array.isArray(j)?j:(Array.isArray(j?.exclusions)?j.exclusions:Array.isArray(j?.items)?j.items:[]);for(const x of arr){if(typeof x==='string'){add(x);continue}if(!x||typeof x!=='object')continue;if(x.active===false||String(x.active).toLowerCase()==='false')continue;add(x.auditorEmail||x.email||x.auditor||x.userEmail);}}catch{raw.split(/[;,|\n]/).forEach(add)}
+-  return out;
++  if(!row)return out;
++  return v211ParseAuditorExclusionKeys(row[cx]);
+ }
+ function activeRoleEmails(values,role){if(!values.length)return[];const h=values[0],e=col(h,['E-mail','Email','E-mail address','Mail']),r=col(h,['Role','Function']),a=col(h,['Active','Is active']);const wanted=clean(role).toLowerCase(),out=[];for(const row of values.slice(1)){if(clean(row[r]).toLowerCase()!==wanted)continue;if(a>=0&&!yes(row[a]))continue;const email=val(row,e).toLowerCase();if(email&&!out.includes(email))out.push(email);}return out;}
+ function canonicalManagerRecipient(values){const emails=activeRoleEmails(values,'Manager');if(emails.length)return emails[0];throw new Error('MANAGER_APPROVAL_RECIPIENT_MISSING');}
+@@ -1204,6 +1235,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
+    projectionWrites:capture.writes,projectionPreconditions:preconditions,appendIntents:capture.appends,
+    projectionEnsureRows:capture.ensureRows,
+    removedSourceRows:capture.deletes,
++   realizedLogRow:capture.realizedLogRow||null,
+    successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\d+):/.test(w.range)&&Number(/^Audit planning!A(\d+):/.exec(w.range)[1])>planning.length).map(w=>{
+     const rr=w.values[0],nextId=val(rr,col(found.h,['Audit ID']));
+     if(!nextId||nextId===auditId)throw Error('LIFECYCLE_PREFLIGHT_SUCCESSOR_ID_INVALID');
+@@ -1636,7 +1668,7 @@ async function directComplete(identity,body,actorRole){
+       'Audit planning!A1:BW2000','Log realized audits!A1:AZ2500','Auditor Availability!A:P',
+       'Config_Scopes!A1:Z128','Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:H2500',
+       'Company_Scopes!A1:Z1500','Companies!A1:AZ1200','Auditors!A1:Z256'
+-    ]),readMs=Date.now()-readStarted;
++    ],false,{rawRealizedLog:true}),readMs=Date.now()-readStarted;
+     const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const log=vr[1]?.values||[],av=vr[2]?.values||[],cfgValues=vr[3]?.values||[],obs=vr[4]?.values||[],links=vr[5]?.values||[],companyScopes=vr[6]?.values||[],companies=vr[7]?.values||[],auditors=vr[8]?.values||[];
+     // Read authoritative hours sources before any lifecycle mutations; mode off by default.
+     let newHoursSources=null;
+@@ -1805,6 +1837,7 @@ async function directComplete(identity,body,actorRole){
+     const logRow=directCompletedLogRow(logH,found,hoursDedicated,managerEmailForLog,now,completedFormalHours);
+     const writeStarted=Date.now(),allWrites=[...(typeof legacyCompanyScopeWrites==='undefined'?[]:legacyCompanyScopeWrites),...obligationWrites,...linkWrites,...availabilityWrites];
+     if(!existingLogRow)allWrites.push({range:'Log realized audits!A'+(log.length+1)+':'+a1col(logH.length)+(log.length+1),values:[logRow]});
++    {const previewCapture=lifecyclePreviewContext20.getStore();if(previewCapture&&!existingLogRow)previewCapture.realizedLogRow={headers:logH.slice(),row:logRow.slice()};}
+     for(let i=0;i<newPlanningRows.length;i++)allWrites.push({range:'Audit planning!A'+(ap.length+i+1)+':'+a1col(apH.length)+(ap.length+i+1),values:[newPlanningRows[i]]});
+     for(let i=0;i<newObRows.length;i++)allWrites.push({range:'Audit_Obligations!A'+(obs.length+i+1)+':'+a1col(oh.length)+(obs.length+i+1),values:[newObRows[i]]});
+     for(let i=0;i<newLinkRows.length;i++)allWrites.push({range:'Audit_Visit_Obligations!A'+(links.length+i+1)+':'+a1col(lh.length)+(links.length+i+1),values:[newLinkRows[i]]});
+@@ -2259,7 +2292,7 @@ async function focused(id,identity){
+   const canonicalQualificationRead=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED==='true';const detailRanges=['Audit planning!A1:BW2000','Auditors!A1:Z256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AJ686','Audit_Obligations!A1:AA1000','Audit_Visit_Obligations!A1:H1000','Log realized audits!A1:AZ2048'];if(canonicalQualificationRead)detailRanges.push('Auditor_Scope_Qualifications!A1:C5000');const vr=await sheetsBatchGet(detailRanges);const qualificationRelations=canonicalQualificationRead?vr[9]?.values:undefined;if(canonicalQualificationRead&&(!Array.isArray(qualificationRelations)||!qualificationRelations.length))throw Error('CANONICAL_QUALIFICATIONS_NOT_LOADED');
+   const sheetMs=Date.now()-s,ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const f=findAudit(ap,id);
+   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
+-  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),actorRole=clean(identity?.role).toLowerCase(),actorEmail=clean(identity?.email).toLowerCase(),relatedOpenAudits=ap.slice(1).map((row,i)=>({h:ap[0],row,sourceRow:i+2})).filter(x=>val(x.row,col(x.h,['Audit ID']))!==id&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))===audit.companyUid&&['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(val(x.row,col(x.h,['Status'])).toUpperCase().replace(/[\s-]+/g,'_'))).map(x=>{const z=project(x,catalog,vr[1]?.values||[]);const sameWindow=!!(dateOnly(audit.planningWindowFrom)&&dateOnly(audit.planningWindowTo)&&dateOnly(z.planningWindowFrom)&&dateOnly(z.planningWindowTo)&&dateOnly(audit.planningWindowFrom)<=dateOnly(z.planningWindowTo)&&dateOnly(z.planningWindowFrom)<=dateOnly(audit.planningWindowTo));const missingWindow=!dateOnly(z.planningWindowFrom)||!dateOnly(z.planningWindowTo),pending=z.status==='Pending Planning',alreadyPlanned=!!(z.assignedTo||z.planningJson);return{auditId:z.auditId,status:z.status,scopes:z.scopes,requiredHours:z.requiredHours,planningWindowFrom:dateOnly(z.planningWindowFrom),planningWindowTo:dateOnly(z.planningWindowTo),assignedTo:z.assignedTo,linkCandidate:pending,sameVisitCandidate:pending&&sameWindow,sameVisitBlockedReason:pending&&missingWindow?'NO_SHARED_CANONICAL_WINDOW':'',missingPlanningWindow:missingWindow,planningRelation:pending?'UNPLANNED_RELATED':alreadyPlanned?'ALREADY_PLANNED_RELATED':'RELATED',attentionRequired:pending};}),companyCtx=companyPlanningContext(vr[5]?.values||[],audit.companyUid,audit.company),auditorExclusions=companyAuditorExclusions(vr[5]?.values||[],audit.companyUid,audit.company);audit.candidateAuditors=(audit.candidateAuditors||[]).filter(x=>!auditorExclusions.has(clean(x.email).toLowerCase()));if(actorRole==='auditor'){const uidAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';const canonicalActorUid=currentAuditorUid20(vr[1]?.values||[],actorEmail,{required:uidAuthEnabled});const assigned=directResolveAuditorEmail(vr[1]?.values||[],audit.assignedTo),preassigned=directResolveAuditorEmail(vr[1]?.values||[],audit.preassignedAuditor),assignedCanonicalUid=assignedUid20(f.h,f.row,{required:uidAuthEnabled,assignedEmail:assigned}),statusKey=clean(audit.status).toUpperCase().replace(/[\s-]+/g,'_'),ownAssigned=uidAuthEnabled?(!!assignedCanonicalUid&&assignedCanonicalUid===canonicalActorUid):!!assigned&&assigned===actorEmail,ownPreassigned=!!preassigned&&preassigned===actorEmail;let hardEligible=false,eligibilityConflictReason='';if(statusKey==='PENDING_PLANNING'&&audit.allowSelfPlanning&&(ownAssigned||ownPreassigned||(!assigned&&!preassigned))){const hard=v211AssignmentHardCheck({auditorEmail:actorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:[],qualificationRelations,requireCanonicalQualifications:canonicalQualificationRead});const windowTo=dateOnly(audit.planningWindowTo),minDate=hard.minInterval&&hard.minInterval.minPlanningDate||'';if(!hard.ok)eligibilityConflictReason=(hard.reasons||[]).join('; ')||'AUDITOR_HARD_ELIGIBILITY_BLOCKED';else if(minDate&&windowTo&&windowTo<minDate)eligibilityConflictReason='MINIMUM_INTERVAL_OUTSIDE_PLANNING_WINDOW';else{const rotation=v211RotationHardCheck(await directRotationRead(id,actorEmail));hardEligible=rotation.ok;if(!rotation.ok)eligibilityConflictReason=(rotation.reasons||[]).join('; ')||'ROTATION_BLOCKED';}}const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:audit.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:audit.allowSelfPlanning,hardEligible});if(!actor.visible)throw new Error('AUDITOR_AUDIT_ACCESS_FORBIDDEN');if(statusKey==='PENDING_PLANNING'&&!actor.capabilities.canPlan)throw new Error('AUDITOR_PLANNING_NOT_ELIGIBLE'+(eligibilityConflictReason?': '+eligibilityConflictReason:''));audit.candidateAuditors=(audit.candidateAuditors||[]).filter(x=>clean(x.email).toLowerCase()===actorEmail);audit.actorMode='AUDITOR';audit.selfPlanningPool=actor.selfPlanningPool;audit.capabilities=actor.capabilities;}else{audit.actorMode='MANAGER';audit.capabilities=v211ActorCapabilities({actorRole:'Manager',actorEmail,status:audit.status}).capabilities;}const visibleRelatedOpenAudits=actorRole==='auditor'?[]:relatedOpenAudits,companyPlanningSet=[audit,...visibleRelatedOpenAudits].map(z=>{const own=z.auditId===audit.auditId,raw=own?audit:z,exec=executionConstraint(raw.auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),committed=blocks(raw.planningJson),plannedDates=[...new Set(committed.map(b=>dateOnly(b?.date)).filter(Boolean))].sort();const obligationPlanning=obligationPlanningForAudit(raw.auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]);return{auditId:raw.auditId,scopes:raw.scopes||[],status:raw.status,sourceRevision:raw.sourceRevision||'',requiredHours:Number(raw.requiredHours||0),formalHours:Number(raw.formalHours||raw.requiredHours||0),maxOffsiteHours:Number(raw.maxOffsiteHours||maxOffsiteHoursForScopes(catalog,raw.scopes||[])||0),obligations:obligationPlanning,planningWindowFrom:dateOnly(raw.planningWindowFrom),planningWindowTo:dateOnly(raw.planningWindowTo),mustCompleteBy:exec.mustCompleteBy||'',cycleKey:exec.cycleKey||'',plannedDates,planningState:plannedDates.length?'COMMITTED':raw.status==='Pending Planning'?'UNPLANNED':'LIFECYCLE_PLANNED',isPrimary:own};});audit.companyPlanningSet=companyPlanningSet;audit.preferredAuditMonths=companyCtx.preferredAuditMonths;audit.locations=companyCtx.locations;audit.companyContext=companyCtx;audit.relatedOpenAudits=visibleRelatedOpenAudits;audit.hasRelatedOpenAudits=visibleRelatedOpenAudits.length>0;const execution=executionConstraint(id,catalog,vr[6]?.values||[],vr[7]?.values||[]),minInterval=minimumIntervalConstraint(audit,catalog,vr[8]?.values||[]);audit.minPlanningDate=minInterval.minPlanningDate;audit.minIntervalByScope=minInterval.byScope;audit.cycleKey=execution.cycleKey;audit.mustCompleteBy=execution.mustCompleteBy;audit.executionConstraintSource=execution.source;const emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom)||dateOnly(isoLocalStamp()),deadline=execution.mustCompleteBy,overdue=!!(deadline&&deadline<from),to=dateOnly(audit.planningWindowTo)||(!overdue&&deadline?deadline:dateOnly(new Date(Date.now()+90*86400000).toISOString()));audit.executionDeadlineOverdue=overdue;const availability=availabilityProjection(vr[2]?.values||[],audit.candidateAuditors,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
++  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),actorRole=clean(identity?.role).toLowerCase(),actorEmail=clean(identity?.email).toLowerCase(),relatedOpenAudits=ap.slice(1).map((row,i)=>({h:ap[0],row,sourceRow:i+2})).filter(x=>val(x.row,col(x.h,['Audit ID']))!==id&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))===audit.companyUid&&['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(val(x.row,col(x.h,['Status'])).toUpperCase().replace(/[\s-]+/g,'_'))).map(x=>{const z=project(x,catalog,vr[1]?.values||[]);const sameWindow=!!(dateOnly(audit.planningWindowFrom)&&dateOnly(audit.planningWindowTo)&&dateOnly(z.planningWindowFrom)&&dateOnly(z.planningWindowTo)&&dateOnly(audit.planningWindowFrom)<=dateOnly(z.planningWindowTo)&&dateOnly(z.planningWindowFrom)<=dateOnly(audit.planningWindowTo));const missingWindow=!dateOnly(z.planningWindowFrom)||!dateOnly(z.planningWindowTo),pending=z.status==='Pending Planning',alreadyPlanned=!!(z.assignedTo||z.planningJson);return{auditId:z.auditId,status:z.status,scopes:z.scopes,requiredHours:z.requiredHours,planningWindowFrom:dateOnly(z.planningWindowFrom),planningWindowTo:dateOnly(z.planningWindowTo),assignedTo:z.assignedTo,linkCandidate:pending,sameVisitCandidate:pending&&sameWindow,sameVisitBlockedReason:pending&&missingWindow?'NO_SHARED_CANONICAL_WINDOW':'',missingPlanningWindow:missingWindow,planningRelation:pending?'UNPLANNED_RELATED':alreadyPlanned?'ALREADY_PLANNED_RELATED':'RELATED',attentionRequired:pending};}),companyCtx=companyPlanningContext(vr[5]?.values||[],audit.companyUid,audit.company),auditorExclusions=v211ExpandAuditorExclusions(companyAuditorExclusions(vr[5]?.values||[],audit.companyUid,audit.company),vr[1]?.values||[]);audit.candidateAuditors=(audit.candidateAuditors||[]).filter(x=>!auditorExclusions.has(clean(x.email).toLowerCase())&&!(clean(x.auditorUid||x.uid)&&auditorExclusions.has(clean(x.auditorUid||x.uid).toLowerCase())));if(actorRole==='auditor'){const uidAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';const canonicalActorUid=currentAuditorUid20(vr[1]?.values||[],actorEmail,{required:uidAuthEnabled});const assigned=directResolveAuditorEmail(vr[1]?.values||[],audit.assignedTo),preassigned=directResolveAuditorEmail(vr[1]?.values||[],audit.preassignedAuditor),assignedCanonicalUid=assignedUid20(f.h,f.row,{required:uidAuthEnabled,assignedEmail:assigned}),statusKey=clean(audit.status).toUpperCase().replace(/[\s-]+/g,'_'),ownAssigned=uidAuthEnabled?(!!assignedCanonicalUid&&assignedCanonicalUid===canonicalActorUid):!!assigned&&assigned===actorEmail,ownPreassigned=!!preassigned&&preassigned===actorEmail;let hardEligible=false,eligibilityConflictReason='';if(statusKey==='PENDING_PLANNING'&&audit.allowSelfPlanning&&(ownAssigned||ownPreassigned||(!assigned&&!preassigned))){const hard=v211AssignmentHardCheck({auditorEmail:actorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:[],qualificationRelations,requireCanonicalQualifications:canonicalQualificationRead});const windowTo=dateOnly(audit.planningWindowTo),minDate=hard.minInterval&&hard.minInterval.minPlanningDate||'';if(!hard.ok)eligibilityConflictReason=(hard.reasons||[]).join('; ')||'AUDITOR_HARD_ELIGIBILITY_BLOCKED';else if(minDate&&windowTo&&windowTo<minDate)eligibilityConflictReason='MINIMUM_INTERVAL_OUTSIDE_PLANNING_WINDOW';else{const rotation=v211RotationHardCheck(await directRotationRead(id,actorEmail));hardEligible=rotation.ok;if(!rotation.ok)eligibilityConflictReason=(rotation.reasons||[]).join('; ')||'ROTATION_BLOCKED';}}const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:audit.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:audit.allowSelfPlanning,hardEligible});if(!actor.visible)throw new Error('AUDITOR_AUDIT_ACCESS_FORBIDDEN');if(statusKey==='PENDING_PLANNING'&&!actor.capabilities.canPlan)throw new Error('AUDITOR_PLANNING_NOT_ELIGIBLE'+(eligibilityConflictReason?': '+eligibilityConflictReason:''));audit.candidateAuditors=(audit.candidateAuditors||[]).filter(x=>clean(x.email).toLowerCase()===actorEmail);audit.actorMode='AUDITOR';audit.selfPlanningPool=actor.selfPlanningPool;audit.capabilities=actor.capabilities;}else{audit.actorMode='MANAGER';audit.capabilities=v211ActorCapabilities({actorRole:'Manager',actorEmail,status:audit.status}).capabilities;}const visibleRelatedOpenAudits=actorRole==='auditor'?[]:relatedOpenAudits,companyPlanningSet=[audit,...visibleRelatedOpenAudits].map(z=>{const own=z.auditId===audit.auditId,raw=own?audit:z,exec=executionConstraint(raw.auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),committed=blocks(raw.planningJson),plannedDates=[...new Set(committed.map(b=>dateOnly(b?.date)).filter(Boolean))].sort();const obligationPlanning=obligationPlanningForAudit(raw.auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]);return{auditId:raw.auditId,scopes:raw.scopes||[],status:raw.status,sourceRevision:raw.sourceRevision||'',requiredHours:Number(raw.requiredHours||0),formalHours:Number(raw.formalHours||raw.requiredHours||0),maxOffsiteHours:Number(raw.maxOffsiteHours||maxOffsiteHoursForScopes(catalog,raw.scopes||[])||0),obligations:obligationPlanning,planningWindowFrom:dateOnly(raw.planningWindowFrom),planningWindowTo:dateOnly(raw.planningWindowTo),mustCompleteBy:exec.mustCompleteBy||'',cycleKey:exec.cycleKey||'',plannedDates,planningState:plannedDates.length?'COMMITTED':raw.status==='Pending Planning'?'UNPLANNED':'LIFECYCLE_PLANNED',isPrimary:own};});audit.companyPlanningSet=companyPlanningSet;audit.preferredAuditMonths=companyCtx.preferredAuditMonths;audit.locations=companyCtx.locations;audit.companyContext=companyCtx;audit.relatedOpenAudits=visibleRelatedOpenAudits;audit.hasRelatedOpenAudits=visibleRelatedOpenAudits.length>0;const execution=executionConstraint(id,catalog,vr[6]?.values||[],vr[7]?.values||[]),minInterval=minimumIntervalConstraint(audit,catalog,vr[8]?.values||[]);audit.minPlanningDate=minInterval.minPlanningDate;audit.minIntervalByScope=minInterval.byScope;audit.cycleKey=execution.cycleKey;audit.mustCompleteBy=execution.mustCompleteBy;audit.executionConstraintSource=execution.source;const emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom)||dateOnly(isoLocalStamp()),deadline=execution.mustCompleteBy,overdue=!!(deadline&&deadline<from),to=dateOnly(audit.planningWindowTo)||(!overdue&&deadline?deadline:dateOnly(new Date(Date.now()+90*86400000).toISOString()));audit.executionDeadlineOverdue=overdue;const availability=availabilityProjection(vr[2]?.values||[],audit.candidateAuditors,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
+   return{
+     ok:true,
+     proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED',
+@@ -2307,6 +2340,14 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return
+     try{return send(res,200,await auditorUidBackfillPreviewRead());}
+     catch(e){return send(res,409,{ok:false,error:'UID_BACKFILL_PREVIEW_FAILED',detail:clean(e.message)});}
+   }
++  if(u.pathname==='/api/v1/manager/realized-audits/backfill-preview'&&req.method==='GET'){
++    const actor=await sessionFromRequestValidated(req);
++    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
++    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
++    if(process.env.AMS_RUNTIME_ENV!=='DEV')return send(res,404,{ok:false,error:'DEV_ONLY'});
++    try{return send(res,200,await realizedAuditsBackfillPreview20());}
++    catch(e){return send(res,409,{ok:false,error:'REALIZED_BACKFILL_PREVIEW_FAILED',detail:clean(e.message).slice(0,120)});}
++  }
+   if(u.pathname==='/api/v1/manager/auditor-identity/firestore-write-probe'&&req.method==='POST'){
+     const actor=await sessionFromRequestValidated(req);
+     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+@@ -2781,9 +2822,17 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return
+         const col=headers.indexOf(key);if(col<0)return send(res,409,{ok:false,error:'COMPANY_FIELD_MISSING',field:key});const old=String(target.row[col]??'');if(old!==item.value&&old!==item.expected&&!(old.trim()===item.expected.trim())&&!(old!==''&&item.expected!==''&&Number.isFinite(Number(old))&&Number.isFinite(Number(item.expected))&&Number(old)===Number(item.expected)))return send(res,409,{ok:false,error:'STALE_COMPANY_FIELD',field:key,current:old});
+         if(key==='Auditor_Exclusions'){
+           let exclusions;try{exclusions=JSON.parse(item.value||'[]')}catch{return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'})}
+-          if(!Array.isArray(exclusions)||exclusions.length>100||exclusions.some(v=>typeof v!=='string'||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))||new Set(exclusions.map(v=>v.toLowerCase())).size!==exclusions.length)return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'});
+-          const auditors=(await sheetsBatchGet(['Auditors!A1:R256']))[0]?.values||[],ah=auditors[0]||[],ei=ah.indexOf('E-mail');
+-          if(ei<0||exclusions.some(v=>!auditors.slice(1).some(r=>clean(r[ei]).toLowerCase()===v.toLowerCase())))return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UNKNOWN'});
++          const uidMode=auditorExclusionUidWriteEnabled20();
++          if(!Array.isArray(exclusions)||exclusions.length>100||exclusions.some(v=>typeof v!=='string'||!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)||(uidMode&&/^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(v))))||new Set(exclusions.map(v=>v.toLowerCase())).size!==exclusions.length)return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'});
++          const auditors=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[],ah=auditors[0]||[],ei=ah.indexOf('E-mail'),ui=ah.indexOf('Auditor_UID');
++          const keyOf=r=>v=>v.includes('@')?clean(r[ei]).toLowerCase()===v.toLowerCase():ui>=0&&clean(r[ui]).toLowerCase()===v.toLowerCase();
++          if(ei<0||exclusions.some(v=>{const n=auditors.slice(1).filter(r=>keyOf(r)(v)).length;return uidMode?n!==1:n<1;}))return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UNKNOWN'});
++          if(uidMode){
++            if(ui<0)return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UID_COLUMN_MISSING'});
++            const uids=exclusions.map(v=>clean(auditors.slice(1).find(r=>keyOf(r)(v))[ui]));
++            if(uids.some(u=>!u)||new Set(uids.map(u=>u.toLowerCase())).size!==uids.length)return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UID_UNRESOLVED'});
++            item.value=JSON.stringify(uids.sort());
++          }
+         }
+         if(key==='Contactperson e-mail'&&item.value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_EMAIL'});
+         if(key==='Audit planning limitations - days'&&item.value&&!/^(Mo|Tu|We|Th|Fr|Sa|Su)(, ?(Mo|Tu|We|Th|Fr|Sa|Su))*$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_PLANNING_DAYS'});
+@@ -3601,7 +3650,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return
+     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+     try{const v=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:M3000','Config_Scopes!A1:Z128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
+-      const out=buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]});const aud=v[5]?.values||[],ah=aud[0]||[],ei=ah.indexOf('E-mail'),ni=ah.indexOf('Name'),ai=ah.indexOf('Active'),ri=ah.indexOf('Role');out.activeAuditors=aud.slice(1).filter(r=>ei>=0&&ni>=0&&clean(r[ei])&&(!~ai||['YES','TRUE','1'].includes(clean(r[ai]).toUpperCase()))&&(!~ri||clean(r[ri]).toLowerCase()==='auditor')).map(r=>({email:clean(r[ei]).toLowerCase(),name:clean(r[ni])}));return send(res,200,out);
++      const out=buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]});const aud=v[5]?.values||[],ah=aud[0]||[],ei=ah.indexOf('E-mail'),ni=ah.indexOf('Name'),ai=ah.indexOf('Active'),ri=ah.indexOf('Role'),ui=ah.indexOf('Auditor_UID');out.activeAuditors=aud.slice(1).filter(r=>ei>=0&&ni>=0&&clean(r[ei])&&(!~ai||['YES','TRUE','1'].includes(clean(r[ai]).toUpperCase()))&&(!~ri||clean(r[ri]).toLowerCase()==='auditor')).map(r=>({email:clean(r[ei]).toLowerCase(),name:clean(r[ni]),uid:ui>=0?clean(r[ui]):''}));out.auditorExclusionKey=auditorExclusionUidWriteEnabled20()?'uid':'email';return send(res,200,out);
+     }catch(e){return send(res,409,{ok:false,error:'COMPANY_MANAGEMENT_READ_FAILED',detail:clean(e?.message||e)});}
+   }
+   if(u.pathname==='/api/v1/manager/company-scope-hours'&&req.method==='GET'){

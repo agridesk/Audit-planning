@@ -156,8 +156,8 @@ jobs:
             jq -e --arg previous "$previous" '[(if ((.status.traffic // []) | length) > 0 then .status.traffic else (.spec.traffic // []) end)[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $previous and .[0].percent == 100' <<<"$current" >/dev/null
             revision_json=$(gcloud run revisions describe "$previous" "${args[@]}" --format=json)
             jq -e '[.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED == "true" and .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED != "true"' <<<"$revision_json" >/dev/null
-            template_env=$(jq -cS '[.spec.template.spec.containers[0].env[]? | {key:.name,value:(.value // "<secret-ref>")}] | from_entries' <<<"$current")
-            previous_env=$(jq -cS "$envmap" <<<"$revision_json")
+            template_env=$(jq -cS '[.spec.template.spec.containers[0].env[]? | {key:.name,value:(.value // "<secret-ref>")}] | from_entries | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED = (.AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED // "false")' <<<"$current")
+            previous_env=$(jq -cS "$envmap | .AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED = (.AMS_DEV_FIRESTORE_REALIZED_AUDITS_AUTHORITY_ENABLED // \"false\")" <<<"$revision_json")
             [[ "$template_env" == "$previous_env" ]]
             [[ "$(jq -c '.spec.template.spec.containers[].image' <<<"$current")" == "$(jq -c '.spec.containers[].image' <<<"$revision_json")" ]]
             before=$(traffic <<<"$current")

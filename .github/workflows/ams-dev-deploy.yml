@@ -7,7 +7,7 @@ on:
         description: Single EXT release operation
         required: true
         type: choice
-        options: [deploy, preview, promote, source-check]
+        options: [deploy, preview, promote, source-check, rollback, logs]
       revision:
         description: Candidate revision for preview or promotion
         required: false
@@ -83,6 +83,26 @@ jobs:
           current=$(describe)
           jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
           jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
+          failed=ams-fase12-dev-00349-lux
+          if [[ "$OPERATION" == logs ]]; then
+            for rev in "$failed" "$live"; do
+              echo "=== REQUESTS $rev ==="
+              gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json |
+                jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("\\?.*$";""))] | @tsv'
+              echo "=== ERRORS $rev ==="
+              gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND (severity>=ERROR OR textPayload:\"AMS_ROUTE_ERROR\" OR textPayload:\"Error\" OR textPayload:\"exited\" OR textPayload:\"terminated\")" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json |
+                jq -r '.[] | [.timestamp, .severity, ((.textPayload // (.jsonPayload|tostring) // "") | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>") | .[0:400])] | @tsv'
+            done
+            exit 0
+          fi
+          if [[ "$OPERATION" == rollback ]]; then
+            jq -e --arg failed "$failed" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $failed and .[0].percent == 100' <<<"$current" >/dev/null
+            gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$live=100" >/dev/null
+            current=$(describe)
+            jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
+            echo "ROLLED_BACK_TO=$live"
+            exit 0
+          fi
           jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
           before=$(traffic <<<"$current")
           if [[ "$OPERATION" == deploy ]]; then

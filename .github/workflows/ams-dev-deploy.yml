@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && inputs.operation != 'source-check'
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && inputs.operation != 'source-check' && inputs.operation != 'logs'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -155,7 +155,7 @@ jobs:
             exit 1
           fi
   verify-source:
-    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && inputs.operation == 'source-check'
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && (inputs.operation == 'source-check' || inputs.operation == 'logs')
     environment: ams-dev
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -172,7 +172,21 @@ jobs:
           project_id: audit-management-system-dev
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - uses: google-github-actions/setup-gcloud@v3
+        if: inputs.operation == 'logs'
+      - name: Read EXT request logs
+        if: inputs.operation == 'logs'
+        shell: bash
+        run: |
+          set -uo pipefail
+          for rev in ams-fase12-dev-00349-lux ams-fase12-dev-00345-huc; do
+            echo "=== REQUESTS $rev ==="
+            gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json | jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("[?].*";""))] | @tsv'
+            echo "=== ERRORS $rev ==="
+            gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND (severity>=WARNING OR textPayload:\"AMS_ROUTE_ERROR\")" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json | jq -r '.[] | [.timestamp, .severity, ((.textPayload // (.jsonPayload|tostring) // "") | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>") | .[0:400])] | @tsv'
+          done
       - name: Verify candidate against read-only DEV sources
+        if: inputs.operation == 'source-check'
         env:
           TOKEN: ${{ steps.read_auth.outputs.access_token }}
         shell: bash

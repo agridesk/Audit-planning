@@ -80,8 +80,8 @@ jobs:
             echo "::add-mask::$token"
           }
           verify_candidate() {
-            local url="$1" jar="$RUNNER_TEMP/manager-cookie.txt" login_code preview_code login_url preview_url login_token preview_token
-            login_url="$url/auth/dev-login"
+            local url="$1" jar="$RUNNER_TEMP/manager-cookie.txt" login_code preview_code login_url preview_url login_token preview_token login_cookie
+            login_url="$service_origin/auth/dev-login"
             preview_url="$url/api/v1/manager/realized-audits/backfill-preview"
             issue_iap_token "$login_url" manager-login
             login_token=$(cat "$RUNNER_TEMP/manager-login.jwt")
@@ -91,10 +91,13 @@ jobs:
               --data 'role=Manager' "$login_url")
             echo "DEV_MANAGER_LOGIN_HTTP=$login_code"
             [[ "$login_code" == 303 ]]
+            login_cookie=$(awk '$6=="ams_dev_session"{print $7}' "$jar")
+            [[ -n "$login_cookie" ]]
+            echo "::add-mask::$login_cookie"
             issue_iap_token "$preview_url" manager-preview
             preview_token=$(cat "$RUNNER_TEMP/manager-preview.jwt")
             preview_code=$(curl --silent --max-time 30 --output "$RUNNER_TEMP/preview.json" --write-out '%{http_code}' \
-              --header "Authorization: Bearer $preview_token" --cookie "$jar" "$preview_url")
+              --header "Authorization: Bearer $preview_token" --header "Cookie: ams_dev_session=$login_cookie" "$preview_url")
             echo "MANAGER_PREVIEW_HTTP=$preview_code"
             [[ "$preview_code" == 200 ]]
             jq -e '.ok == true and .readOnly == true and .writeAuthorized == false and .firestoreDocuments == 377 and .alreadyPresent == 377 and .toCreate == 0 and .blockingIssues == 1 and .identityVersions == "USED" and ((.issues | tostring) | contains("AUDIT_ID_INVALID"))' \

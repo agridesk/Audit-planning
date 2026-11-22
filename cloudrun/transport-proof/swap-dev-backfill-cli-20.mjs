@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
  * create-only; never switches canonical read/write traffic.
  */
 import {execFileSync} from 'node:child_process';
-import {existsSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
 import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
@@ -52,6 +52,7 @@ const liveTest=argv.includes('--live-test');
 const initFence=argv.includes('--init-fence');
 const syncDrift=argv.includes('--sync-drift');
 const deltaApply=argv.includes('--delta-apply');
+const previewApply=argv.includes('--apply-reviewed-preview');
 const inspectDelta=argv.includes('--inspect-delta');
 const inspectOrphans=argv.includes('--inspect-orphans');
 const proposalInventory=argv.includes('--proposal-inventory');
@@ -59,7 +60,7 @@ const inspectAudit=argv.includes('--inspect-audit');
 const inspectAuditId=inspectAudit?argv[argv.indexOf('--inspect-audit')+1]:null;
 const repairAvailability=argv.includes('--repair-availability');
 const repairId=repairAvailability?argv[argv.indexOf('--repair-availability')+1]:null;
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability,inspectAudit].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,previewApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability,inspectAudit].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 let token=runtimeToken;
 if(runtimeToken===undefined){
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
@@ -253,18 +254,57 @@ if(initFence){
  report(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));return;
 }
 
-const read=async()=>{
- const response=await fetch(base+':batchGet',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({documents:names}),signal:AbortSignal.timeout(30000)});
+const read=async(documents=names)=>{
+ const response=await fetch(base+':batchGet',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({documents}),signal:AbortSignal.timeout(30000)});
  if(!response.ok)throw Error('SWAP_DEV_BATCHGET_HTTP_'+response.status);
  const body=await response.text();
  let result;try{result=JSON.parse(body);}catch{result=body.trim().split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));}
  if(!Array.isArray(result))result=[result];
  if(!Array.isArray(result))throw Error('SWAP_DEV_BATCHGET_RESPONSE_INVALID');
- if(result.length!==names.length)throw Error('SWAP_DEV_BATCHGET_INCOMPLETE');
+ if(result.length!==documents.length||new Set(result.map(row=>row.found?.name||row.missing)).size!==documents.length||result.some(row=>!documents.includes(row.found?.name||row.missing)))throw Error('SWAP_DEV_BATCHGET_INCOMPLETE');
  const found=new Map(result.filter(x=>x.found).map(x=>[x.found.name,x.found]));
  if(result.some(x=>!x.found&&!x.missing))throw Error('SWAP_DEV_BATCHGET_UNKNOWN');
  return found;
 };
+if(previewApply){
+ const file=argv[argv.indexOf('--apply-reviewed-preview')+1];
+ if(!file||runtimeToken!==undefined)throw Error('SWAP_DEV_REVIEWED_PREVIEW_CLI_ONLY');
+ const preview=JSON.parse(readFileSync(file,'utf8'));
+ if(preview.ok!==true||preview.result!=='DEV_AUDIT_SOURCE_RECONCILIATION'||preview.readOnly!==true||
+   preview.writeAuthorized!==false||preview.cutoverAuthorized!==false||!Array.isArray(preview.audits)||preview.audits.length!==7)
+  throw Error('SWAP_DEV_REVIEWED_PREVIEW_INVALID');
+ const collections=['ams_swap20_dev_audits','ams_swap20_dev_availability'];
+ const ids=validateSwapRuntimeAuditIds(preview.audits.map(a=>a.auditId));
+ if(ids.length!==7||new Set(ids).size!==7)throw Error('SWAP_DEV_REVIEWED_PREVIEW_DUPLICATE');
+ const planned=new Map(plan.writes.map(w=>[w.update.name,w.update]));
+ const writes=preview.audits.flatMap(({auditId,eligible,payloadPreview:p,firestoreAuditExists,firestoreAvailabilityExists})=>{
+  if(eligible!==true||firestoreAuditExists!==false||firestoreAvailabilityExists!==false||p?.status!=='READY'||
+    p.createOnly!==true||p.writeAuthorized!==false||p.executionAuthorized!==false||p.writePerformed!==false||
+    !Array.isArray(p.proposedDocuments)||p.proposedDocuments.length!==2)throw Error('SWAP_DEV_REVIEWED_PREVIEW_NOT_READY');
+  return collections.map(collection=>{
+   const name='projects/'+project+'/databases/(default)/documents/'+collection+'/'+auditId;
+   const update=planned.get(name);
+   if(!update||!p.proposedDocuments.some(doc=>isDeepStrictEqual(doc,update)))throw Error('SWAP_DEV_REVIEWED_PREVIEW_SOURCE_CHANGED');
+   return {update,currentDocument:{exists:false}};
+  });
+ });
+ const documents=writes.map(w=>w.update.name);
+ const before=await read(documents);
+ const matches=stored=>writes.every(({update})=>isDeepStrictEqual(stored.get(update.name)?.fields,update.fields));
+ if(before.size===documents.length&&matches(before)){
+  report(JSON.stringify({result:'SWAP_DEV_REVIEWED_PREVIEW_ALREADY_PRESENT',documents:before.size,cutoverAuthorized:false}));
+  return;
+ }
+ if(before.size)throw Error('SWAP_DEV_REVIEWED_PREVIEW_DOCUMENT_EXISTS');
+ const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
+ if(fresh.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_REVIEWED_PREVIEW_SOURCE_CHANGED');
+ const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes})});
+ if(result.writeResults?.length!==writes.length)throw Error('SWAP_DEV_REVIEWED_PREVIEW_RECEIPT_INVALID');
+ const after=await read(documents);
+ if(!matches(after))throw Error('SWAP_DEV_REVIEWED_PREVIEW_READBACK_FAILED');
+ report(JSON.stringify({result:'SWAP_DEV_REVIEWED_PREVIEW_VERIFIED',documents:after.size,cutoverAuthorized:false}));
+ return;
+}
 const existing=await read();
 if(inspectDelta&&runtimeToken!==undefined){
  const {collections,missingDocuments,drift}=buildSwapRuntimeParityDetails(plan.writes,existing);
@@ -528,3 +568,4 @@ export async function inspectSwapDevAuditSources({getToken,project,spreadsheet,a
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();
+

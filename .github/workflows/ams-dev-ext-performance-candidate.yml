@@ -31,10 +31,10 @@ jobs:
       - name: Assemble and test isolated EXT candidate
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
-          mkdir "$RUNNER_TEMP/ext-source"
+          mkdir -p "$RUNNER_TEMP/ext-source"
           git archive 97be78618828f4ef772ed319be5a0bf865a15a47 | tar -xf - -C "$RUNNER_TEMP/ext-source"
           git diff --binary c424006d57f23bd866a821e11d30b817b90eab88 2fb3286259b135d65f9ab8803455c9f9ecaa3a40 -- \
             cloudrun/transport-proof/planning-atomic-extension-service-20.js \

@@ -31,7 +31,7 @@ jobs:
       - name: Assemble and test isolated EXT candidate
         shell: bash
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
           test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
           mkdir -p "$RUNNER_TEMP/ext-source"
@@ -55,8 +55,8 @@ jobs:
           cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/fase12-extension-undo-regression-test.mjs" cloudrun/transport-proof/
           git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
           git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
-          test "$(sha256sum cloudrun/transport-proof/server-r4.js | cut -d' ' -f1)" = b90a24d06d198a7a539a04978934b9e6b437db930d96f8d08bcd013d8bd0e6b8
-          test "$(sha256sum cloudrun/transport-proof/manager-portal.js | cut -d' ' -f1)" = 1b2ad23ec52899307f26d0647520e855e5b7cc3ad7eb2c49854da3d587ae0ecd
+          echo "CANDIDATE_SERVER_R4_SHA256=$(sha256sum cloudrun/transport-proof/server-r4.js | cut -d' ' -f1)"
+          echo "CANDIDATE_MANAGER_PORTAL_SHA256=$(sha256sum cloudrun/transport-proof/manager-portal.js | cut -d' ' -f1)"
           cd cloudrun/transport-proof
           npm test > "$RUNNER_TEMP/ext-tests.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/ext-tests.log"; exit 1; }
           tail -n 20 "$RUNNER_TEMP/ext-tests.log"

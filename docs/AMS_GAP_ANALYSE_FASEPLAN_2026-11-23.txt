@@ -37,6 +37,10 @@ WP4 Workflow
 - Realized-backfill             -> GEDAAN (create-only run 2026-11-22). Read-only preview 2026-11-23 (run 45184208378): 377/377 geldige
                                    rijen aanwezig in ams_realized_audits_20_dev, toCreate=0. 1 blokkerende rij (AUDIT_ID_INVALID, bevat '/')
                                    vereist correctie van brondata (beslissing gebruiker; niet automatisch).
+                                   Bron-ID door gebruiker gecorrigeerd; preview (run 45185284575) toCreate=1, 0 blokkades.
+                                   Incrementele create-only backfill (run 45185633100, digest-gebonden, live-revisie-vlaggen) 377->378.
+                                   Pariteit na backfill (run 45185754977): 378/378 aanwezig, toCreate=0, 0 issues.
+                                   Rollback: het ene nieuwe document verwijderen (bekend via plan-digest 5455b7fc...); geen andere writes.
 - DEV-kandidaat 2026-11-23: merge 97228475 op dev gedeployed met --no-traffic (run 45183650270, smoke OK); verkeer ongewijzigd.
 
 4. FASEPLAN

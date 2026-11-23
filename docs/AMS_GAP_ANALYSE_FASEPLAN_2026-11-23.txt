@@ -1,4 +1,4 @@
-AMS – GAP-ANALYSE, AFHANKELIJKHEDEN EN FASEPLAN (overdracht 2026-11-23, roadmap V2.12 proposed)
+﻿AMS â€“ GAP-ANALYSE, AFHANKELIJKHEDEN EN FASEPLAN (overdracht 2026-11-23, roadmap V2.12 proposed)
 Status: werkdocument. Firestore = enige leidende bron; auditoren via Auditor_UID; Sheets = afgeleide projectie.
 Principe: Snelheid, Schaalbaar, Solide. Geen productie-, verkeers- of bedrijfsdatawijziging zonder expliciete toestemming.
 
@@ -9,10 +9,10 @@ Principe: Snelheid, Schaalbaar, Solide. Geen productie-, verkeers- of bedrijfsda
 2. GAPS PER WERKPAKKET
 WP1 Save
 - [OPGELOST P0] Client behandelde leeg antwoord / {ok:false} als succes en vergrendelde de UI. Nu alleen succes bij success===true + newStatus;
-  anders fout, Save hersteld, bij onduidelijk antwoord "outcome unconfirmed – verify before saving again". Watchdog (45 s) meldt hangende RPC zonder retry.
-- [HYPOTHESE] Knop "blijft actief zonder afronding" = hangende/time-out RPC. Bewijs nodig: browserconsole + GAS-executielog van één reproductie.
+  anders fout, Save hersteld, bij onduidelijk antwoord "outcome unconfirmed â€“ verify before saving again". Watchdog (45 s) meldt hangende RPC zonder retry.
+- [HYPOTHESE] Knop "blijft actief zonder afronding" = hangende/time-out RPC. Bewijs nodig: browserconsole + GAS-executielog van Ã©Ã©n reproductie.
 - [GAP] Toolkit gebruikt GAS-writer i.p.v. atomaire Firestore-keten (planning-atomic-command-service-20.js). Migratie = P1, na Firestore-cutover planning.
-- [GAP] Uren-tolerantie ±0,25 u is client-prompt; server blokkeert alleen te weinig uren. Te harmoniseren met roadmapregel.
+- [GAP] Uren-tolerantie Â±0,25 u is client-prompt; server blokkeert alleen te weinig uren. Te harmoniseren met roadmapregel.
 WP2 Grid
 - [GAP] Preassigned auditor en Self Planning alleen tekst; geen dropdown/toggle (ManagerV5UI.html:3945-3949).
   [BIJGESTELD P1] Geldt alleen voor de oude ManagerV5UI. Live Grid 2.0 (manager-portal.js:365-383) heeft al een Self Planning-schakelaar via de atomaire Firestore-service (self-planning-direct). Preassigned: geen Cloud Run-writer; loopt via Company Scopes-paneel. Nieuwe writer Firestore-first => P2.
@@ -27,7 +27,7 @@ WP3 Combined / Hours
 WP4 Workflow
 - [FEIT] PORTAL_INTEGRATION_FAILED niet in bron; alleen in forensisch rapport (HTTP 503).
 - [GAP] Directe auditoractie zonder requestId-idempotentie.
-- [OPGELOST P1] DEV-deploy: regressiegate vóór deploy en smoke op getagde kandidaat na deploy.
+- [OPGELOST P1] DEV-deploy: regressiegate vÃ³Ã³r deploy en smoke op getagde kandidaat na deploy.
 
 3. AFHANKELIJKHEDEN
 - Grid-dropdown/Self Planning  -> centrale UID-validator incl. beschikbaarheid  -> Firestore beschikbaarheid (gereed lokaal).
@@ -82,7 +82,8 @@ P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.
   Herzien 2026-11-23: uren worden NIET meer bij lezen afgeleid. Meting live: 7 rijen (Grid 88/95) verschilden omdat
   de afleiding opgeslagen uren overschreef (bv. 0 -> 8 voor MPS-GAP met Duration 0, 12 -> 13). Firestore is bron
   van waarheid: opgeslagen "Total audit time in hours" geldt; afwijking van de AuditTimeV5-regel wordt alleen
-  gemeld (hoursRuleDiagnostics.STORED_HOURS_DIFFER_FROM_RULE, 8 in DEV), niet stil gewijzigd.
+  gemeld (hoursRuleDiagnostics.STORED_HOURS_DIFFER_FROM_RULE, 7 in DEV), niet stil gewijzigd.
+  Meting kandidaat 00430-wek (commit e644502d, 0% verkeer): rijen 98/98 gelijk, Grid 95/95 ready, 22 ontbrekend = removed.
   Blokkade live blijft: Golf 2 (alle Audit planning-schrijvers Firestore-first, GAS fencen).
 P2b Sheets-inventaris: docs/AMS_SHEETS_READ_WRITE_INVENTORY_2026-11-23.txt (42 tabs, Cloud Run-schrijvers,
   GAS-triggers, verliesrisico's, migratiegolven 1-4). Golf 1 (referentiedata) eerst: haalt sheetsMs uit de Grid.
@@ -121,7 +122,7 @@ P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
   Gedaan: Grid 2.0 (manager-portal.js, contract in fase12-ready-scope-parity-20-test.mjs), GAS-labels in
   AuditorPortalV5, ManagerV5UI-badge, PlanningWorkspace-visuals/-actions (GAS: pas zichtbaar na GAS-deploy).
   Rollback: alleen labelteksten terugzetten; geen data geraakt.
-- Roadmap §21.1 noemt e-mail als interne identifier; gebruikersbesluit Auditor_UID gaat voor.
+- Roadmap Â§21.1 noemt e-mail als interne identifier; gebruikersbesluit Auditor_UID gaat voor.
 - Roadmap noemt GAS als canonieke writer; gebruikersbesluit Firestore gaat voor.
 
 6. ROLLBACK P0

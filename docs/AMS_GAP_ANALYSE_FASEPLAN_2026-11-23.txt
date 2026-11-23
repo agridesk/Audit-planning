@@ -104,6 +104,11 @@ P2c Golf 1 stap B (CODE GEDAAN, DEV, vlaggen uit): reference-tables-gateway-20.j
   Auditors/Companies/Config_Scopes beveiligd, editor alleen runtime-SA (+ eigenaar). Workflow ams-dev-reference-protect
   (mode preview|apply|remove; remove = rollback). Rest: GAS-triggers die als eigenaar draaien blijven technisch
   mogelijk; geen bekende trigger schrijft deze tabs. Rollback gateway: vlaggen uit (default); r15-registratie terug.
+  LIVE IN DEV (2026-11-23, akkoord gebruiker): revisie 00426-dov (image 00425-hic, write+facade aan) 100% verkeer.
+  Workflowbewijs: Manager > Auditors profiel opslaan (Area) via UI-sessie: 200 in 3,3 s; log REFERENCE_GATEWAY_WRITE
+  (Firestore eerst, Sheets 200); Firestore-rij (sleutel Auditor_UID) bijgewerkt; teruggezet (200, 2,3 s); daarna
+  pariteitsrun 45218651100: auditors/companies/config_scopes + Grid equal, manifest = oorspronkelijke backfill.
+  Lezen auditor-management 0,8-0,9 s. Rollback: verkeer naar 00366-puc (vlaggen uit).
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

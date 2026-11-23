@@ -73,9 +73,10 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
   if(sheetById.has(id))problems.push({sourceRow:i+2,reason:'SHEET_AUDIT_ID_DUPLICATE'});
   sheetById.set(id,{sourceRow:i+2,row});
  });
- const fsById=new Map();
+ const fsById=new Map(),removedIds=new Set();
  for(const record of records||[]){
-  if(!record||record.removed===true)continue;
+  if(record?.removed===true){removedIds.add(clean(record.auditId));continue;}
+  if(!record)continue;
   const s=record.snapshot;
   if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)){
    problems.push({sourceRow:null,reason:'FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED'});
@@ -86,7 +87,7 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
  }
  for(const [id,sheet] of sheetById){
   const record=fsById.get(id);
-  if(!record){problems.push({sourceRow:sheet.sourceRow,reason:'FIRESTORE_AUDIT_MISSING'});const st=statusCol<0?'':clean(sheet.row[statusCol])||'(empty)';missingStatuses[st]=(missingStatuses[st]||0)+1;continue;}
+  if(!record){problems.push({sourceRow:sheet.sourceRow,reason:'FIRESTORE_AUDIT_MISSING'});const st=statusCol<0?'':clean(sheet.row[statusCol])||'(empty)',key=removedIds.has(id)?st+' (removed in Firestore)':st;missingStatuses[key]=(missingStatuses[key]||0)+1;continue;}
   if(!same(record.snapshot.headers,sheetValues[0]))problems.push({sourceRow:sheet.sourceRow,reason:'HEADERS_MISMATCH'});
   else if(record.snapshot.sourceRow!=null&&record.snapshot.sourceRow!==sheet.sourceRow)problems.push({sourceRow:sheet.sourceRow,reason:'SOURCE_ROW_MOVED'});
   else if(!same(scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row,sheet.row)){

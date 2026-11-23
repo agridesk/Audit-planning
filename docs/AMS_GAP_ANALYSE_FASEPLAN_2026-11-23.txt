@@ -81,6 +81,16 @@ P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.
   Rollback: vlag uit (default, template schoon) of tag preflight terug; module/endpoint verwijderen.
 P2b Sheets-inventaris: docs/AMS_SHEETS_READ_WRITE_INVENTORY_2026-11-23.txt (42 tabs, Cloud Run-schrijvers,
   GAS-triggers, verliesrisico's, migratiegolven 1-4). Golf 1 (referentiedata) eerst: haalt sheetsMs uit de Grid.
+P2c Golf 1 stap A (GEDAAN, DEV): reference-tables-firestore-20.js. Auditors (sleutel Auditor_UID), Companies
+  (Company_UID), Config_Scopes (SlotKey) als volledige rijen (getypte cellen) in ams_reference_20_dev_* + meta
+  (revision, manifest). Backfill create-only, manifest-gepind (workflow ams-dev-reference-backfill): 6/186/10
+  rijen, 0 geblokkeerd, pariteit volledige tabel en Grid-ranges 3/3 exact. Grid leest ze achter
+  AMS_DEV_FIRESTORE_REFERENCE_READ_ENABLED (alleen samen met de Grid-vlag; fout -> SHEETS_FALLBACK).
+  Meting kandidaat 00421-nal (tag refgrid, 0% verkeer), warm: referentie 14-42 ms (was 268-771 ms Sheets),
+  server 217-240 ms (was 483-1217 ms). Template schoon, preflight -> 00418-lip (vlaggen uit).
+  BLOKKADE live: GAS/Cloud Run schrijven deze tabs nog naar Sheets -> Firestore-kopie veroudert. Vlag pas aan
+  na stap B (schrijvers Firestore-first met meta-revisie-bump; GAS-schrijvers fencen). Geen periodieke sync.
+  Rollback: vlag uit (default); collecties ams_reference_20_dev_* + _meta verwijderen; module/registratie terug.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

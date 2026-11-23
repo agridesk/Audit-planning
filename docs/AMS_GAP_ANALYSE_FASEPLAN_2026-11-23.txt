@@ -79,6 +79,11 @@ P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.
   Volgende: Config_Scopes/Companies/Auditors naar Firestore of gevalideerde cache; schrijvers (GAS/Model C, Reject,
   Combined) Firestore-first voordat de vlag live mag (anders ontbreken Sheets-only audits in de Grid).
   Rollback: vlag uit (default, template schoon) of tag preflight terug; module/endpoint verwijderen.
+  Herzien 2026-11-23: uren worden NIET meer bij lezen afgeleid. Meting live: 7 rijen (Grid 88/95) verschilden omdat
+  de afleiding opgeslagen uren overschreef (bv. 0 -> 8 voor MPS-GAP met Duration 0, 12 -> 13). Firestore is bron
+  van waarheid: opgeslagen "Total audit time in hours" geldt; afwijking van de AuditTimeV5-regel wordt alleen
+  gemeld (hoursRuleDiagnostics.STORED_HOURS_DIFFER_FROM_RULE, 8 in DEV), niet stil gewijzigd.
+  Blokkade live blijft: Golf 2 (alle Audit planning-schrijvers Firestore-first, GAS fencen).
 P2b Sheets-inventaris: docs/AMS_SHEETS_READ_WRITE_INVENTORY_2026-11-23.txt (42 tabs, Cloud Run-schrijvers,
   GAS-triggers, verliesrisico's, migratiegolven 1-4). Golf 1 (referentiedata) eerst: haalt sheetsMs uit de Grid.
 P2c Golf 1 stap A (GEDAAN, DEV): reference-tables-firestore-20.js. Auditors (sleutel Auditor_UID), Companies

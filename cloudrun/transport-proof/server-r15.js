@@ -2101,7 +2101,7 @@ http.createServer(async(req,res)=>{
    const report=comparePlanningGridSources20(sheetValues,records,{scopeDefaults});
    let projection='OK',grid={gridParity:'BUILDER_UNAVAILABLE'};
    try{
-    const fsValues=buildPlanningValuesFromAudits20(records,{scopeDefaults,skipUnsupportedShapes:true}),builder=managerGridBuilder20();
+    const fsValues=buildPlanningValuesFromAudits20(records,{skipUnsupportedShapes:true}),builder=managerGridBuilder20();
     if(builder)grid={gridParity:'OK',...compareManagerGridOutputs20(builder(sheetValues,actor.email,configScopes,companies,auditors),builder(fsValues,actor.email,configScopes,companies,auditors))};
    }catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

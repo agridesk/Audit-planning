@@ -88,7 +88,10 @@ export function createVersionedPlanningAuditSource20(store,{maxPages=10,pageSize
 }
 
 // skipUnsupportedShapes is for parity reports only; the live Grid read must stay strict.
-export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null,skipUnsupportedShapes=false}={}){
+// The stored "Total audit time in hours" is authoritative (Firestore is the source of truth);
+// it is never re-derived at read time, so later Config_Scopes default changes do not
+// silently change required hours of existing audits.
+export function buildPlanningValuesFromAudits20(records,{skipUnsupportedShapes=false}={}){
  if(!Array.isArray(records))throw Error('GRID_FIRESTORE_RECORDS_INVALID');
  let headers=null;const rows=[],seenRows=new Set();
  for(const record of records){
@@ -103,7 +106,7 @@ export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null,skip
   else if(!same(headers,s.headers))throw Error('GRID_FIRESTORE_HEADERS_DIVERGENT');
   if(hasRow&&seenRows.has(s.sourceRow))throw Error('GRID_FIRESTORE_SOURCE_ROW_DUPLICATE');
   if(hasRow)seenRows.add(s.sourceRow);
-  rows.push({sourceRow:hasRow?s.sourceRow:Infinity,auditId:clean(record.auditId),row:trimEnd(scopeDefaults?deriveTotalAuditHours20(s.headers,s.row,scopeDefaults):s.row)});
+  rows.push({sourceRow:hasRow?s.sourceRow:Infinity,auditId:clean(record.auditId),row:trimEnd(s.row)});
  }
  if(headers===null)throw Error('GRID_FIRESTORE_EMPTY');
  // Firestore-first writers have no Sheets row; they follow legacy rows, ordered by Audit ID.
@@ -115,10 +118,12 @@ export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null,skip
 }
 
 // Compares the live Sheets tab with Firestore by Audit ID and full row content.
+// scopeDefaults only feeds hoursRuleDiagnostics: stored hours that differ from the
+// AuditTimeV5 rule are a data-quality signal, not a parity mismatch.
 export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=null}={}){
  const head=(sheetValues?.[0]||[]).map(clean),idCol=head.indexOf('Audit ID');
  if(idCol<0)throw Error('GRID_PARITY_SHEET_SCHEMA_INVALID');
- const problems=[],sheetById=new Map(),mismatchColumns={},missingStatuses={},hoursDiagnostics={},shapeDiagnostics={},statusCol=head.indexOf('Status');let matched=0;
+ const problems=[],sheetById=new Map(),mismatchColumns={},missingStatuses={},hoursRuleDiagnostics={STORED_HOURS_DIFFER_FROM_RULE:0},shapeDiagnostics={},statusCol=head.indexOf('Status');let matched=0;
  sheetValues.slice(1).forEach((row,i)=>{
   const id=clean(row[idCol]);if(!id)return;
   if(sheetById.has(id))problems.push({sourceRow:i+2,reason:'SHEET_AUDIT_ID_DUPLICATE'});
@@ -141,20 +146,19 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
   if(!record){problems.push({sourceRow:sheet.sourceRow,reason:'FIRESTORE_AUDIT_MISSING'});const st=statusCol<0?'':clean(sheet.row[statusCol])||'(empty)',key=removedIds.has(id)?st+' (removed in Firestore)':st;missingStatuses[key]=(missingStatuses[key]||0)+1;continue;}
   if(!same(record.snapshot.headers,sheetValues[0]))problems.push({sourceRow:sheet.sourceRow,reason:'HEADERS_MISMATCH'});
   else if(record.snapshot.sourceRow!=null&&record.snapshot.sourceRow!==sheet.sourceRow)problems.push({sourceRow:sheet.sourceRow,reason:'SOURCE_ROW_MOVED'});
-  else if(!same(scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row,sheet.row)){
+  else if(!same(record.snapshot.row,sheet.row)){
    problems.push({sourceRow:sheet.sourceRow,reason:'ROW_CONTENT_MISMATCH'});
-   const fsRow=scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row;
+   const fsRow=record.snapshot.row;
    const width=Math.max(head.length,fsRow.length,sheet.row.length);
    for(let c=0;c<width;c++)if(cell(fsRow[c])!==cell(sheet.row[c])){const name=head[c]||'#'+c;mismatchColumns[name]=(mismatchColumns[name]||0)+1;}
-   if(scopeDefaults){
-    const h=head.map(x=>x.toLowerCase()).indexOf(TOTAL_HOURS_HEADER),sheetDerived=deriveTotalAuditHours20(sheetValues[0],sheet.row,scopeDefaults);
-    const k=h<0?'NO_HOURS_COLUMN':cell(sheetDerived[h])!==cell(sheet.row[h])?'SHEET_HOURS_NOT_RECOMPUTED':cell(record.snapshot.row[h])===cell(sheet.row[h])?'SNAPSHOT_HOURS_MATCH_SHEET':'SNAPSHOT_SCOPES_STALE';
-    hoursDiagnostics[k]=(hoursDiagnostics[k]||0)+1;
-   }
   }
   else matched++;
+  if(scopeDefaults&&same(record.snapshot.headers,sheetValues[0])){
+   const h=head.map(x=>x.toLowerCase()).indexOf(TOTAL_HOURS_HEADER);
+   if(h>=0&&cell(deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults)[h])!==cell(record.snapshot.row[h]))hoursRuleDiagnostics.STORED_HOURS_DIFFER_FROM_RULE++;
+  }
  }
  for(const [id,record] of fsById)if(!sheetById.has(id))problems.push({sourceRow:record.snapshot?.sourceRow??null,reason:'FIRESTORE_AUDIT_NOT_IN_SHEET'});
  const reasons={};for(const p of problems)reasons[p.reason]=(reasons[p.reason]||0)+1;
- return {ready:problems.length===0&&matched===sheetById.size,sheetAudits:sheetById.size,firestoreAudits:fsById.size,matched,reasons,mismatchColumns,missingStatuses,hoursDiagnostics,shapeDiagnostics,problems:problems.slice(0,200)};
+ return {ready:problems.length===0&&matched===sheetById.size,sheetAudits:sheetById.size,firestoreAudits:fsById.size,matched,reasons,mismatchColumns,missingStatuses,...(scopeDefaults?{hoursRuleDiagnostics}:{}),shapeDiagnostics,problems:problems.slice(0,200)};
 }

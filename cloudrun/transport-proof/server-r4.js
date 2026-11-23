@@ -1,6 +1,6 @@
 import {requiredTogetherScopePairs20} from './scope-dependency-policy-20.mjs';
 import {firestoreGridAuditSource20,firestoreGridReferenceSource20,setManagerGridBuilder20} from './planning-grid-source-registry-20.js';
-import {buildPlanningValuesFromAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20} from './planning-firestore-grid-projection-20.js';
 import http from 'node:http';
 import {validateTogetherCompositionPreflight20} from './visit-composition-together-r4-preflight-20.mjs';
 import {managerApprovalBlocks20,resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
@@ -979,7 +979,7 @@ async function managerGridSources20(loaded){
   try{
    const t0=Date.now(),timed=p=>p.then(v=>[v,Date.now()-t0]);
    const referenceSource=firestoreGridReferenceSource20(),[[rest,sheetsMs],[records,firestoreMs]]=await Promise.all([timed(referenceSource?referenceSource():sheetsBatchGet(['Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256'])),timed(source())]);
-   const t1=Date.now(),planning=buildPlanningValuesFromAudits20(records,{scopeDefaults:scopeDefaultHours20(rest[0]?.values||[])});
+   const t1=Date.now(),planning=buildPlanningValuesFromAudits20(records);
    if(!Array.isArray(rest)||rest.length!==3)throw Error('GRID_REFERENCE_SOURCE_INCOMPLETE');
    return {vr:[{values:planning},...rest],gridSource:'FIRESTORE',gridTimings:{sheetsMs,firestoreMs,projectMs:Date.now()-t1,records:records.length,referenceSource:referenceSource?'FIRESTORE':'SHEETS'}};
   }catch(e){console.warn('[AMS_GRID_FIRESTORE_FALLBACK]',clean(e?.message||'').slice(0,80));}

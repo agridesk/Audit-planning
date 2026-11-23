@@ -24,7 +24,9 @@ assert.equal(comparePlanningGridSources20([headers,['A','Co A','Pending Planning
 const hoursDrift=comparePlanningGridSources20([['Audit ID','SCOPE_01','Total audit time in hours'],['A','x','3']],
  [{auditId:'A',revision:0,snapshot:{auditId:'A',sourceRow:2,headers:['Audit ID','SCOPE_01','Total audit time in hours'],row:['A','x','3']}}],
  {scopeDefaults:scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','4']])});
-assert.deepEqual(hoursDrift.hoursDiagnostics,{SHEET_HOURS_NOT_RECOMPUTED:1});
+// Stored hours are authoritative: a rule difference is reported, but parity stays ready.
+assert.equal(hoursDrift.ready,true);
+assert.deepEqual(hoursDrift.hoursRuleDiagnostics,{STORED_HOURS_DIFFER_FROM_RULE:1});
 assert.deepEqual(comparePlanningGridSources20([headers],[...records,{auditId:'M',revision:0,lastOperationId:'o',snapshot:{auditId:'M',status:'Approved'}}]).shapeDiagnostics,{'auditId|status#op#rev0':1});
 
 // Parity: identical sources are ready; every drift class is reported by row number only.
@@ -59,8 +61,8 @@ const stale=[{auditId:'A',revision:0,snapshot:{auditId:'A',sourceRow:2,headers:s
 const changedSheet=[scopeHead,['A','x','','','5,5']];
 assert.deepEqual(comparePlanningGridSources20(changedSheet,stale).mismatchColumns,{'Total audit time in hours':1});
 const rederived=comparePlanningGridSources20(changedSheet,stale,{scopeDefaults:scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','5.5']])});
-assert.equal(rederived.ready,true);
-assert.deepEqual(buildPlanningValuesFromAudits20(stale,{scopeDefaults:defaultsDot})[1],['A','x','','',4]);
+assert.equal(rederived.ready,false,'a stale snapshot is never hidden by read-time derivation');
+assert.deepEqual(buildPlanningValuesFromAudits20(stale)[1],['A','x','','','4']);
 const gridCmp=compareManagerGridOutputs20({rows:[{auditId:'A',company:'Co',requiredHours:4},{auditId:'B',company:'Co'}]},{rows:[{auditId:'A',company:'Co',requiredHours:5},{auditId:'C'}]});
 assert.deepEqual(gridCmp,{ready:false,gridRowsSheet:2,gridRowsFirestore:2,gridMatched:0,gridMissing:1,gridExtra:1,gridDiffFields:{requiredHours:1}});
 assert.equal(compareManagerGridOutputs20({rows:[{auditId:'A',x:1}]},{rows:[{auditId:'A',x:1}]}).ready,true);

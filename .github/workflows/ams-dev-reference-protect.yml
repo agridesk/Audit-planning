@@ -1,0 +1,63 @@
+﻿name: AMS DEV reference tabs protection
+on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/ams-dev-reference-protect.yml
+      - .github/workflows/reference-protect/run.mjs
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: preview | apply | remove
+        required: true
+        default: preview
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: ams-dev-reference-protect
+  cancel-in-progress: false
+jobs:
+  protect:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNTIME_SA: 510075419067-compute@developer.gserviceaccount.com
+      MODE: ${{ github.event.inputs.mode || 'preview' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Preview/apply/remove protection (ids and counts only)
+        shell: bash
+        env:
+          DEPLOY_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          case "$MODE" in preview|apply|remove) ;; *) echo "bad mode"; exit 1;; esac
+          sid=$(gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format=json \
+            | jq -r '[.spec.template.spec.containers[0].env[]? | select(.name=="DEV_SSOT_SPREADSHEET_ID") | .value][0] // ""')
+          echo "::add-mask::$sid"
+          test -n "$sid"
+          scope='https://www.googleapis.com/auth/spreadsheets.readonly'
+          if [ "$MODE" != preview ]; then scope='https://www.googleapis.com/auth/spreadsheets'; fi
+          body="{\"scope\":[\"$scope\"],\"lifetime\":\"300s\"}"
+          code=$(curl -sS -o "$RUNNER_TEMP/imp.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" -H 'content-type: application/json' \
+            -d "$body" "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${RUNTIME_SA}:generateAccessToken")
+          echo "Runtime SA impersonation HTTP status: $code" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$code" = 200
+          rt=$(jq -r .accessToken "$RUNNER_TEMP/imp.json"); echo "::add-mask::$rt"
+          SID="$sid" TOKEN="$rt" node .github/workflows/reference-protect/run.mjs | tee "$RUNNER_TEMP/out.json"
+          jq -c . "$RUNNER_TEMP/out.json" >> "$GITHUB_STEP_SUMMARY"

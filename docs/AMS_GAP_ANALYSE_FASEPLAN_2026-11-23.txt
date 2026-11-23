@@ -65,11 +65,16 @@ Auditoractie-idempotentie: write-safe al aanwezig (verplichte expectedRevision +
 P2: Toolkit -> atomaire Firestore-keten; Combined Audits; schrijffence + notitiemigratie; jaarcapaciteit readmodel.
 P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.js + GET /api/v1/planning/grid-firestore-parity
   (DEV, manager, read-only, alleen tellingen). Uren worden bij lezen afgeleid (zelfde regel als GAS AuditTimeV5).
-  Meting DEV-kandidaat 00386-xuh: 118 Sheet-audits, 95 Firestore, 88 gelijk; 7 afwijkingen = Sheet-uren niet herberekend
-  (Firestore-afleiding juist); 23 ontbreken in Firestore (Rejected 7, Completed 11, Approved 3, Pending Planning 2)
-  door schrijvers buiten de atomaire keten (GAS/Model C, afwijzen, Combined); 3 archief-snapshots zonder rij (commitRealizedHours).
-  Volgende: die schrijvers Firestore-first, archief-snapshot behoudt rij, daarna DEV-backfill en managerOpenRead achter vlag.
-  Rollback: endpoint/module verwijderen; geen data geraakt.
+  Meting DEV-kandidaat 00391-cez: 118 Sheet-audits, 95 Firestore, 88 gelijk; 7 afwijkingen = Sheet-uren niet herberekend
+  (Firestore-afleiding juist). Van de 23 "ontbrekend" staan er 20 op removed:true in Firestore (Rejected 7, Completed 11,
+  Pending Planning 2; niet Grid-zichtbaar). 3 Approved ontbreken echt: oude Model C-split-snapshots zonder headers/row.
+  Grid-uitvoerpariteit (managerOpen op Sheet vs Firestore), kandidaat 00395-xuz: 95 Grid-rijen Sheet, 92 Firestore,
+  85 identiek, 3 ontbrekend (Model C), 0 extra, 7 verschillen alleen requiredHours/formalHours/toBePlanned (verouderde Sheet-uren).
+  Gebouwd: managerOpenRead leest Firestore achter DEV-vlag AMS_DEV_FIRESTORE_GRID_READ_ENABLED (standaard uit);
+  Sheets leest dan alleen Config_Scopes/Companies/Auditors; bij fout terugval naar Sheets (gridSource SHEETS_FALLBACK).
+  Volgende: 3 Model C-snapshots herstellen (DEV-reseed na preview), schrijvers (GAS/Model C, Reject, Combined)
+  Firestore-first, daarna vlag op kandidaat aan en /open-tijd meten.
+  Rollback: vlag uit (default) of tag preflight terug; module/endpoint verwijderen; geen data geraakt.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

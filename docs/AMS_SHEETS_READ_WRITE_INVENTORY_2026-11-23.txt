@@ -1,0 +1,98 @@
+AMS - INVENTARIS SHEETS LEZERS/SCHRIJVERS VOOR FIRESTORE-MIGRATIE (2026-11-23)
+
+Status: STATISCHE inventaris (alleen broncode). Geen cutover-goedkeuring. Getriggerde GAS-jobs, flags en
+bereikbaarheid moeten per golf runtime-geverifieerd worden. "?" = niet geteld, NIET nul.
+Doel: niets vergeten bij Firestore als enige bron (Auditor_UID als koppeling, Sheets alleen afgeleide weergave).
+
+1. OMVANG
+- 42 tabnamen gevonden, ~1500 kandidaat-verwijzingen (GAS root: 399 bestanden + 44 HTML; Cloud Run: 156 modules
+  in de statische importketen vanaf server-r15.js -> server-r12.js -> server-r4.js).
+- Generieke projectors schrijven naar data-gestuurde tabs (planning-sheets-writeset-projector-20.js,
+  planning-sheets-append-projector-20.js) en zijn niet via tabnaam te vinden.
+
+2. CLOUD RUN - BEVESTIGDE DIRECTE SHEETS-SCHRIJVERS (server-r4.js, sheetsValuesBatchUpdate)
+  directManagerApprove        -> Audit planning
+  directManagerAcceptOnBehalf -> Audit planning
+  directComplete              -> Audit planning, Log realized audits (uren/correctie)
+  directManagerCancel         -> Audit planning
+  directManagerReject         -> Audit planning (+ gekoppelde velden)
+  directPlanningCommit        -> Audit planning, Auditor Availability, Concept Reservations
+  focused (verify/scope-flow) -> Company_Scope_Hours, Company_Scopes (Active), Audit_Obligations,
+                                 Audit_Visit_Obligations, Companies, Config_Scopes
+  Overige range-literals in server-r4: Auditors (8x: roster, aanmaken, e-mailwissel), Notification Queue,
+  Diagnostics_Log. Auditor-aanmaak/e-mailwissel muteert meerdere tabs (Auditors, Identity_Versions, Tokens,
+  Audit planning) en gebruikt e-mail in consumenten.
+  Grid-read (managerGridSources20) leest Config_Scopes, Companies, Auditors ook als de Firestore-vlag aan staat.
+
+3. GAS - ACTIEVE/INSTALLEERBARE TRIGGERS (schrijven zonder Cloud Run)
+  AnnualCycleEngineV5_OnEdit (onEdit)           -> nieuwe cyclusrij bij Completed, planningsvensters
+  NotificationQueue20 / NotificationSender      -> elke minuut: reserveren, retries, suppressie, verzenden
+  AcceptedNotificationReliability (1 min)       -> herstel Accepted-notificaties
+  NotificationAcceptedReconciler, WeeklyDigest  -> notificatie-afstemming, wekelijkse digest (di 06:00)
+  AvailabilityService (dagelijks 03:00)          -> standaard/handmatige beschikbaarheidsblokken
+  AUDITOR_SCOPE_ON_EDIT, cache-warmers          -> cache-invalidatie (MP_OpenCache/MP_CalCache/AuditorGrid)
+  Daarnaast UI-schrijvers: m5t_createAuditRowFromCompaniesPool_ / m5t_upsertScopes (Scope Manager),
+  AuditTimeV5_RebuildTotalHours, RejectedAuditsV5 (archief + obligation-unlink + statusvelden),
+  AuditPlanningModelCScopeOwnership.
+  Welke triggers werkelijk geinstalleerd zijn: runtime-check vereist (ScriptApp.getProjectTriggers).
+
+4. PER TAB (Firestore-status: partial = deels/DEV/achter vlag; unverified = geen volledig equivalent gevonden)
+  Tab                           Firestore   Risico  Actie
+  Audit planning                partial     hoog    Alle create/complete/reject/uren/annual-cycle Firestore-first; GAS fencen
+  Auditors                      partial     hoog    Roster/rollen/profiel/capaciteit naar Firestore, sleutel Auditor_UID
+  Auditor_Identity_Versions     unverified  hoog    UID-gesleuteld identiteitsledger; e-mail alleen login/communicatie
+  Auditor_Tokens                unverified  hoog    Tokenlevenscyclus/intrekking zonder e-mail als sleutel
+  Auth_Login_Codes              partial     hoog    Uitgifte/verificatie/expiry volledig naar Firestore
+  Companies                     unverified  hoog    Bedrijfsgegevens + constraints/exclusions (nu e-mail) naar UID
+  Company_Scopes                partial     hoog    Scope-eigendom, (de)activering, historie (Model C)
+  Company_Scope_Hours           unverified  hoog    Uren-snapshots + validatie
+  Config_Scopes                 unverified  hoog    Scopecatalogus, uren, beleid (beslissend, niet alleen UI)
+  Config_Scope_Dependencies     unverified  hoog    Afhankelijkheidscontrole bij create/extension
+  ScopeVersions                 unverified  hoog    Versiebeleid met ingangsdatum
+  BronBedrijfUrenScopes         unverified  hoog    Brongegevens scope-uren
+  Standards, Certification_Bodies unverified middel Catalogi
+  Audit_Obligations             partial     hoog    Model C-levenscyclus/expiry/extensions
+  Audit_Visit_Obligations       partial     hoog    Bezoekkoppelingen + unlink bij reject, atomair
+  Rejected audits               unverified  hoog    Afwijshistorie atomair met statuswijziging
+  Log realized audits           partial     hoog    Rotatiehistorie UID-gesleuteld afronden; oude schrijvers fencen
+  Auditor Availability          partial     hoog    Handmatig/standaard + collisions; UID; GAS-dagjob fencen
+  Concept Reservations          partial     hoog    Reads/writes + outbox cutover met pariteit
+  Auditor_Scope_Qualifications  partial     hoog    Mutaties + eligibility-reads naar Firestore
+  Eligibility_Cache             unverified  hoog    Vervangen door UID-gebaseerde eligibility uit Firestore
+  CB_Extension_Outbox           partial     hoog    Extension-outbox + verwerking
+  AMS_Swap_20_Journal           partial     hoog    Legacy SWAP-journalschrijvers fencen, pariteit
+  Company_Update_Proposals      unverified  hoog    Voorstel/review-levenscyclus + idempotentie
+  Notification Queue            unverified  hoog    Duurzame Firestore-outbox (reserveren/retry/suppressie/dedupe)
+  Notifications_queue           unverified  middel  Historische helper; openstaande rijen/dedupe bewaren
+  Notification_Rules/_Config/_Settings unverified hoog Verzendbeleid en routering
+  Notification_Templates        unverified  middel  Templates
+  Notification_Change_Log       unverified  middel  Audit trail configwijzigingen bewaren
+  AMS_ECAS_Communication_Receipts unverified hoog   Externe ontvangstbewijzen/idempotentie
+  System_Config                 unverified  hoog    Feature/delivery-config die beslissingen stuurt
+  MP_OpenCache_Store, MP_CalCache_Store, AUDIT_CacheOverflow_Store  unverified middel  Vervalt na Firestore-reads
+  Diagnostics_Log               unverified  middel  Identiteitswijzigingsrecords behouden (security)
+  Diagnostics_Action_Timings, RAS_Qualification_Diagnostics  unverified laag  Telemetrie; repair-paden checken
+  Hoofdlettervarianten (Audit Planning, Auditor availability): per deployment oplossen, niet als alias aannemen.
+
+5. FUNCTIONALITEIT DIE VERLOREN GAAT ALS JE HEM VERGEET
+  a. Annual cycle (volgende auditrij bij Completed) - draait op onEdit van de Sheet; bij Firestore-only stopt dit stil.
+  b. Notificatieverzending - de minuuttrigger leest de Queue-tab; Firestore-commits zonder queue-projectie => geen mails.
+  c. Totale uren - GAS herberekent in de Sheet; Firestore leidt al af bij lezen (P2a), GAS-writer daarna overbodig.
+  d. Reject - archief + obligation-unlink + statusvelden horen in een transactie.
+  e. Beschikbaarheid - dagelijkse GAS-job en handmatige blokken buiten Firestore-claims om.
+  f. Scope Manager / Model C - maakt audits rechtstreeks in de Sheet; Firestore-Grid mist ze dan.
+  g. Cache-warmers/invalidatie (onEdit) - worden overbodig, maar pas uitzetten na cutover van de lezers.
+  h. E-mail als sleutel in Availability, Concept Reservations en Companies.Auditor_Exclusions -> Auditor_UID.
+
+6. MIGRATIEVOLGORDE (voorstel)
+  Golf 1 Referentie (snelheid Grid): Auditors(+Identity_Versions, Tokens), Companies, Company_Scopes,
+         Company_Scope_Hours, Config_Scopes(+Dependencies, ScopeVersions), Standards, Certification_Bodies.
+  Golf 2 Planning-levenscyclus: Audit planning-schrijvers (Cloud Run + GAS), Obligations, Visit_Obligations,
+         Rejected audits, Log realized audits, Availability, Concept Reservations, Qualifications/Eligibility.
+  Golf 3 Notificaties: Queue -> Firestore-outbox + sender, Rules/Config/Settings/Templates, ECAS receipts.
+  Golf 4 Opruimen: caches, diagnostics, GAS-triggers uitzetten na bewezen pariteit.
+  Per golf: Firestore-schema + backfill-preview -> pariteit -> writers Firestore-first met Sheets-projectie
+  -> readers om -> GAS-writer fencen -> trigger uit. Rollback per golf: vlag uit, projectie blijft Sheets vullen.
+
+Bron: statische scan + steekproef (server-r4.js writers r1489-3036; GAS triggers via ScriptApp.newTrigger).
+Volledige kandidaatlijst (bestand:regel, zonder bedrijfsdata) staat buiten de repo in de sessie-artefacten.

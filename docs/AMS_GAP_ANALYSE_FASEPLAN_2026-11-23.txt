@@ -79,6 +79,8 @@ P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.
   Volgende: Config_Scopes/Companies/Auditors naar Firestore of gevalideerde cache; schrijvers (GAS/Model C, Reject,
   Combined) Firestore-first voordat de vlag live mag (anders ontbreken Sheets-only audits in de Grid).
   Rollback: vlag uit (default, template schoon) of tag preflight terug; module/endpoint verwijderen.
+P2b Sheets-inventaris: docs/AMS_SHEETS_READ_WRITE_INVENTORY_2026-11-23.txt (42 tabs, Cloud Run-schrijvers,
+  GAS-triggers, verliesrisico's, migratiegolven 1-4). Golf 1 (referentiedata) eerst: haalt sheetsMs uit de Grid.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

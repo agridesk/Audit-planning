@@ -3,6 +3,7 @@
  * meta document per table holding the header row and a revision. Readers validate
  * the cache on the meta revision, so a warm read is a single document GET.
  * Every future writer MUST change rows and bump the meta revision in one commit.
+ * A meta document flagged stale is never served; readers fall back to Sheets.
  */
 import {createHash} from 'node:crypto';
 
@@ -46,12 +47,18 @@ function decode(v){
 const payloadOf=raw=>{if(!raw?.fields?.payload)throw Error('REFERENCE_FIRESTORE_CORRUPT');return decode(raw.fields.payload);};
 const deepFreeze=x=>{if(x&&typeof x==='object'&&!Object.isFrozen(x)){Object.freeze(x);for(const v of Object.values(x))deepFreeze(v);}return x;};
 
+/** Shared row rules for the planner and the write gateway. */
+export const referenceKeyValid20=validKey;
+export const referenceTrimRow20=trimRow;
+export const referenceRowBlank20=blank;
+export function referenceKeyIndex20(table,headers){const wanted=tableDef(table).keyHeaders.map(norm);return wanted.map(w=>(headers||[]).findIndex(h=>norm(h)===w)).find(i=>i>=0)??-1;}
+
 /** Pure: turn the Sheets values of one tab into keyed row documents (no I/O). */
 export function planReferenceTable20(table,values){
  const def=tableDef(table);
  if(!Array.isArray(values)||!values.length||blank(values[0]))throw Error('REFERENCE_SOURCE_HEADER_MISSING');
  if(values.length>=def.maxRows)throw Error('REFERENCE_SOURCE_TRUNCATED');
- const headers=trimRow(values[0]),wanted=def.keyHeaders.map(norm),keyIndex=wanted.map(w=>headers.findIndex(h=>norm(h)===w)).find(i=>i>=0)??-1;
+ const headers=trimRow(values[0]),keyIndex=referenceKeyIndex20(table,headers);
  if(keyIndex<0)throw Error('REFERENCE_SOURCE_KEY_COLUMN_MISSING');
  const rows=[],seen=new Set();let blankRows=0,missingKey=0,invalidKey=0,duplicateKey=0;
  values.slice(1).forEach((row,i)=>{
@@ -141,7 +148,40 @@ export function createReferenceTablesFirestoreStore20({projectId,getToken,fetchI
   await commit([{update:{name:writeName(META,plan.table),fields:{payload:encode({table:plan.table,headers:plan.headers,rowCount:plan.rows.length,revision:1,manifest:plan.manifest,source:'SHEETS_BACKFILL'})}},currentDocument:{exists:false}}]);
   return {table:plan.table,written:pending.length,skipped:plan.rows.length-pending.length};
  }
- return Object.freeze({readMeta,readTable,backfillTable});
+ /** Atomic multi-table change: row puts/deletes plus a meta revision bump per table, each guarded
+  * by that table's meta updateTime. Precondition failures surface as REFERENCE_FIRESTORE_CONFLICT. */
+ async function commitChanges(changes){
+  if(!Array.isArray(changes)||!changes.length)throw Error('REFERENCE_FIRESTORE_CHANGES_REQUIRED');
+  const writes=[],metaAt=[];
+  for(const c of changes){
+   tableDef(c.table);
+   if(!c.meta?.updateTime||!Number.isSafeInteger(c.meta.revision))throw Error('REFERENCE_FIRESTORE_META_PRECONDITION_REQUIRED');
+   const collection=rowsCollection(c.table);
+   for(const p of c.puts||[]){
+    if(!validKey(p.row?.key))throw Error('REFERENCE_FIRESTORE_KEY_INVALID');
+    writes.push({update:{name:writeName(collection,p.row.key),fields:{payload:encode({key:p.row.key,rowIndex:p.row.rowIndex,cells:p.row.cells})}},currentDocument:{exists:!p.create}});
+   }
+   for(const key of c.deletes||[])writes.push({delete:writeName(collection,key),currentDocument:{exists:true}});
+   const {updateTime,stale,staleReason,...meta}=c.meta;
+   metaAt.push(writes.length);
+   writes.push({update:{name:writeName(META,c.table),fields:{payload:encode({...meta,headers:c.headers,rowCount:c.rowCount,revision:meta.revision+1,lastWriter:String(c.writer||'UNKNOWN')})}},currentDocument:{updateTime}});
+  }
+  const r=await request(base+':commit','POST',{writes});
+  if(!r.ok){
+   let status='';try{status=(await r.json())?.error?.status||'';}catch{}
+   if(r.status===409||r.status===404||(r.status===400&&/FAILED_PRECONDITION|ABORTED/.test(status)))throw Error('REFERENCE_FIRESTORE_CONFLICT');
+   throw Error('REFERENCE_FIRESTORE_COMMIT_'+r.status);
+  }
+  const results=(await r.json()).writeResults||[];
+  return changes.map((c,i)=>{const updateTime=results[metaAt[i]]?.updateTime;if(!updateTime)throw Error('REFERENCE_FIRESTORE_COMMIT_RESULT_INVALID');return {table:c.table,revision:c.meta.revision+1,updateTime};});
+ }
+ /** Flags a table whose Firestore copy can no longer be proven consistent; readers then refuse it. */
+ async function markStale(table,reason){
+  const u=metaUrl(table)+'?updateMask.fieldPaths=payload.stale&updateMask.fieldPaths=payload.staleReason&currentDocument.exists=true';
+  const r=await request(u,'PATCH',{fields:{payload:{mapValue:{fields:{stale:{booleanValue:true},staleReason:{stringValue:String(reason||'UNKNOWN').slice(0,80)}}}}}});
+  if(!r.ok)throw Error('REFERENCE_FIRESTORE_STALE_MARK_'+r.status);
+ }
+ return Object.freeze({readMeta,readTable,backfillTable,commitChanges,markStale});
 }
 
 /** Revision-validated reader: one meta GET per call; rows reload only when the revision changes. */
@@ -151,6 +191,7 @@ export function createVersionedReferenceTableReader20(store){
  return async function read(table){
   const meta=await store.readMeta(table);
   if(!meta)throw Error('REFERENCE_TABLE_NOT_MIGRATED');
+  if(meta.stale)throw Error('REFERENCE_TABLE_STALE');
   const hit=cache.get(table);
   if(hit&&hit.revision===meta.revision&&hit.updateTime===meta.updateTime)return hit.value;
   const loaded=await store.readTable(table);

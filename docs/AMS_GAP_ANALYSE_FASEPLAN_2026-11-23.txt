@@ -91,6 +91,17 @@ P2c Golf 1 stap A (GEDAAN, DEV): reference-tables-firestore-20.js. Auditors (sle
   BLOKKADE live: GAS/Cloud Run schrijven deze tabs nog naar Sheets -> Firestore-kopie veroudert. Vlag pas aan
   na stap B (schrijvers Firestore-first met meta-revisie-bump; GAS-schrijvers fencen). Geen periodieke sync.
   Rollback: vlag uit (default); collecties ams_reference_20_dev_* + _meta verwijderen; module/registratie terug.
+P2c Golf 1 stap B (CODE GEDAAN, DEV, vlaggen uit): reference-tables-gateway-20.js als fetch-gateway in r15.
+  Elke in-process Sheets-schrijf (values update/append/batchUpdate, updateCells/appendCells) op Auditors/
+  Companies/Config_Scopes commit eerst naar Firestore (rij-precondities + meta-revisie-bump, conflict-retry 3x),
+  dan Sheets. Sheets-fout -> Firestore-revert; onbekende uitkomst/readback-mismatch -> meta.stale (lezer weigert,
+  Grid valt terug op Sheets). Niet-vertaalbare schrijf (formule, clear, DataFilter, sleutelwijziging, rij wissen)
+  -> 409, niets geschreven. Firestore onbereikbaar -> 503, niets geschreven. Na succes canonieke readback.
+  Vlaggen: AMS_DEV_FIRESTORE_REFERENCE_WRITE_ENABLED (gateway), AMS_DEV_FIRESTORE_REFERENCE_FACADE_READ_ENABLED
+  (waarde-reads uit Firestore). Alleen DEV-service. Tests: reference-tables-gateway-20-test.mjs (in test:part-1).
+  Herstel bij stale: meta + rijen van die tabel verwijderen en backfill-workflow opnieuw draaien.
+  NOG NODIG voor live aanzetten: GAS-schrijvers en handmatige bewerkingen op deze tabs fencen (tabbeveiliging
+  of GAS via Cloud Run) - beslissing gebruiker. Rollback: vlaggen uit (default); r15-registratie terug.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

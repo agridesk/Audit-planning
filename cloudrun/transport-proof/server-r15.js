@@ -63,6 +63,7 @@ import {buildPlanningValuesFromAudits20,compareManagerGridOutputs20,comparePlann
 import {executeSnapshotShapeUpgrades20,planSnapshotShapeUpgrades20} from './planning-snapshot-shape-upgrade-20.js';
 import {managerGridBuilder20,setFirestoreGridAuditSource20,setFirestoreGridReferenceSource20} from './planning-grid-source-registry-20.js';
 import {createGridReferenceSource20,createReferenceTablesFirestoreStore20,createVersionedReferenceTableReader20} from './reference-tables-firestore-20.js';
+import {createReferenceTablesGateway20} from './reference-tables-gateway-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -211,6 +212,17 @@ if(gridFirestoreReadEnabled)setFirestoreGridAuditSource20(createVersionedPlannin
 // Reference tables for the Grid from Firestore (only together with the Grid flag); r4 falls back to Sheets on error.
 const gridReferenceFirestoreReadEnabled=gridFirestoreReadEnabled&&process.env.AMS_DEV_FIRESTORE_REFERENCE_READ_ENABLED==='true';
 if(gridReferenceFirestoreReadEnabled)setFirestoreGridReferenceSource20(createGridReferenceSource20(createVersionedReferenceTableReader20(createReferenceTablesFirestoreStore20({projectId:project,getToken}))));
+// Reference tables write-through (DEV only): every in-process Sheets write to Auditors/Companies/Config_Scopes
+// commits to Firestore first; Sheets is the projection. The optional facade serves their value reads from Firestore.
+// Both stay off in traffic until GAS writers and manual Sheet edits on these tabs are fenced.
+const referenceGatewayWriteEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&process.env.AMS_DEV_FIRESTORE_REFERENCE_WRITE_ENABLED==='true';
+const referenceGatewayFacadeReadEnabled=referenceGatewayWriteEnabled&&process.env.AMS_DEV_FIRESTORE_REFERENCE_FACADE_READ_ENABLED==='true';
+if(referenceGatewayWriteEnabled){
+ const originalFetch=globalThis.fetch;
+ const referenceGateway=createReferenceTablesGateway20({spreadsheetId:spreadsheet,fetchImpl:originalFetch,readEnabled:referenceGatewayFacadeReadEnabled,
+  store:createReferenceTablesFirestoreStore20({projectId:project,getToken,fetchImpl:originalFetch}),log:x=>console.log(JSON.stringify(x))});
+ globalThis.fetch=referenceGateway.fetch;
+}
 const rotationHistoryMigrationEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev';
 const rotationHistoryFirestoreReadEnabled=rotationHistoryMigrationEnabled&&
  process.env.AMS_DEV_ROTATION_HISTORY_FIRESTORE_READ_ENABLED==='true'&&

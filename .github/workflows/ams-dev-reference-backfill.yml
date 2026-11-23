@@ -20,7 +20,8 @@ jobs:
     env:
       RUNTIME_SA: 510075419067-compute@developer.gserviceaccount.com
       # Empty = preview only (no writes). Pin per-table manifests from a reviewed preview to execute create-only.
-      EXPECTED_MANIFESTS: '{}'
+      # Pinned from preview run 45205977190 (auditors 6, companies 186, config_scopes 10 rows; 0 blocked).
+      EXPECTED_MANIFESTS: '{"auditors":"16373309ebf3b73d90c664f62b05ec532130e54d78664b3e472c9950283ab0f9","companies":"a78feaf6e754241cebc1de6c7cf92643780909a0a2b44df22ee329abc10613a2","config_scopes":"67823fc5a7f60a30c954e8a3f2a00dc96b7397cf87b324d6073d5b3429554b0d"}'
     steps:
       - uses: actions/checkout@v4
         with:

@@ -31,11 +31,11 @@ planningRows.push(row('visit-483','{"totalPlannedHours":4.5}'));
 planningRows.push(row('visit-484','{"totalPlannedHours":7}'));
 const gridRows=['visit-1','visit-2','visit-483','visit-484'].map(auditId=>({auditId,hoursPlanned:'',scopes:[]}));
 
-let sheetsReads=0,fallbackReads=0,forceSheetsError=false,identity=null,lastForwarded=null,responseOverride=null,gridAuditSource=null,lastPlanningValues=null;
+let sheetsReads=0,fallbackReads=0,forceSheetsError=false,identity=null,lastForwarded=null,responseOverride=null,gridAuditSource=null,gridReferenceSource=null,lastPlanningValues=null;
 const r4Context={
  process:{env:{AMS_RUNTIME_ENV:'DEV',K_SERVICE:'ams-fase12-dev'}},
  SESSION_SECRET:secret,BUILD:'test',Date:{now:()=>1000},URL,clean,key,col,console:{warn:()=>{}},
- firestoreGridAuditSource20:()=>gridAuditSource,buildPlanningValuesFromAudits20,scopeDefaultHours20,
+ firestoreGridAuditSource20:()=>gridAuditSource,firestoreGridReferenceSource20:()=>gridReferenceSource,buildPlanningValuesFromAudits20,scopeDefaultHours20,
  sessionConfigured:()=>secret.length>=32,safeEq:(a,b)=>a===b,
  scopeCatalog:()=>[],gridScopeStyles20:()=>({}),extensionMonthsForScopes:()=>0,
  directAuditorDisplayName:()=>'',managerOpen:values=>{lastPlanningValues=values;return {success:true,rows:structuredClone(gridRows)};},
@@ -170,6 +170,15 @@ gridAuditSource=async()=>[{auditId:'fs-1',revision:0,snapshot:{auditId:'fs-1',so
 result=await direct({role:'Manager',email:'manager@example.test'},{});
 assert.equal(result.body.gridSource,'FIRESTORE');
 assert.deepEqual(lastPlanningValues,[['Audit ID','Status'],[],['fs-1','Approved']],'Firestore rows keep their sheet position');
+// Reference tables from Firestore: no Sheets read at all; an incomplete/failing reference source falls back to Sheets.
+const readsBefore=sheetsReads;gridReferenceSource=async()=>[{values:[['SlotKey','Default_hours']]},{values:[]},{values:[]}];
+result=await direct({role:'Manager',email:'manager@example.test'},{});
+assert.equal(result.body.gridSource,'FIRESTORE');assert.equal(sheetsReads,readsBefore,'Firestore reference source replaces the Sheets batchGet');
+gridReferenceSource=async()=>[{values:[]}];
+{const okSource=gridAuditSource,get=r4Context.sheetsBatchGet;r4Context.sheetsBatchGet=async ranges=>{gridAuditSource=null;try{return await get(ranges);}finally{gridAuditSource=okSource;}};
+ result=await direct({role:'Manager',email:'manager@example.test'},{});r4Context.sheetsBatchGet=get;}
+assert.equal(result.body.gridSource,'SHEETS_FALLBACK');
+gridReferenceSource=null;
 gridAuditSource=async()=>{throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');};
 const fallbackSource=gridAuditSource;
 r4Context.sheetsBatchGet=(original=>async ranges=>{if(ranges.length===3)return original(ranges);gridAuditSource=null;try{return await original(ranges);}finally{gridAuditSource=fallbackSource;}})(r4Context.sheetsBatchGet);

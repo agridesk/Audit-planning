@@ -1,8 +1,53 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {Readable} from 'node:stream';
+import {qualificationOpenAuditImpact20} from './auditor-scope-qualifications-20.js';
 const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const saveStart=server.indexOf("  if(u.pathname==='/api/v1/manager/auditor-management/qualification/save'");
+const saveEnd=server.indexOf("  if(u.pathname==='/api/v1/manager/auditor-management/audit/transfer-candidates'",saveStart);
+assert.ok(saveStart>=0&&saveEnd>saveStart);
+const executeSave=new (Object.getPrototypeOf(async function(){}).constructor)('env',
+ `with(env){${server.slice(saveStart,saveEnd)}}`);
+async function exerciseSave(planningRow,role='manager'){
+ const av=[['E-mail','Name','Auditor_UID','SCOPE_01'],['a@example.test','A','UID-1','x'],['b@example.test','B','UID-2','x']];
+ const sc=[['ScopeCode','DisplayName','SlotKey','Active','Archived'],['S1','Scope 1','SCOPE_01','Yes','No']];
+ const ap=[['Audit ID','Status','Assigned to','Auditor_UID','Preassigned Auditor','SCOPE_01'],planningRow];
+ const body={email:'a@example.test',scopeCode:'S1',expected:true,qualified:false};
+ const req=Readable.from([JSON.stringify(body)]);req.method='POST';
+ const calls=[];
+ const clean=x=>String(x??'').trim(),key=x=>clean(x).toLowerCase().replace(/\s+/g,'_');
+ const col=(h,names)=>{for(const name of names){const i=h.findIndex(x=>key(x)===key(name));if(i>=0)return i;}return -1;};
+ const env={u:{pathname:'/api/v1/manager/auditor-management/qualification/save'},req,res:{},
+  process:{env:{AMS_RUNTIME_ENV:'DEV'}},sessionFromRequestValidated:async()=>({role,email:'manager@example.test'}),
+  scope20CanonicalQualificationReadEnabled:()=>false,clean,col,val:(row,i)=>i>=0?clean(row[i]):'',
+  yes:x=>['x','yes','true','1','ja'].includes(clean(x).toLowerCase()),qualificationOpenAuditImpact20,createHash,
+  directResolveAuditorEmail:(_aud,value)=>clean(value).toLowerCase(),
+  sheetsBatchGet:async ranges=>{
+   if(ranges.length===1)return [{values:[['']]}];
+   assert.deepEqual(ranges,["'Auditors'","'Config_Scopes'","'Audit planning'"]);
+   return [av,sc,ap].map(values=>({values}));
+  },
+  sheetsValuesAppend:async()=>calls.push('append'),sheetsValuesBatchUpdateRaw:async()=>calls.push('write'),
+  send:(_res,status,payload)=>({status,payload})};
+ return {result:await executeSave(env),calls};
+}
+const renamed=await exerciseSave(['A1','Approved','old@example.test','UID-1','','x']);
+assert.equal(renamed.result.status,409);
+assert.equal(renamed.result.payload.error,'QUALIFICATION_WITH_OPEN_AUDITS_REQUIRES_SCHEDULED_WITHDRAWAL');
+assert.deepEqual(renamed.calls,[]);
+const unresolved=await exerciseSave(['A2','Approved','unknown@example.test','','','x']);
+assert.equal(unresolved.result.status,503);
+assert.equal(unresolved.result.payload.detail,'QUALIFICATION_IMPACT_OWNER_UNRESOLVED');
+assert.deepEqual(unresolved.calls,[]);
+const other=await exerciseSave(['A3','Approved','b@example.test','UID-2','','x']);
+assert.equal(other.result.status,200);
+assert.deepEqual(other.calls,['append','write','append']);
+const denied=await exerciseSave(['A3','Approved','b@example.test','UID-2','','x'],'auditor');
+assert.equal(denied.result.status,403);
+assert.deepEqual(denied.calls,[]);
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-preview'"),'Scope20 migration preview must be manager-only route');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/parity-preview'"),'Scope20 parity preview route must exist');
@@ -20,12 +65,14 @@ for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'"),'Scope20 DEV migration requires POST');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-lock-probe'&&req.method==='POST'"),'DEV lock probe requires manager POST');
 assert.ok(server.includes("writeToSheets:false"),'Lock probe confirms it does not write Sheets');
-assert.ok(server.includes("process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true'"),'Scope20 migration is disabled by default');
+assert.ok(server.includes("process.env.AMS_SCOPE20_QUALIFICATION_FIRESTORE_MIGRATION_WRITE_ENABLED!=='true'"),'Scope20 Firestore migration is disabled by default');
 assert.ok(server.includes("withQualificationMigrationFirestoreLock20({"),'Scope20 migration requires dedicated Firestore lock');
-assert.ok(server.includes("migrateAuditorQualificationsSheets20({"),'Scope20 migration uses guarded Sheets adapter');
-assert.ok(server.includes("body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS'"),'Scope20 migration requires explicit confirmation');
-assert.ok(server.includes('planAuditorQualificationMigration20({auditors:'),'Scope20 migration plan uses non-mutating planner');
-assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z5000/g)||[]).length,2,'Parity and migration must read all canonical relation columns');
+assert.ok(server.includes('store.applySnapshot(prepared,{verifySource})'),'Scope20 migration writes the guarded Firestore snapshot after source recheck');
+assert.ok(server.includes("body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS_TO_FIRESTORE'"),'Scope20 Firestore migration requires explicit confirmation');
+assert.ok(server.includes('prepareAuditorQualificationFirestoreMigration20({'),'Scope20 migration plan uses the Firestore document planner');
+assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z5000/g)||[]).length,1,'Legacy parity preview reads all canonical relation columns');
+assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z'/g)||[]).length,3,'Firestore migration preview, apply and recheck must read complete relation columns');
+assert.ok(server.includes('process.env.K_SERVICE!==\'ams-fase12-dev\''),'Scope20 migration and previews are bound to the DEV service');
 assert.ok(server.includes('compareAuditorQualificationParity20({auditors:'),'Scope20 parity must use canonical read-only check');
 assert.ok(server.includes('previewAuditorQualificationMigration20({auditors:'),'Scope20 migration preview must invoke the read-only canonical preview');
 
@@ -113,11 +160,11 @@ assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactiv
 
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/qualification-impact?email='"),'Qualification impact preview available');
 assert.ok(server.includes("QUALIFICATION_WITH_OPEN_AUDITS_REQUIRES_SCHEDULED_WITHDRAWAL"),'Linked assignment changes fail closed');
-assert.ok(server.includes('if(!qualified&&impacts.length)return send(res,409'),'Only qualification removal with linked audits is rejected; use scheduled withdrawal');
+assert.ok(server.includes('if(!qualified&&impactIds.length)return send(res,409'),'Only qualification removal with linked audits is rejected; use scheduled withdrawal');
 assert.ok(server.includes("if(!qualified&&scopeColumns.length===0)"),'Addition does not depend on impact projection scope columns');
 assert.ok(ui.includes("if(desired&&!original){if(!window.confirm('Add qualification '"),'Addition uses direct confirmation without impact preview');
 assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition save success feedback');
-assert.ok(server.includes('if(!qualified&&impacts.length)return send(res,409'),'Immediate removal cannot override scheduled withdrawal');
+assert.ok(server.includes('if(!qualified&&impactIds.length)return send(res,409'),'Immediate removal cannot override scheduled withdrawal');
 assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
 assert.ok(server.includes('qualificationConflicts=linkedAudits.filter'),'Linked audit qualification conflicts calculated');
 assert.ok(server.includes('def?.slotKey'),'Qualification conflict matching includes canonical slot key');

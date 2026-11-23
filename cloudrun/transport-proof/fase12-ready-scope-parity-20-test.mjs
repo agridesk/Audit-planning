@@ -8,4 +8,7 @@ assert.ok(source.includes('grid4ScopeBadges(r)'));
 assert.ok(source.includes('meta.TextColor'));
 assert.ok(source.includes('meta.Color'));
 assert.ok(source.includes('function renderCompleted(rows)'));
+for(const label of ['two Accepted','Accepted pair','Accepted audits will',"+' Accepted'"])assert.ok(!source.includes(label),'visible label must say Ready: '+label);
+assert.ok(source.includes("after.status='Accepted';after.statusKey='ACCEPTED'"),'stored status value must stay Accepted');
+assert.ok(source.includes("/^accepted$/i.test(String(x.status||'').trim())?'Ready'"));
 console.log('Ready and scope badge parity source contract OK');

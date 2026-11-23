@@ -34,7 +34,7 @@ assert(inner.includes('directWriterGates:{'),'Read-only EXT must provide safe ga
 
 // Execute the exact DEV writer predicate with normal-grid and preview configurations.
 const gateStart=inner.indexOf('function isolatedExtDirect20(){');
-const gateEnd=inner.indexOf('async function readIsolatedDevModelCExt20()',gateStart);
+const gateEnd=inner.indexOf('async function readIsolatedDevModelCExt20(',gateStart);
 assert(gateStart>=0&&gateEnd>gateStart);
 const predicate=inner.slice(gateStart,gateEnd);
 const enabled={
@@ -72,10 +72,10 @@ assert(self.includes("SELF_PLANNING_READBACK_UNVERIFIED"),'Sheets readback stays
 assert(self.includes("sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100'])"),'Self planning must read audit+DEV config in one Sheets request');
 assert.equal((self.match(/sheetsBatchGet\(/g)||[]).length,2,'Self planning should perform one batch read and one cell readback');
 assert(self.indexOf('devManagerDirectWritesConfigAllowed20(cfg)')<self.indexOf("const found=findAudit"),'DEV config checked before any audit mutation');
-const extStart=inner.indexOf('async function readIsolatedDevModelCExt20(){');
+const extStart=inner.indexOf('async function readIsolatedDevModelCExt20(');
 const extEnd=inner.indexOf('function isolatedExtPilot20(){',extStart);
 const ext=inner.slice(extStart,extEnd);
-assert(ext.includes('const [project,r]=await Promise.all(['),'EXT independent read-only checks can overlap');
+assert(ext.includes('const [project,r,canonicalPlanningRows]=await Promise.all(['),'EXT independent read-only checks can overlap');
 assert(ext.includes("if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED')"),'EXT retains project identity hard gate');
 assert(ext.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))"),'EXT retains DEV writer-mode hard gate');
 assert(grid.includes('DEV configuration gates blocking EXT:'));

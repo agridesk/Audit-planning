@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 let held=null,commits=0,settled=0,rows=0,appends=0,uncertain=0,failProjection=false;
-const pending=new Map(),parent={revision:5,pendingOperationId:null,snapshot:{sourceRevision:'rev-old',status:'Accepted'}};
+const headers=['Audit ID','Status','Manager comment (last)'],sourceRow=['parent','Accepted','original note'];
+const pending=new Map(),parent={revision:5,pendingOperationId:null,snapshot:{sourceRevision:'rev-old',status:'Accepted',headers,row:sourceRow}};
 const store={
  async readOutbox(id){return pending.get(id)||null;},
  async readAudit(id){return id==='parent'?structuredClone(parent):null;},
@@ -18,30 +19,45 @@ const gate={
  async release(){held=null;},
  async uncertain(){uncertain++;held.state='UNCERTAIN';}
 };
-const row={auditId:'parent',status:'Completed',sourceRevision:'rev-new'};
+const row={auditId:'parent',status:'Completed',sourceRevision:'rev-new',headers};
 const child={auditId:'successor',status:'Pending Planning',assignedTo:'',sourceRevision:'rev-child'};
-const preview={success:true,authorityPreflight:true,auditId:'parent',expectedSourceRevision:'rev-old',removedSourceRows:[{sheetTitle:'Audit planning',rowNumber:2}],canonicalSnapshot:row,
+const completedAt=new Date().toISOString().slice(0,10);
+const realizedAudit={auditId:'parent',auditorUid:'uid-1',company:'Example company',companyUid:'company-1',
+ status:'Completed',completedAt,year:Number(completedAt.slice(0,4)),scopeSlots:['SCOPE_01']};
+const preview={success:true,authorityPreflight:true,auditId:'parent',expectedSourceRevision:'rev-old',sourceRowBefore:sourceRow.slice(),removedSourceRows:[{sheetTitle:'Audit planning',rowNumber:2}],canonicalSnapshot:row,
  successorSnapshots:[child],projectionWrites:[{range:'Audit planning!A2:B2',values:[['parent','Completed']]}],
  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['parent','Accepted']}],
- appendIntents:[{range:'Notification Queue!A:M',values:[['now','AUDIT_TRAIL','COMPLETE']]}]
+ appendIntents:[{range:'Notification Queue!A:M',values:[['now','AUDIT_TRAIL','COMPLETE']]}],realizedAudit
 };
-const projector={async apply(){rows++;if(failProjection)throw Error('PROJECTION_TIMEOUT');},async inspect(){return {state:'MATCH',detail:[{target:true}]}}};
+const projector={async apply({prefetchMetadata}){assert.equal(prefetchMetadata,true);rows++;if(failProjection)throw Error('PROJECTION_TIMEOUT');},async inspect(){return {state:'MATCH',detail:[{target:true}]}}};
 const appendProjector={async apply(){appends++;},async inspect(){return {state:'MATCH',count:1}}};
 const svc=createPlanningMultiLifecycleService({atomicStore:store,gate,projector,appendProjector,preflight:async()=>preview});
 const actor={role:'manager',auditorId:'manager'},body={auditId:'parent',reason:'test'};
+const incompleteSvc=createPlanningMultiLifecycleService({atomicStore:store,gate,projector,appendProjector,
+ preflight:async()=>({...preview,realizedAudit:null})});
+await assert.rejects(()=>incompleteSvc.commit({actor,body,action:'COMPLETE'}),/PLANNING_MULTI_REALIZED_AUDIT_PREFLIGHT_INVALID/);
+assert.equal(commits,0,'incomplete completion event must be rejected before Firestore writes');
+assert.equal(held,null);
+preview.sourceRowBefore[2]='unreconciled note';
+await assert.rejects(()=>svc.commit({actor,body,action:'COMPLETE'}),/PLANNING_MULTI_CANONICAL_ROW_PARITY_CONFLICT/);
+assert.equal(commits,0);assert.equal(held,null);
+preview.sourceRowBefore=sourceRow.slice();
 const first=await svc.commit({actor,body,action:'COMPLETE'});
 assert.equal(first.success,true);assert.deepEqual(first.successorAuditIds,['successor']);
+assert.ok(Number.isFinite(first.timings.preflightMs)&&Number.isFinite(first.timings.rowProjectionMs)&&Number.isFinite(first.timings.appendProjectionMs)&&Number.isFinite(first.timings.verifyMs)&&Number.isFinite(first.timings.totalMs));
 assert.equal(commits,1);assert.equal(rows,1);assert.equal(appends,1);assert.equal(settled,1);assert.equal(held,null);
 assert.equal((await svc.commit({actor,body,action:'COMPLETE'})).replayed,true);
 assert.equal(commits,1);
 parent.snapshot.sourceRevision='rev2';preview.expectedSourceRevision='rev2';
-preview.canonicalSnapshot={auditId:'parent',status:'Rejected',sourceRevision:'rev3'};
+preview.canonicalSnapshot={auditId:'parent',status:'Rejected',sourceRevision:'rev3',headers};
 preview.successorSnapshots=[];
+preview.realizedAudit=null;
 const rejected=await svc.commit({actor,body:{...body,action:'reject'},action:'REJECT'});
 assert.equal(rejected.action,'REJECT');assert.equal(rejected.successorAuditIds.length,0);
 parent.snapshot.sourceRevision='rev4';preview.expectedSourceRevision='rev4';
-preview.canonicalSnapshot={auditId:'parent',status:'Completed',sourceRevision:'rev5'};
+preview.canonicalSnapshot={auditId:'parent',status:'Completed',sourceRevision:'rev5',headers};
 preview.successorSnapshots=[child];failProjection=true;
+preview.realizedAudit=realizedAudit;
 await assert.rejects(()=>svc.commit({actor,body:{...body,action:'complete-2'},action:'COMPLETE'}),/PROJECTION_TIMEOUT/);
 assert.equal(held.state,'UNCERTAIN');assert.ok(uncertain>=2);
 await assert.rejects(()=>svc.commit({actor:{role:'auditor',auditorId:'wrong'},body,action:'REJECT'}),/PLANNING_MULTI_ACTION_FORBIDDEN/);
@@ -49,11 +65,11 @@ let releasePreflight,startedParent=false;
 const parentStarted=new Promise(resolve=>{releasePreflight=resolve});
 const parallelStore={...store,
  async readOutbox(){return null;},
- async readAudit(){startedParent=true;releasePreflight();return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'parallel-rev',status:'Accepted'}};},
+ async readAudit(){startedParent=true;releasePreflight();return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'parallel-rev',status:'Accepted',headers,row:sourceRow}};},
  async commitMulti(){return {replayed:false,entities:[]};},
  async markProjected(){}
 };
-const parallelPreview={...preview,expectedSourceRevision:'parallel-rev',canonicalSnapshot:{auditId:'parent',status:'Rejected'},successorSnapshots:[]};
+const parallelPreview={...preview,expectedSourceRevision:'parallel-rev',canonicalSnapshot:{auditId:'parent',status:'Rejected',headers},successorSnapshots:[],realizedAudit:null};
 const parallelGate={async acquire(){return {token:'parallel'};},async release(){},async uncertain(){throw Error('UNEXPECTED_UNCERTAIN')}};
 const parallelService=createPlanningMultiLifecycleService({atomicStore:parallelStore,gate:parallelGate,projector,appendProjector,
  preflight:async()=>{await Promise.race([parentStarted,new Promise((_,reject)=>setTimeout(()=>reject(Error('PARENT_READ_NOT_CONCURRENT')),500))]);return parallelPreview;}});

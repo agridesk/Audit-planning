@@ -43,6 +43,9 @@ export function v211CompanyAuditorExclusions(values,companyUid,companyName){
       if(typeof x==='string'){add(x);continue;}
       if(!x||typeof x!=='object'||x.active===false||String(x.active).toLowerCase()==='false')continue;
       add(x.auditorEmail||x.email||x.auditor||x.userEmail);
+      // UID entries are keyed with a "uid:" prefix so they never collide with emails.
+      const exUid=clean(x.auditorUid||x.Auditor_UID||x.auditorId).toLowerCase();
+      if(exUid&&!exUid.includes('@'))out.add('uid:'+exUid);
     }
   }catch{raw.split(/[;,|\n]/).forEach(add);}
   return out;
@@ -196,7 +199,10 @@ export function v211AssignmentHardCheck({
   const identityHeader=(auditorValues||[])[0]||[];
   const emailIndex=col(identityHeader,['E-mail','Email','E-mail address','Mail']);
   const canonicalEmail=identityRow&&emailIndex>=0?val(identityRow,emailIndex).toLowerCase():'';
-  if(exclusions.has(clean(auditorEmail).toLowerCase())||(canonicalEmail&&exclusions.has(canonicalEmail)))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
+  const uidIndex=col(identityHeader,['Auditor_UID','Auditor UID','AuditorUid']);
+  const requestedIdentity=clean(auditorEmail).toLowerCase();
+  const canonicalUid=identityRow&&uidIndex>=0?val(identityRow,uidIndex).toLowerCase():(!requestedIdentity.includes('@')?requestedIdentity:'');
+  if(exclusions.has(requestedIdentity)||(canonicalEmail&&exclusions.has(canonicalEmail))||(canonicalUid&&exclusions.has('uid:'+canonicalUid)))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
   const withdrawal=v211QualificationWithdrawalConstraint({auditorValues:auditorValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],auditorEmail,requestedDates:requestedDates||[]});reasons.push(...withdrawal.reasons);
   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});
   if(minInterval.ambiguousLegacyCompany)reasons.push('MIN_INTERVAL_LEGACY_COMPANY_AMBIGUOUS');

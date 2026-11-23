@@ -9,7 +9,7 @@ function sheet(data){
   getLastRow:()=>rows.length,appendRow:r=>rows.push(r.slice()),deleteRow:r=>rows.splice(r-1,1),
   getRange:(r,c,n,m)=>({getValues:()=>[rows[r-1].slice(c-1,c-1+m)],setValues:v=>{rows[r-1]=v[0].slice()}})};
 }
-function scenario(commitResult){
+function scenario(commitResult,firestoreReservations=false,sourceReleaseResult={success:true,released:true,reason:'RELEASED'}){
  const sheets={
   'Audit planning':sheet([['Audit ID','Status','Company_UID','Total audit time in hours','MPS-GAP','GRASP','Planning JSON'],['A1','Pending Planning','C1',4,'X','',''],['A2','Pending Planning','C1',2,'','X','']]),
   'Audit_Obligations':sheet([['Obligation_ID','Obligation_State','Company_UID','ScopeCode','Formal_Hours'],['O1','OPEN','C1','MPS-GAP',4],['O2','LINKED_TO_VISIT','C1','GRASP',2]]),
@@ -18,16 +18,18 @@ function scenario(commitResult){
   'Concept Reservations':sheet([['Audit ID','State','Released By','Released At','Release Reason','Updated At'],['A2','ACTIVE','','','','']]),
   'Auditor Availability':sheet([['Audit_ID_1','Audit_ID_2'],['','']])
  };
- const seen=[];let released=0;
+ const seen=[],sourceReleases=[];let released=0;
  const ctx=vm.createContext({Date,AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_:false,
   SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:n=>sheets[n]||null})},
   LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>released++})},
+  CRFB_enabled_:()=>firestoreReservations,
+  ConceptReservationCommitReleaseBridge_releaseLocked:input=>{sourceReleases.push(input);return sourceReleaseResult;},
   PlanningRevisionTokenService_getMany:()=>({byAuditId:{A1:'PRT1-'+'a'.repeat(40),A2:'PRT1-'+'b'.repeat(40)}}),
   PlanningCanonicalCommitService_commit:input=>{seen.push(input);return commitResult},
   __mp_invalidateAuditPlanningPack_:()=>{}});
  vm.runInContext(planner,ctx);vm.runInContext(commit,ctx);
  const input={runtimeEnv:'DEV',actorRole:'MANAGER',actorEmail:'m@example.test',targetAuditId:'A1',sourceAuditIds:['A2'],auditorEmail:'a@example.test',blocks:[{date:'2026-11-07',start:'09:00',end:'15:00',hours:6}],expectedRevisionsByAudit:{A1:'PRT1-'+'a'.repeat(40),A2:'PRT1-'+'b'.repeat(40)}};
- return{sheets,seen,ctx,input,get released(){return released}};
+ return{sheets,seen,ctx,input,sourceReleases,get released(){return released}};
 }
 const ok=scenario({success:true,committed:true,meta:{postCommitRepairRequired:false}}),result=ok.ctx.ModelCCombinedVisitCanonicalCommit20_execute(ok.input);
 assert.equal(result.committed,true);
@@ -39,6 +41,25 @@ assert.equal(ok.sheets['Concept Reservations'].rows[1][1],'RELEASED');
 assert.equal(ok.seen[0].combinedVisitComposition.sourceAuditIds[0],'A2');
 assert.equal(ok.ctx.AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_,false);
 assert.equal(ok.released,1);
+const firestoreOk=scenario({success:true,committed:true,meta:{postCommitRepairRequired:false}},true);
+delete firestoreOk.sheets['Concept Reservations'];
+const firestoreResult=firestoreOk.ctx.ModelCCombinedVisitCanonicalCommit20_execute(firestoreOk.input);
+assert.equal(firestoreResult.committed,true);
+assert.equal(firestoreResult.sourceReservationReleaseCount,1);
+assert.equal(firestoreResult.sourceReservationReleaseRepairRequired,false);
+assert.equal(firestoreOk.sourceReleases.length,1);
+assert.equal(firestoreOk.sourceReleases[0].auditId,'A2');
+const firestoreFailed=scenario({success:false,committed:false,reason:'CONCEPT_STALE_CANONICAL_STATUS',meta:{}},true);
+delete firestoreFailed.sheets['Concept Reservations'];
+const firestoreDeclined=firestoreFailed.ctx.ModelCCombinedVisitCanonicalCommit20_execute(firestoreFailed.input);
+assert.equal(firestoreDeclined.committed,false);
+assert.equal(firestoreFailed.sourceReleases.length,0);
+const firestoreReleaseFailure=scenario({success:true,committed:true,meta:{}},true,{success:false,released:false,reason:'RESERVATION_COMMAND_FAILED'});
+delete firestoreReleaseFailure.sheets['Concept Reservations'];
+const committedWithRepair=firestoreReleaseFailure.ctx.ModelCCombinedVisitCanonicalCommit20_execute(firestoreReleaseFailure.input);
+assert.equal(committedWithRepair.committed,true);
+assert.equal(committedWithRepair.sourceReservationReleaseRepairRequired,true);
+assert.equal(committedWithRepair.postCommitRepairRequired,true);
 const failed=scenario({success:false,committed:false,reason:'CONCEPT_STALE_CANONICAL_STATUS',meta:{}});
 const before=JSON.stringify(Object.fromEntries(Object.entries(failed.sheets).map(([k,v])=>[k,v.rows])));
 const declined=failed.ctx.ModelCCombinedVisitCanonicalCommit20_execute(failed.input);

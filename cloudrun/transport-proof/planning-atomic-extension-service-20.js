@@ -5,6 +5,12 @@
 import {createHash} from 'node:crypto';
 const str=x=>String(x??'').trim();
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+// Sheets omits trailing empty cells; lifecycle snapshots can retain them.
+const normalizedSourceRow=row=>{
+ const normalized=row.slice();
+ while(normalized.length&&normalized.at(-1)==='')normalized.pop();
+ return normalized;
+};
 const normalizedHeaders=headers=>{
  const normalized=headers.map(str);
  while(normalized.length&&normalized.at(-1)==='')normalized.pop();
@@ -41,16 +47,18 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
   let lock=null,attempted=false,projected=false;
   try{
    lock=await measure('gateMs',()=>gate.acquire({operationId,actorId,kind:'ATOMIC_MODEL_C_EXT'}));
-   const [previous,proof]=await Promise.all([
-    measure('auditMs',()=>store.readAudit(auditId)),
-    measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true}}))
-   ]);
+   const previous=await measure('auditMs',()=>store.readAudit(auditId));
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId||
       previous.removed||previous.snapshot?.status!=='Pending Planning'||
       !Array.isArray(previous.snapshot?.row)||!Array.isArray(previous.snapshot?.headers)||
       !Array.isArray(previous.blocks)||previous.blocks.length||
       !Array.isArray(previous.claimIds)||previous.claimIds.length)
     throw Error('EXT_ATOMIC_BACKFILL_OR_PARITY_REQUIRED');
+   const sourceValueRenderOption=previous.snapshot.row.some(value=>typeof value==='number'||typeof value==='boolean')
+    ?'UNFORMATTED_VALUE':'FORMATTED_VALUE';
+   const proof=await measure('preflightMs',()=>preflight({
+    actor,body:{...body,authorityPreflight:true,sourceValueRenderOption}
+   }));
    const changes=proof?.canonicalSnapshot?.scopeExtension?.obligationChanges;
    const count=changes?.length??1;
    if(proof?.success!==true||proof?.authorityPreflight!==true||
@@ -65,7 +73,8 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
       JSON.stringify(normalizedHeaders(proof.canonicalSnapshot.headers))!==
       JSON.stringify(normalizedHeaders(previous.snapshot.headers)))
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_HEADERS');
-   if(JSON.stringify(proof.sourceRowBefore)!==JSON.stringify(previous.snapshot.row))
+   if(!Array.isArray(proof.sourceRowBefore)||
+      JSON.stringify(normalizedSourceRow(proof.sourceRowBefore))!==JSON.stringify(normalizedSourceRow(previous.snapshot.row)))
     throw Error('EXT_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE_SOURCE_ROW');
    if(!Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==4+5*count||
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==4+5*count||

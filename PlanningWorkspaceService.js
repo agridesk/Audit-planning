@@ -8,10 +8,11 @@ function PWS_assert_(name){var d=PWS_dependencies_();if(!d[name])throw new Error
 function PWS_pendingPlanningInput_(input){input=input||{};var out={};for(var k in input)if(Object.prototype.hasOwnProperty.call(input,k))out[k]=input[k];out.status='Pending Planning';return out;}
 function PlanningWorkspaceService_getAdvisory(input){PWS_assert_('advisory');return ConceptPlanningService_get(PWS_pendingPlanningInput_(input));}
 function PlanningWorkspaceService_getDecision(input){PWS_assert_('decision');return PlanningWorkspaceDecisionReadModel_get(PWS_pendingPlanningInput_(input));}
-function PlanningWorkspaceService_getOverlays(input){PWS_assert_('overlays');return PlanningWorkspaceOverlayBundle_get(input||{});}
-function PlanningWorkspaceService_saveConcept(input){PWS_assert_('conceptUpsert');return ConceptReservationCommandService_upsert(input||{});}
-function PlanningWorkspaceService_releaseConcept(input){PWS_assert_('conceptRelease');return ConceptReservationCommandService_release(input||{});}
-function PlanningWorkspaceService_commit(input){PWS_assert_('canonicalCommit');return PlanningCanonicalCommitService_commit(input||{});}
+function PlanningWorkspaceService_getOverlays(input){PWS_assert_('overlays');input=input||{};if(typeof CRFB_enabled_==='function'&&CRFB_enabled_())return CRFB_withRequestContext_(input,function(){return PlanningWorkspaceOverlayBundle_get(input);});return PlanningWorkspaceOverlayBundle_get(input);}
+function PlanningWorkspaceService_saveConcept(input){PWS_assert_('conceptUpsert');input=input||{};return typeof CRFB_enabled_==='function'&&CRFB_enabled_()?CRFB_commandUpsert_(input):ConceptReservationCommandService_upsert(input);}
+function PlanningWorkspaceService_saveConceptsBatch(input){PWS_assert_('conceptUpsert');input=input||{};return typeof CRFB_enabled_==='function'&&CRFB_enabled_()?CRFB_commandUpsertBatch_(input):ConceptReservationCommandService_upsertBatch(input);}
+function PlanningWorkspaceService_releaseConcept(input){PWS_assert_('conceptRelease');input=input||{};return typeof CRFB_enabled_==='function'&&CRFB_enabled_()?CRFB_commandRelease_(input):ConceptReservationCommandService_release(input);}
+function PlanningWorkspaceService_commit(input){PWS_assert_('canonicalCommit');input=input||{};if(typeof CRFB_enabled_==='function'&&CRFB_enabled_())return CRFB_withRequestContext_(input,function(){return PlanningCanonicalCommitService_commit(input);});return PlanningCanonicalCommitService_commit(input);}
 function PlanningWorkspaceService_batchPreflight(input){PWS_assert_('canonicalBatchPreflight');return PlanningBatchPreflightService_evaluate(input||{});}
 function PlanningWorkspaceService_batchCommit(input){PWS_assert_('canonicalBatchCommit');return PlanningBatchCommitService_commit(input||{});}
 function PlanningWorkspaceService_modifyPlanned(input){PWS_assert_('canonicalModify');return PlanningCanonicalModifyService_modify(input||{});}

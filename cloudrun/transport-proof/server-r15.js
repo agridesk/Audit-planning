@@ -10,18 +10,21 @@ import {runtimeBundleProof20} from './runtime-bundle-proof-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildCbNotificationOverview20} from './certification-body-notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
+import {createRotationRealizedAuditFirestoreStore20,prepareRotationRealizedAuditMigration20,rotationRealizedAuditRows20} from './rotation-realized-audit-firestore-20.mjs';
 import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
 import {requiredTogetherScopePairs20,assertScopeSplitAllowed20} from './scope-dependency-policy-20.mjs';
 import {devCutoverFreezeDecision20} from './dev-cutover-freeze-20.mjs';
 import {devCutoverConsole20} from './dev-cutover-console-20.mjs';
 import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
+import {assertAuditorQualificationFirestoreRoster20,createAuditorScopeQualificationsFirestore20} from './auditor-scope-qualifications-firestore-20.js';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
 import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
 import {resolveSwapExpectedAvailabilityDocuments} from './swap-expected-availability-count-20.mjs';
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
+import {createConceptReservationFirestoreStore} from './concept-reservation-firestore-store-20.js';
 
 import {URL} from 'node:url';
 import {extReadOnlyPreview20,extPreviewRequestAllowed20} from './dev-ext-readonly-preview-20.mjs';
@@ -137,6 +140,13 @@ async function swapRoster(){
  }).finally(()=>{swapRosterCache.inflight=null;});
  return swapRosterCache.inflight;
 }
+// Reads share the short roster cache; mutation validation reads fresh and refreshes it.
+async function rosterFor({fresh=false}={}){
+ if(!fresh)return swapRoster();
+ const rows=await getRoster();
+ swapRosterCache.rows=rows;swapRosterCache.until=Date.now()+60000;
+ return rows;
+}
 async function session(req){
  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/session',{headers:{cookie:String(req.headers.cookie||'')},redirect:'manual'});
  if(!r.ok)return null;
@@ -155,9 +165,31 @@ async function session(req){
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection});
 const service=createAvailabilityService(adapter);
 const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'}):null;
+const scope20FirestoreQualificationsEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'
+ &&process.env.AMS_SCOPE20_FIRESTORE_QUALIFICATIONS_READ_ENABLED==='true';
+const scope20QualificationsStore=scope20FirestoreQualificationsEnabled
+ ?createAuditorScopeQualificationsFirestore20({projectId:project,getToken}):null;
+async function scope20QualificationSnapshot(auditors){
+ if(!scope20QualificationsStore)throw Error('QUALIFICATION_FIRESTORE_READ_DISABLED');
+ const snapshot=await scope20QualificationsStore.readSnapshot();
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)
+  +'/values/'+encodeURIComponent("'Auditors'!A1:AZ");
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},cache:'no-store'});
+ if(!response.ok)throw Error('QUALIFICATION_FIRESTORE_ROSTER_READ_'+response.status);
+ const fullRoster=(await response.json()).values;
+ if(!Array.isArray(fullRoster))throw Error('QUALIFICATION_FIRESTORE_ROSTER_UNAVAILABLE');
+ assertAuditorQualificationFirestoreRoster20(fullRoster,snapshot);
+ assertAuditorQualificationFirestoreRoster20(auditors,snapshot);
+ return snapshot;
+}
 const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
 const planningAtomicEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true';
+const conceptReservationsFirestoreEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&
+ process.env.AMS_DEV_CONCEPT_RESERVATIONS_FIRESTORE_ENABLED==='true'&&
+ process.env.AMS_DEV_CONCEPT_RESERVATIONS_FULL_CUTOVER_ENABLED==='true';
+const conceptReservationStore=conceptReservationsFirestoreEnabled
+ ?createConceptReservationFirestoreStore({projectId:project,getToken}):null;
 const compositionWriteRequested=process.env.AMS_DEV_VISIT_COMPOSITION_WRITE_ENABLED==='true';
 if(compositionWriteRequested&&(!runtime.isDev||!planningAtomicEnabled||
  process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'))
@@ -167,7 +199,30 @@ if(compositionWriteRequested&&(!runtime.isDev||!planningAtomicEnabled||
 const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
 validatePlanningAtomicRuntime20({enabled:planningAtomicEnabled,legacyWriterRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',backfillParityVerified:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true',otherAuthorityEnabled:planningAuthorityEnabled,deferredManagementRoutes:planningAtomicDeferredManagementRoutes20});
 const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
+const rotationHistoryMigrationEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev';
+const rotationHistoryFirestoreReadEnabled=rotationHistoryMigrationEnabled&&
+ process.env.AMS_DEV_ROTATION_HISTORY_FIRESTORE_READ_ENABLED==='true'&&
+ process.env.AMS_DEV_ROTATION_HISTORY_WRITERS_CUTOVER_VERIFIED==='true';
+const rotationHistoryStore=rotationHistoryMigrationEnabled
+ ?createRotationRealizedAuditFirestoreStore20({projectId:project,getToken}):null;
 const planningGlobalGate=(planningAuthorityEnabled||planningAtomicEnabled)?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
+async function readRotationHistorySource({includeCompleted=true}={}){
+ const ranges=["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500",...(includeCompleted?["'Log realized audits'!A1:AZ10000"]:[])];
+ const tables=await Promise.all(ranges.map(async(range,index)=>{
+  const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+  const response=await fetch(endpoint,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('ROTATION_HISTORY_SOURCE_READ_'+response.status);
+  const rows=(await response.json()).values||[];
+  if(!rows.length||rows.length>=[100,500,10000][index])throw Error('ROTATION_HISTORY_SOURCE_TRUNCATED');
+  return rows;
+ }));
+ return {scopeRows:tables[0],auditorRows:tables[1],completedRows:includeCompleted?tables[2]:null};
+}
+async function readBoundedJson(req,limit=4096){
+ const chunks=[];let size=0;
+ for await(const chunk of req){size+=chunk.length;if(size>limit)throw Error('ROTATION_HISTORY_REQUEST_TOO_LARGE');chunks.push(chunk);}
+ try{return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw Error('ROTATION_HISTORY_REQUEST_INVALID');}
+}
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
@@ -234,6 +289,16 @@ const planningAtomicAppendProjector=planningAtomicEnabled?createPlanningSheetsAp
 const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
  hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,roster:getRoster,
+ postCommit:async({actor,body})=>{
+  if(!conceptReservationsFirestoreEnabled)return {success:true,released:false,reason:'FIRESTORE_RESERVATION_CUTOVER_DISABLED'};
+  const result=await conceptReservationStore.release({
+   auditId:String(body?.auditId||'').trim(),actorUid:String(actor?.auditorId||'').trim(),
+   actorRole:String(actor?.role||'').toUpperCase(),reason:'CANONICAL_COMMIT'
+  });
+  const alreadyFinal=result.reason==='NOT_FOUND'||result.reason==='ALREADY_RELEASED';
+  return {success:result.released===true||alreadyFinal,released:result.released===true,reason:result.reason,
+   repairRequired:result.released!==true&&!alreadyFinal};
+ },
  preflight:async({actor,body})=>{
   const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/planning/direct-commit',{
    method:'POST',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
@@ -401,16 +466,18 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
    throw Error('VISIT_COMPOSITION_MANAGER_SPLIT_REQUIRED');
   const sources=[
    ['Audit_Obligations','AA',2000],['Audit_Visit_Obligations','F',2000],
-   ['Config_Scope_Dependencies','G',1000],['Config_Scopes','Z',250],['Auditors','AF',500],
-   ['Auditor_Scope_Qualifications','C',5000],['Companies','AZ',1200],
-   ['Log realized audits','AZ',2500],['Concept Reservations','P',2000],
+   ['Config_Scope_Dependencies','G',1000],['Config_Scopes','Z',250],
+   ['Auditors',scope20FirestoreQualificationsEnabled?'AZ':'AF',scope20FirestoreQualificationsEnabled?1001:500],
+   ...(!scope20FirestoreQualificationsEnabled?[['Auditor_Scope_Qualifications','C',5000]]:[]),
+   ['Companies','AZ',1200],['Log realized audits','AZ',2500],['Concept Reservations','P',2000],
    ['Auditor Availability','AB',2500],['Audit planning','BW',2000]
   ];
   const endpoint=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchGet');
   endpoint.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
   endpoint.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
   for(const [name,width,limit] of sources)
-   endpoint.searchParams.append('ranges',"'"+name+"'!A1:"+width+limit);
+   endpoint.searchParams.append('ranges',name==='Concept Reservations'&&conceptReservationsFirestoreEnabled
+    ?"'Config_Scopes'!A1:A1":"'"+name+"'!A1:"+width+limit);
   const response=await fetch(endpoint.toString(),{headers:{authorization:'Bearer '+await getToken()},cache:'no-store'});
   if(!response.ok)throw Error('VISIT_COMPOSITION_SOURCE_READ_'+response.status);
   const data=(await response.json()).valueRanges;
@@ -423,6 +490,8 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
     throw Error('VISIT_COMPOSITION_SOURCE_TRUNCATED_'+sources[i][0]);
    tables[sources[i][0]]=rows;
   }
+  if(scope20FirestoreQualificationsEnabled)
+   tables['Auditor_Scope_Qualifications']=(await scope20QualificationSnapshot(tables['Auditors'])).relations;
   const planningRows=tables['Audit planning'],
    sourceCanonical=await planningAtomicStore.readAudit(body.auditId);
   const people=tables['Auditors'],header=people[0]||[],
@@ -439,6 +508,14 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
     const document=await service.read({role:'manager',id:actor.auditorId},uid);
     availabilityVersions[uid]=document.version;
    }
+  }
+  let reservationRows=tables['Concept Reservations'];
+  if(conceptReservationsFirestoreEnabled){
+   const reservation=await conceptReservationStore.read(String(body.auditId||'').trim());
+   reservationRows=[['Audit ID','State','Released At','Released By','Release Reason','Updated At'],
+    ...(reservation?.state==='ACTIVE'?[[
+     reservation.auditId,reservation.state,'','','',reservation.updatedAt||''
+    ]]:[])];
   }
   // Enforce from freshly reread canonical rows inside the atomic
   // transaction preflight, not from client-provided preview metadata.
@@ -462,7 +539,7 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
    scopeRows:tables['Config_Scopes'],auditorRows:tables['Auditors'],
    qualificationRows:tables['Auditor_Scope_Qualifications'],
    companyRows:tables['Companies'],realizedRows:tables['Log realized audits'],
-   reservationRows:tables['Concept Reservations'],availabilityRows:tables['Auditor Availability']
+   reservationRows,availabilityRows:tables['Auditor Availability']
   });
  }
 }):null;
@@ -732,14 +809,24 @@ const overlay=createPlanningOverlayService({
  readCanonicalSwaps:async()=>swap20GridReadEnabled
   ?swap20DirectTransport.canonicalGridDates({actor:{role:'manager',email:process.env.AMS_DEV_MANAGER_EMAIL||''}})
   :{ok:true,rows:[]},
- listCanonicalAuditors:async()=>{
-  const roster=await getRoster();
+ readInactiveSwapEvidence:async auditId=>{
+  if(!planningAtomicStore)return null;
+  const audit=await planningAtomicStore.readAudit(auditId);
+  if(!audit?.lastProjectedOperationId)return null;
+  const record=await planningAtomicStore.readOutboxWithCreateTime(audit.lastProjectedOperationId);
+  return {audit,record};
+ },
+ listCanonicalAuditors:async({fresh=false}={})=>{
+  const roster=await rosterFor({fresh});
   return roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}));
  }
 });
 const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity:session,listAuditors:async actor=>{
- const roster=await getRoster();
- return roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName}));
+ const roster=await rosterFor();
+ return {
+  directory:roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName})),
+  canonicalAuditors:roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}))
+ };
 }});
 async function legacyAvailabilityDiagnostic(req,res){
  const actor=await session(req);
@@ -1977,7 +2064,7 @@ http.createServer(async(req,res)=>{
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/visit-composition-editor-context'){
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
-   const roster=await getRoster();
+   const roster=await rosterFor();
    const auditors=roster.filter(x=>x.role==='auditor').map(x=>({
     auditorId:x.auditorId,email:x.email,name:x.displayName}));
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
@@ -2342,7 +2429,7 @@ http.createServer(async(req,res)=>{
       let rows;
       try{
        const plan=entry.action==='PLAN'?entry.snapshot:await planningAtomicProjector.prepareExtensionDateRecovery(entry.snapshot);
-       rows=await planningAtomicProjector.inspect(plan);
+       rows=await planningAtomicProjector.inspect(plan,{allowMissingAvailabilityRows:entry.action==='PLAN'});
       }catch{rows={state:'CONFLICT'};}
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
       eligible=['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state);
@@ -2404,7 +2491,7 @@ http.createServer(async(req,res)=>{
     try{
      if(!snapshot||!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))
       throw Error('ATOMIC_HEALTH_OUTBOX_PLAN_INCOMPLETE');
-     const rows=await planningAtomicProjector.inspect(snapshot);
+     const rows=await planningAtomicProjector.inspect(snapshot,{allowMissingAvailabilityRows:matchingGate.action==='PLAN'});
      const append=await planningAtomicAppendProjector.inspect(snapshot.appendIntents);
      matchingGate.projection={rows:rows.state,
       targets:rows.detail.map(x=>({range:x.range,target:x.target,before:x.before})),
@@ -2630,7 +2717,8 @@ http.createServer(async(req,res)=>{
     if(requestedAuditorUid.length>180||/[\\/]/.test(requestedAuditorUid))
      throw Error('MODEL_C_PREVIEW_AUDITOR_UID_INVALID');
     const tables=[];
-    for(const [name,limit] of [['Auditors',500],['Auditor_Scope_Qualifications',5000]]){
+    const qualificationSources=scope20FirestoreQualificationsEnabled?[['Auditors',1000]]:[['Auditors',500],['Auditor_Scope_Qualifications',5000]];
+    for(const [name,limit] of qualificationSources){
      const range="'"+name+"'!A1:AZ"+limit;
      const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
      const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
@@ -2639,8 +2727,10 @@ http.createServer(async(req,res)=>{
      if(!rows.length||rows.length>=limit)throw Error('MODEL_C_QUALIFICATION_SOURCE_INCOMPLETE');
      tables.push(rows);
     }
+    const qualificationRelations=scope20FirestoreQualificationsEnabled
+     ?(await scope20QualificationSnapshot(tables[0])).relations:tables[1];
     const resolution=resolveAuditorScopeQualifications20({
-     auditors:tables[0],catalog:configScopes,relations:tables[1],auditorUid:requestedAuditorUid
+    auditors:tables[0],catalog:configScopes,relations:qualificationRelations,auditorUid:requestedAuditorUid
     });
     const h=tables[0][0],uidIndex=h.indexOf('Auditor_UID'),
      activeIndex=h.indexOf('Active'),roleIndex=h.indexOf('Role');
@@ -2664,26 +2754,54 @@ http.createServer(async(req,res)=>{
    }
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }
+  if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/manager/rotation-history/migration'){
+   if(!rotationHistoryMigrationEnabled){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   if(req.method==='POST'){
+    let originOk=false;try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+    if(!originOk){res.writeHead(403,{'cache-control':'no-store'});res.end('ORIGIN_REJECTED');return;}
+   }
+   const source=await readRotationHistorySource();
+   const plan=prepareRotationRealizedAuditMigration20(source);
+   if(req.method==='GET'){
+    const preview=await rotationHistoryStore.preview(plan);
+    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+    res.end(JSON.stringify({success:true,readOnly:true,writeAuthorized:false,sourceManifest:plan.sourceManifest,...plan.stats,...preview}));return;
+   }
+   if(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()!=='application/json'){
+    res.writeHead(415,{'cache-control':'no-store'});res.end('JSON required');return;
+   }
+   const body=await readBoundedJson(req);
+   if(body.confirm!==true||body.sourceManifest!==plan.sourceManifest){
+    res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'ROTATION_HISTORY_CONFIRMATION_STALE'}));return;
+   }
+   const applied=await rotationHistoryStore.apply({...plan,confirm:true});
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify({success:true,...applied}));return;
+  }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
-   const data=[];
-   for(const range of ["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500","'Log realized audits'!A1:AZ10000"]){
-    const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
-    const response=await fetch(endpoint,{headers:{authorization:'Bearer '+await getToken()}});
-    if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
-    data.push((await response.json()).values||[]);
-   }
+   const data=rotationHistoryFirestoreReadEnabled
+    ?await readRotationHistorySource({includeCompleted:false})
+    :await readRotationHistorySource();
+   const tables=rotationHistoryFirestoreReadEnabled
+    ?[data.scopeRows,data.auditorRows,rotationRealizedAuditRows20(await rotationHistoryStore.read(),data.scopeRows)]
+    :[data.scopeRows,data.auditorRows,data.completedRows];
    const personal=actor.role==='auditor';
    const includeTestData=runtime.isDev&&!personal&&u.searchParams.get('includeTestData')==='1';
-   const result=buildRotationManager20(...data,{includeTestData});
+   const result=buildRotationManager20(...tables,{includeTestData});
+   result.historySource=rotationHistoryFirestoreReadEnabled?'DEV_FIRESTORE':'SHEETS';
+   if(rotationHistoryFirestoreReadEnabled)result.readOnly=true;
    if(personal){
     const uid=String(actor.auditorId||actor.uid||actor.id||'').trim();
     if(!uid)throw Error('ROTATION_AUDITOR_UID_REQUIRED');
     result.rows=result.rows.filter(row=>row.auditorUid===uid).map(row=>({...row,history:(row.history||[]).filter(event=>event.auditorUid===uid)}));
     result.issues=[];
    }
-   if(!personal&&runtime.isDev){try{result.uidReconciliation=diagnoseRotationUid20(data[1],data[2]);}catch(e){result.uidReconciliation={readOnly:true,error:String(e?.message||'UID_DIAGNOSTIC_UNAVAILABLE').slice(0,100)};}}
+   if(!personal&&runtime.isDev){try{result.uidReconciliation=diagnoseRotationUid20(tables[1],tables[2]);}catch(e){result.uidReconciliation={readOnly:true,error:String(e?.message||'UID_DIAGNOSTIC_UNAVAILABLE').slice(0,100)};}}
    result.testDataAvailable=!personal&&runtime.isDev;
    result.includeTestData=includeTestData;
    result.role=personal?'auditor':'manager';

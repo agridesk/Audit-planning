@@ -3513,7 +3513,7 @@ function m5_badgeHtml_(status) {
   var cls = 'badge-status';
   var key = String(st || '').toLowerCase().replace(/\s+/g, '-');
   if (key) cls += ' ' + key;
-  var display = (st === 'Approved') ? 'Pending acceptance' : st;
+  var display = (st === 'Approved') ? 'Pending acceptance' : (st === 'Accepted') ? 'Ready' : st;
   return '<span class="' + cls + '">' + V5.escape(display || '-') + '</span>';
 }
 

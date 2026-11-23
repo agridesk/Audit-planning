@@ -13,6 +13,7 @@
  *     non-Pending-Planning status.
  *   - Missing canonical audit/status rows are reported but NOT released.
  *   - Release goes through ConceptReservationCommandService_release only.
+ *   - Firestore cutover APPLY is blocked until a trusted reconciliation bridge exists.
  *   - No Audit planning, Availability or lifecycle/status writes.
  ***********************************************************************/
 var PLANNING_WORKSPACE_STALE_CONCEPT_RECONCILER_BUILD='2026-09-13_WORKSPACE_STALE_CONCEPT_RECONCILER_R2_VERIFY';
@@ -32,6 +33,7 @@ function PWSCR_candidate_(row){
 function PlanningWorkspaceStaleConceptReconciler_run(input){
   input=input||{};
   var apply=input.apply===true;
+  if(apply&&typeof CRFB_enabled_==='function'&&CRFB_enabled_())throw new Error('CONCEPT_RESERVATION_STALE_RECONCILER_FIRESTORE_BRIDGE_REQUIRED');
   var pack=PWSCR_read_(),lc=pack.lifecycle||{},stale=Array.isArray(lc.staleRows)?lc.staleRows:[],items=[],released=0,skipped=0,errors=[];
   for(var i=0;i<stale.length;i++){
     var c=PWSCR_candidate_(stale[i]);

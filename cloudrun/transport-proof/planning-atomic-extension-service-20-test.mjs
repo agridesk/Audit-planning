@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
 import {createAtomicExtensionService20} from './planning-atomic-extension-service-20.js';
 const ph=['Audit ID','Status','Extension applied','Extended Expiration Date','Planning window from','Planning window to'],
@@ -54,7 +55,7 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
    release:async()=>events.push('gateRelease'),
    uncertain:async()=>events.push('uncertainGate')
   },
-  preflight:async()=>{events.push('preflight');if(hooks.preflight)await hooks.preflight();return preflight},
+  preflight:async args=>{events.push('preflight');if(hooks.preflight)await hooks.preflight(args);return preflight},
   projector:{
    apply:async()=>events.push('projectRows'),
    inspect:async()=>{if(hooks.rowInspect)await hooks.rowInspect();return {state:inspection,detail:[{matched:true}]}}
@@ -67,14 +68,14 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
  return {instance,events};
 }
 {
- let preflightStarted=false,appendInspectStarted=false;
+ let auditRead=false,appendInspectStarted=false;
  const {instance}=setup({hooks:{
-  audit:async()=>{await Promise.resolve();assert.equal(preflightStarted,true,'preflight starts while audit is read')},
-  preflight:async()=>{preflightStarted=true},
+  audit:async()=>{auditRead=true},
+  preflight:async({body})=>{assert.equal(auditRead,true);assert.equal(body.sourceValueRenderOption,'FORMATTED_VALUE')},
   rowInspect:async()=>{await Promise.resolve();assert.equal(appendInspectStarted,true,'both readbacks start together')},
   appendInspect:async()=>{appendInspectStarted=true}
  }});
- assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.equal((await instance.commit({actor,body:{...body,sourceValueRenderOption:'UNFORMATTED_VALUE'}})).projection,'PROJECTED');
 }
 {
  const {instance,events}=setup(),result=await instance.commit({actor,body});
@@ -86,6 +87,31 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
 {
  const {instance,events}=setup({preflight:{...proof,sourceRowBefore:['other']}});
  await assert.rejects(instance.commit({actor,body}),/PREFLIGHT_NOT_AUTHORITATIVE/);
+ assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const numericRow=before.slice();numericRow[3]=9;
+ const old={...previous,snapshot:{...previous.snapshot,row:[...numericRow,'','']}};
+ const numericProof={...proof,sourceRowBefore:numericRow,
+  canonicalSnapshot:{...proof.canonicalSnapshot,row:[...numericRow.slice(0,2),'Yes',...numericRow.slice(3)]}};
+ const {instance,events}=setup({old,preflight:numericProof,hooks:{
+  preflight:async({body})=>assert.equal(body.sourceValueRenderOption,'UNFORMATTED_VALUE')
+ }});
+ assert.equal((await instance.commit({actor,body:{...body,sourceValueRenderOption:'FORMATTED_VALUE'}})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+}
+{
+ const old={...previous,snapshot:{...previous.snapshot,row:[...before,'',0]}};
+ const {instance,events}=setup({old});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const numericRow=before.slice();numericRow[3]=9;
+ const old={...previous,snapshot:{...previous.snapshot,row:numericRow}};
+ const changed=numericRow.slice();changed[4]='2026-11-30';
+ const {instance,events}=setup({old,preflight:{...proof,sourceRowBefore:changed}});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_ROW/);
  assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
 }
 {
@@ -110,8 +136,26 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 assert.ok(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension"));
 assert.ok(r4.includes("return buildAtomicExtensionWriteset20({plan,source,cbEvent,cbEvents,revisionOf:directRowRevision})"));
 assert.ok(r4.includes("EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN"));
-assert.ok(r4.includes("const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning"),
- 'EXT/Undo CAS must use the same canonical Sheets read as R15 backfill');
+assert.ok(r4.includes("const planningRows=atomicPreflight?canonicalPlanningRows:dates.planning"),
+ 'EXT/Undo CAS must use the bounded canonical Sheets read');
+{
+ const start=r4.indexOf('async function readCanonicalPlanningRowsForAtomic20(');
+ const end=r4.indexOf('function normalizeDevModelCDateCells20(',start);
+ assert(start>=0&&end>start);
+ const urls=[];
+ const read=vm.runInNewContext(r4.slice(start,end)+'\nreadCanonicalPlanningRowsForAtomic20',{
+  URL,encodeURIComponent,SID:'test-sheet',
+  process:{env:{AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'true'}},
+  accessToken:async()=> 'test-token',
+  fetch:async url=>{urls.push(new URL(url));return {ok:true,json:async()=>({values:[['Audit ID'],['audit-1']]})}}
+ });
+ await read();await read('UNFORMATTED_VALUE');
+ assert.equal(urls[0].searchParams.has('valueRenderOption'),false);
+ assert.equal(urls[1].searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');
+ assert.equal(urls[1].searchParams.get('dateTimeRenderOption'),'FORMATTED_STRING');
+ await assert.rejects(read('INVALID'),/RENDER_INVALID/);
+ assert.equal(urls.length,2);
+}
 
 const managerGrid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert.ok(managerGrid.includes("receipt.direct===true&&receipt.projection==='PROJECTED'"),
@@ -129,6 +173,28 @@ const pairedProof=buildAtomicExtensionWriteset20({
  source:{...source,obligationRows:[oh,obligation,['ob-2',...obligation.slice(1)]]},
  cbEvent:pairedValues[0],cbEvents:pairedValues,revisionOf:rev
 });
+{
+ const rawRow=[...before,9],headers=[...ph,'Duration'];
+ const old={...previous,snapshot:{...previous.snapshot,headers,row:[...rawRow,'','']}};
+ const rawProof=buildAtomicExtensionWriteset20({
+  plan:{...plan,obligationChanges:pairedChanges,updates:[...updates,...updates.slice(0,5).map(u=>({...u,range:u.range.replace(/2$/,'3')}))]},
+  source:{planningRows:[headers,rawRow],obligationRows:[oh,obligation,['ob-2',...obligation.slice(1)]]},
+  cbEvent:pairedValues[0],cbEvents:pairedValues,revisionOf:rev
+ });
+ const {instance,events}=setup({old,preflight:rawProof,hooks:{
+  preflight:async({body})=>assert.equal(body.sourceValueRenderOption,'UNFORMATTED_VALUE')
+ }});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+ const changed=[...rawRow];changed[changed.length-1]=10;
+ const blocked=setup({old,preflight:{...rawProof,sourceRowBefore:changed}});
+ await assert.rejects(blocked.instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!blocked.events.includes('commit'));
+ const wrongType=[...rawRow];wrongType[wrongType.length-1]='9';
+ const typeMismatch=setup({old,preflight:{...rawProof,sourceRowBefore:wrongType}});
+ await assert.rejects(typeMismatch.instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!typeMismatch.events.includes('commit'));
+}
 {
  const {instance,events}=setup({preflight:pairedProof});
  assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');

@@ -4,6 +4,8 @@
  * physical row deletion. All append effects are durable in the same outbox.
  */
 import {createHash} from 'node:crypto';
+import {isValidRotationRealizedAudit20} from './rotation-realized-audit-firestore-20.mjs';
+import {canonicalPlanningRowMatches20} from './planning-canonical-row-parity-20.js';
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const str=x=>String(x??'').trim();
 const norm=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
@@ -29,7 +31,10 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
     measure('parentMs',()=>atomicStore.readAudit(auditId))
    ]);
    if(preview?.success!==true||preview?.authorityPreflight!==true||preview?.auditId!==auditId||!Array.isArray(preview.removedSourceRows)||preview.removedSourceRows.length!==1||!Array.isArray(preview.successorSnapshots)||!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!Array.isArray(preview.appendIntents))throw Error('PLANNING_MULTI_PREFLIGHT_INCOMPLETE');
+   if(action==='COMPLETE'&&(!isValidRotationRealizedAudit20(preview.realizedAudit)||preview.realizedAudit.auditId!==auditId)||
+      action!=='COMPLETE'&&preview.realizedAudit!=null)throw Error('PLANNING_MULTI_REALIZED_AUDIT_PREFLIGHT_INVALID');
    if(!parent||parent.pendingOperationId||parent.snapshot?.sourceRevision!==preview.expectedSourceRevision||parent.snapshot?.legacyUnverified)throw Error('PLANNING_MULTI_PARENT_REVISION_INVALID');
+   if(!canonicalPlanningRowMatches20(parent.snapshot,preview))throw Error('PLANNING_MULTI_CANONICAL_ROW_PARITY_CONFLICT');
    if(actor.role==='auditor'&&(norm(parent.snapshot?.status)!=='ACCEPTED'||parent.auditorId!==actor.auditorId))throw Error('PLANNING_MULTI_AUDITOR_OWNERSHIP_INVALID');
    const expectedStatus=action==='COMPLETE'?'COMPLETED':'REJECTED';
    if(norm(preview.canonicalSnapshot?.status)!==expectedStatus)throw Error('PLANNING_MULTI_TOMBSTONE_STATUS_INVALID');
@@ -37,6 +42,7 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
    if(action==='REJECT'&&snapshots.length)throw Error('PLANNING_MULTI_REJECT_UNEXPECTED_SUCCESSORS');
    if(new Set(snapshots.map(x=>x.auditId)).size!==snapshots.length||snapshots.some(x=>!x.auditId||x.auditId===auditId||norm(x.status)!=='PENDING_PLANNING'||str(x.assignedTo)))throw Error('PLANNING_MULTI_SUCCESSOR_INVALID');
    const plan={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents,successorSnapshots:snapshots};
+   if(action==='COMPLETE')plan.realizedAudit=preview.realizedAudit;
    const entities=[
     {auditId,expectedRevision:parent.revision,remove:true,auditorId:null,blocks:[],nextSnapshot:plan},
     ...snapshots.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,auditorId:null,blocks:[],nextSnapshot:x}))
@@ -45,7 +51,7 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
    const accepted=await measure('commitMs',()=>atomicStore.commitMulti({operationId,actorId:actor.auditorId,action,entities,projectionPlan:plan}));
    committed=true;
    if(accepted.replayed)throw Error('PLANNING_MULTI_UNEXPECTED_REPLAY');
-   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan}));
+   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan,prefetchMetadata:true}));
    await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:plan.appendIntents}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([projector.inspect(plan),appendProjector.inspect(plan.appendIntents)]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('PLANNING_MULTI_PROJECTION_NOT_VERIFIED');
@@ -53,7 +59,8 @@ export function createPlanningMultiLifecycleService({atomicStore,gate,projector,
    verified=true;
    await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'MULTI_ENTITIES_FIRESTORE_SHEETS_VERIFIED'}));
    lock=null;
-   return {success:true,authority:'FIRESTORE',projection:'PROJECTED',auditId,action,operationId,successorAuditIds:snapshots.map(x=>x.auditId),entities:accepted.entities};
+   return {success:true,authority:'FIRESTORE',projection:'PROJECTED',auditId,action,operationId,successorAuditIds:snapshots.map(x=>x.auditId),entities:accepted.entities,
+    timings:{...timings,totalMs:Date.now()-started}};
   }finally{
    console.info('[PLANNING_MULTI_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,verified}));
    if(lock){

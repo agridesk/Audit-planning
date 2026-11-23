@@ -10,5 +10,6 @@ assert.ok(r6.includes('canonicalPlanningRevision20(item.h,item.row)'));
 assert.ok(gas.includes("rawAction==='externalcanonicalcombinedvisit20'"));
 assert.ok(gas.includes("if(!V5_ENTRY_isDevEnv_())"));
 assert.ok(gas.includes("ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20)"));
+assert.ok(gas.includes("CRFB_withServerBridgeContext_({actorRole:'Manager',actorEmail:combinedActorEmail20}"));
 assert.ok(r6.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED')"));
 console.log('COMBINED_VISIT_CANONICAL_ROUTING: PASS');

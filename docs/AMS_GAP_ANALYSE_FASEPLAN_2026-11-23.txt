@@ -1,0 +1,76 @@
+AMS – GAP-ANALYSE, AFHANKELIJKHEDEN EN FASEPLAN (overdracht 2026-11-23, roadmap V2.12 proposed)
+Status: werkdocument. Firestore = enige leidende bron; auditoren via Auditor_UID; Sheets = afgeleide projectie.
+Principe: Snelheid, Schaalbaar, Solide. Geen productie-, verkeers- of bedrijfsdatawijziging zonder expliciete toestemming.
+
+1. LIVE KETEN (feit)
+- npm start -> server-r15.js -> r12 -> r11 -> r10 -> r9 ... -> r4. Grid-enrichment (r10) en detail-patch (r12) zijn live.
+- Toolkit Save (ManagerPlanningUI_boot.html doSave) roept GAS saveManagerPlanning aan, niet de Cloud Run atomaire commandservice.
+
+2. GAPS PER WERKPAKKET
+WP1 Save
+- [OPGELOST P0] Client behandelde leeg antwoord / {ok:false} als succes en vergrendelde de UI. Nu alleen succes bij success===true + newStatus;
+  anders fout, Save hersteld, bij onduidelijk antwoord "outcome unconfirmed – verify before saving again". Watchdog (45 s) meldt hangende RPC zonder retry.
+- [HYPOTHESE] Knop "blijft actief zonder afronding" = hangende/time-out RPC. Bewijs nodig: browserconsole + GAS-executielog van één reproductie.
+- [GAP] Toolkit gebruikt GAS-writer i.p.v. atomaire Firestore-keten (planning-atomic-command-service-20.js). Migratie = P1, na Firestore-cutover planning.
+- [GAP] Uren-tolerantie ±0,25 u is client-prompt; server blokkeert alleen te weinig uren. Te harmoniseren met roadmapregel.
+WP2 Grid
+- [GAP] Preassigned auditor en Self Planning alleen tekst; geen dropdown/toggle (ManagerV5UI.html:3945-3949).
+  [BIJGESTELD P1] Geldt alleen voor de oude ManagerV5UI. Live Grid 2.0 (manager-portal.js:365-383) heeft al een Self Planning-schakelaar via de atomaire Firestore-service (self-planning-direct). Preassigned: geen Cloud Run-writer; loopt via Company Scopes-paneel. Nieuwe writer Firestore-first => P2.
+- [GAP] Validator assignment-validation-v211.js mist beschikbaarheid/conflict; accepteert e-mail of UID; exclusions e-mailgebaseerd.
+  [OPGELOST P1] Exclusions accepteren auditorUid (UID-sleutel, e-mail blijft backward-compatible; blokkeert ook e-mailtoewijzing van dezelfde auditor). Beschikbaarheid: HARD-gate wordt al afgedwongen in de planningscommit (availability-planning-hard-gate-20.js via server-r15); niet gedupliceerd.
+- [GAP] Geen herassignatie Accepted->Approved, geen Grid-audit-trail.
+WP3 Combined / Hours
+- [OPGELOST P0] Hours planned viel terug op formalHours/Required (r10) of sheetkolom (r12). Nu uitsluitend som van gecommitte
+  Planning JSON-blokken; zonder blokken leeg. formalHours wordt apart geleverd.
+- [GAP] CoreStatusMachine PLAN (GAS) zonder auditor-guard. [OPGELOST P1] auditor (UID of e-mail) verplicht, datum/tijd strikt.
+- [GAP] Combined (SEPARATELY / multi-audit commit) geweigerd in r4; compositiepreview canCommit:false.
+WP4 Workflow
+- [FEIT] PORTAL_INTEGRATION_FAILED niet in bron; alleen in forensisch rapport (HTTP 503).
+- [GAP] Directe auditoractie zonder requestId-idempotentie.
+- [OPGELOST P1] DEV-deploy: regressiegate vóór deploy en smoke op getagde kandidaat na deploy.
+
+3. AFHANKELIJKHEDEN
+- Grid-dropdown/Self Planning  -> centrale UID-validator incl. beschikbaarheid  -> Firestore beschikbaarheid (gereed lokaal).
+- Toolkit naar atomaire keten   -> Firestore planningcutover + projectie Sheets.
+- Combined commit               -> atomaire keten + Model C relink-owner.
+- Kwalificatie-/notitiecutover  -> schrijffence tegen handmatige Sheet-writers.
+- Realized-backfill             -> geldige read-only preview + pariteit (nu geblokkeerd: NOT_FOUND).
+
+4. FASEPLAN
+P0 (gedaan): Save-bevestiging strikt; Hours planned = blokken.
+P1 (gedaan): CoreStatusMachine PLAN-guard (auditor verplicht, ISO-datum, HH:MM); DEV-deploy regressiegate + niet-ingelogde smoke (alleen statuscodes).
+P1 (gedaan): Grid-controls: Self Planning al atomair in Grid 2.0; validator UID-exclusions; HARD-beschikbaarheid al in commitpad.
+Rollback P1-validator: assignment-validation-v211.js en -test.mjs terugzetten (pure functie, geen data).
+P2 (aanvulling): Preassigned-writer Firestore-first + Grid-dropdown; Company Scopes-paneel UID-exclusions laten schrijven.
+Snelheid (gecorrigeerd): op DEV (AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED=true, ams-dev-deploy.yml:71) lopen /api/v1/auditor/action en
+  /api/v1/manager/action + lifecycle (APPROVE/ACCEPT/CANCEL atomair, COMPLETE/REJECT multi) al via Firestore (r15:1766-1790). De resterende latency
+  zit in Sheets-I/O binnen die keten: preflight-loopback (leest Sheets), roster-read ('Auditors'!A1:AZ500, ongecached), rij- + append-projectie.
+  GEDAAN: roster-prefetch parallel aan preflight/readAudit voor APPROVE/ACCEPT (planning-lifecycle-atomic-service-20.js; CANCEL blijft lazy;
+  fout bij prefetch geen unhandled rejection). Rollback: rosterPrefetch-regels verwijderen. Projecties blijven sequentieel (forward recovery
+  gaat uit van rij -> append). Resterende echte GAS-roundtrips: Toolkit planning-workspace handoff (r5:244, r10:23), OTP/auth-bridge (r5:137), r15:973.
+  Grootste volgende winst (P2): Firestore-readmodel voor Grid/planningCache (r15:782, nu Sheets readPlanningRows), Firestore-UID-roster,
+  preflight zonder Sheets-read. Meten via [PLANNING_LIFECYCLE_TIMING].
+  GEDAAN: roster-cache voor leespaden (server-r15 rosterFor: 60s, gedeeld met session()). Beschikbaarheidskalender/manageroverzicht en
+  visit-composition-editor lezen niet meer per request 'Auditors' uit Sheets; mutatievalidatie (listCanonicalAuditors({fresh:true})),
+  direct-commit en complete lezen vers en verversen de cache. Test: availability-planning-overlay-service-20-test.mjs.
+  Rollback: rosterFor() terug naar getRoster(). Grid volledig uit Firestore lezen vereist eerst de P3-backfill.
+Auditoractie-idempotentie: write-safe al aanwezig (verplichte expectedRevision + statusguard => replay geeft 409, nooit dubbele write; verloren antwoord => readback of OUTCOME_UNCONFIRMED_DO_NOT_RETRY). Replay-succes via requestId vereist duurzaam Firestore-requestledger (in-memory schaalt niet over instances) => verplaatst naar P2 bij de Firestore-lifecycleketen.
+P2: Toolkit -> atomaire Firestore-keten; Combined Audits; schrijffence + notitiemigratie; jaarcapaciteit readmodel.
+P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
+
+5. OPEN PUNTEN (beslissing gebruiker)
+- Accepted vs Ready: BESLOTEN. Opgeslagen waarde blijft Accepted/ACCEPTED; alle UI's tonen "Ready".
+  Gedaan: Grid 2.0 (manager-portal.js, contract in fase12-ready-scope-parity-20-test.mjs), GAS-labels in
+  AuditorPortalV5, ManagerV5UI-badge, PlanningWorkspace-visuals/-actions (GAS: pas zichtbaar na GAS-deploy).
+  Rollback: alleen labelteksten terugzetten; geen data geraakt.
+- Roadmap §21.1 noemt e-mail als interne identifier; gebruikersbesluit Auditor_UID gaat voor.
+- Roadmap noemt GAS als canonieke writer; gebruikersbesluit Firestore gaat voor.
+
+6. ROLLBACK P0
+- Per bestand terugzetten: ManagerPlanningUI_boot.html (doSave-blok), cloudrun/transport-proof/server-r10.js, server-r12.js
+  en bijbehorende tests. Geen data- of schemawijziging; geen deploy uitgevoerd.
+
+7. TESTS
+- tests/manager-planning-save-confirmation.test.mjs (faalt op oude code, slaagt op nieuwe), open-audits-grid2-contract-test.mjs,
+  manager-audit-batch-read-20-test.mjs, combined-visit-contract-test.mjs.
+- npm run test:part-1/2/3 en test:planning-authority-p0: groen.

@@ -77,6 +77,12 @@ async function withCombinedLock(fn){
 
 async function combinedCommit(identity,body,req){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED');
+  const conceptReservationsFirestoreEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&
+    process.env.K_SERVICE==='ams-fase12-dev'&&
+    process.env.AMS_DEV_CONCEPT_RESERVATIONS_FIRESTORE_ENABLED==='true'&&
+    process.env.AMS_DEV_CONCEPT_RESERVATIONS_FULL_CUTOVER_ENABLED==='true';
+  if(conceptReservationsFirestoreEnabled&&process.env.AMS_COMBINED_CANONICAL_GAS_WRITE_ENABLED!=='true')
+    throw new Error('COMBINED_CANONICAL_FIRESTORE_RESERVATION_PATH_REQUIRED');
   if(!SID)throw new Error('DEV_SSOT_SPREADSHEET_ID_NOT_CONFIGURED');
   const started=Date.now(),targetAuditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),requested=directPlanNormBlocks(body?.blocks);
   if(!targetAuditId||!auditorEmail||!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
@@ -84,8 +90,8 @@ async function combinedCommit(identity,body,req){
   const requestedMembers=Array.isArray(body?.visitMembers)?body.visitMembers:[],memberIds=[...new Set([targetAuditId,...(Array.isArray(body?.visitAuditIds)?body.visitAuditIds:[]),...requestedMembers.map(x=>x?.auditId)].map(clean).filter(Boolean))];
   if(memberIds.length<2)throw new Error('COMBINED_VISIT_REQUIRES_MULTIPLE_MEMBERS');
   return withCombinedLock(async()=>{
-    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditors!A1:Z256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Audit_Obligations!A1:Z1000','Audit_Visit_Obligations!A1:H1000','Companies!A1:AJ686','Log realized audits!A1:AZ2048']),readMs=Date.now()-readStarted;
-    const ap=vr[0]?.values||[],aud=vr[1]?.values||[],av=vr[2]?.values||[],cr=vr[3]?.values||[],scv=vr[4]?.values||[],obv=vr[5]?.values||[],links=vr[6]?.values||[],companies=vr[7]?.values||[],log=vr[8]?.values||[],catalog=scopeCatalog(scv),cfgByCode=new Map(catalog.map(x=>[x.scopeCode,x]));
+    const readStarted=Date.now(),reservationRange=conceptReservationsFirestoreEnabled?'Config_Scopes!A1:A1':'Concept Reservations!A1:P256',vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditors!A1:Z256','Auditor Availability!A:P',reservationRange,'Config_Scopes!A1:Z128','Audit_Obligations!A1:Z1000','Audit_Visit_Obligations!A1:H1000','Companies!A1:AJ686','Log realized audits!A1:AZ2048']),readMs=Date.now()-readStarted;
+    const ap=vr[0]?.values||[],aud=vr[1]?.values||[],av=vr[2]?.values||[],cr=conceptReservationsFirestoreEnabled?[]:vr[3]?.values||[],scv=vr[4]?.values||[],obv=vr[5]?.values||[],links=vr[6]?.values||[],companies=vr[7]?.values||[],log=vr[8]?.values||[],catalog=scopeCatalog(scv),cfgByCode=new Map(catalog.map(x=>[x.scopeCode,x]));
     // Idempotent replay: only exact same members, blocks, owner and active Model C links.
     // No writes/notifications on replay. Notifications must be reconciled independently.
     const priorTarget=findAudit(ap,targetAuditId),priorHeaders=priorTarget?.h||[];

@@ -506,7 +506,15 @@ function doPost(e) {
     if(typeof ModelCCombinedVisitCanonicalCommit20_execute!=='function')
       return respondCombined20({success:false,error:'COMBINED_CANONICAL_OWNER_UNAVAILABLE'});
     combinedInput20.runtimeEnv='DEV';
-    try{return respondCombined20(ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20));}
+    try{
+      if(typeof CRFB_withServerBridgeContext_==='function'){
+        var combinedActorEmail20=String(combinedInput20.actorEmail||'').trim().toLowerCase();
+        return respondCombined20(CRFB_withServerBridgeContext_({actorRole:'Manager',actorEmail:combinedActorEmail20},function(){
+          return ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20);
+        }));
+      }
+      return respondCombined20(ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20));
+    }
     catch(combinedError20){return respondCombined20({success:false,error:'COMBINED_CANONICAL_EXCEPTION',detail:String(combinedError20&&combinedError20.message||combinedError20).slice(0,180)});}
   }
 

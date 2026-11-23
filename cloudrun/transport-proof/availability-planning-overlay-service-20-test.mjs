@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
+import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 const actor={id:'manager:a',role:'manager'};
 const base=id=>({auditorId:id,version:3,blocks:[],baselineExceptions:[],baselineReleases:[],recurring:[],overrides:[],metadata:{changes:[],historyComplete:true}});
-let reads=0;
+let reads=0,rosterReads=0;
 const service={read:async(a,id)=>base(id),mutate:async()=>({success:true})};
 const rows=[['Audit ID','Status','Assigned to','Planning JSON'],['A1','ACCEPTED','a@example.com',JSON.stringify([{date:'2027-01-12',start:'09:00',end:'12:00'}])],['A2','PENDING_APPROVAL','b@example.com',JSON.stringify([{date:'2027-01-13',start:'10:00',end:'11:00'}])]];
 const auditors=[{auditorId:'a',email:'a@example.com'},{auditorId:'b',email:'b@example.com'}];
-const overlay=createPlanningOverlayService({service,readPlanningRows:async()=>{reads++;return rows;},listCanonicalAuditors:async()=>auditors});
+const overlay=createPlanningOverlayService({service,readPlanningRows:async()=>{reads++;return rows;},listCanonicalAuditors:async()=>{rosterReads++;return auditors;}});
 const p=await overlay.period({actor,auditorId:'a',fromDate:'2027-01-11',toDate:'2027-01-14'});
 assert.equal(p.version,3);
 assert(p.days.find(d=>d.date==='2027-01-12').segments.some(s=>s.state==='COMMITTED'));
@@ -14,11 +15,48 @@ assert.equal(Object.values(p.auditDetails)[0].auditId,'A1');
 assert.equal(Object.values(p.auditDetails)[0].date,'2027-01-12');
 assert.equal(Object.values(p.auditDetails)[0].state,'COMMITTED');
 assert(!p.days.find(d=>d.date==='2027-01-13').segments.some(s=>s.state==='PROVISIONAL'));
+assert.equal(rosterReads,1,'Calendar reuses its roster for diagnostic ownership');
 const m=await overlay.managerOverview({actor,auditorIds:['a','b'],fromDate:'2027-01-11',toDate:'2027-01-14'});
 assert.equal(m.auditors.length,2);
 assert(m.auditors[0].stateMinutes.COMMITTED===180);
 assert(m.auditors[1].stateMinutes.PROVISIONAL===60);
 assert.equal(reads,2);
+assert.equal(rosterReads,2,'Each read request loads a fresh roster exactly once');
+const rosterFreshFlags=[];
+const freshnessOverlay=createPlanningOverlayService({service,readPlanningRows:async()=>rows,listCanonicalAuditors:async options=>{rosterFreshFlags.push(options?.fresh===true);return auditors;}});
+await freshnessOverlay.period({actor,auditorId:'a',fromDate:'2027-01-11',toDate:'2027-01-14'});
+await freshnessOverlay.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-20',wholeDay:true}});
+assert.deepEqual(rosterFreshFlags,[false,true],'Reads may use the cached roster; mutation validation reads it fresh');
+let httpRosterReads=0,httpOverlayRosterReads=0,httpPlanningFresh=[];
+const httpOverlay=createPlanningOverlayService({service,readPlanningRows:async({fresh})=>{httpPlanningFresh.push(fresh);return rows;},listCanonicalAuditors:async()=>{httpOverlayRosterReads++;return auditors;}});
+let httpRoster=auditors;
+const httpRouter=createAvailabilityHttpRouter({service:httpOverlay,resolveIdentity:async()=>actor,listAuditors:async()=>{httpRosterReads++;return {directory:httpRoster.map(a=>({auditorId:a.auditorId,displayName:a.auditorId})),canonicalAuditors:httpRoster};}});
+async function httpRequest(url,method='GET',body){
+ let status=0,data;
+ const req={url,method,headers:body?{'content-type':'application/json'}:{},async *[Symbol.asyncIterator](){if(body)yield JSON.stringify(body);}};
+ await httpRouter(req,{writeHead:value=>{status=value;},end:value=>{data=JSON.parse(value);}});
+ return {status,data};
+}
+const httpOverview=await httpRequest('/api/v1/availability/manager-overview?fromDate=2027-01-11&toDate=2027-01-14');
+assert.equal(httpOverview.status,200);
+assert.equal(httpOverview.data.auditors.length,2);
+assert.deepEqual(httpOverview.data.auditors.map(a=>a.stateMinutes),m.auditors.map(a=>a.stateMinutes));
+assert(!JSON.stringify(httpOverview.data).includes('a@example.com'),'Canonical roster is not returned to the client');
+assert.equal(httpRosterReads,1,'Manager HTTP overview reads one roster for authorization and overlay');
+assert.equal(httpOverlayRosterReads,0);
+const httpCalendar=await httpRequest('/api/v1/availability/calendar?auditorId=a&fromDate=2027-01-11&toDate=2027-01-14');
+assert.equal(httpCalendar.status,200);
+assert.deepEqual(httpCalendar.data.days,p.days);
+assert.equal(httpRosterReads,2,'Each read request obtains a new roster');
+assert.equal(httpOverlayRosterReads,0);
+httpRoster=[auditors[1]];
+assert.equal((await httpRequest('/api/v1/availability/calendar?auditorId=a&fromDate=2027-01-11&toDate=2027-01-14')).status,403,'Removed auditor is not authorized by stale roster');
+httpRoster=auditors;
+assert.equal((await httpRequest('/api/v1/availability/mutate','POST',{auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}})).status,200);
+assert.equal(httpOverlayRosterReads,1,'Mutations still load their own canonical roster');
+assert.equal(httpPlanningFresh.at(-1),true,'Mutations still require fresh planning');
+httpRoster=[{auditorId:'a',email:''}];
+assert.equal((await httpRequest('/api/v1/availability/manager-overview?fromDate=2027-01-11&toDate=2027-01-14')).status,500,'Invalid canonical identities fail closed');
 await assert.rejects(()=>overlay.managerOverview({actor:{id:'a',role:'auditor'},auditorIds:['a'],fromDate:'2027-01-11',toDate:'2027-01-14'}),/NOT_AUTHORIZED/);
 const rangeGuard=createPlanningOverlayService({service,readPlanningRows:async()=>{throw Error('RANGE_MUST_FAIL_BEFORE_READ');},listCanonicalAuditors:async()=>auditors});
 await assert.rejects(()=>rangeGuard.period({actor,auditorId:'a',fromDate:'2027-02-30',toDate:'2027-03-01'}),/INVALID_DATE/);
@@ -106,6 +144,25 @@ const av003Rows=[
  ['MISSING-P','PENDING_APPROVAL','','','',''],
  ['VALID-C','ACCEPTED','b@example.com',JSON.stringify([{date:'2027-01-12',start:'09:00',end:'11:00'}]),'b','2027-01-12']
 ];
+let currentRoster=auditors,requestRosterReads=0;
+const rosterSnapshot=createPlanningOverlayService({service,readPlanningRows:async()=>av003Rows,listCanonicalAuditors:async()=>{requestRosterReads++;return currentRoster;}});
+const firstRoster=await rosterSnapshot.managerOverview({actor,auditorIds:['b'],fromDate:'2026-03-08',toDate:'2026-03-08'});
+assert.equal(firstRoster.incompleteAuditDiagnostics[0].auditorId,'b');
+const scopedRouter=createAvailabilityHttpRouter({service:rosterSnapshot,resolveIdentity:async()=>actor,listAuditors:async()=>({directory:[{auditorId:'a',displayName:'A'}],canonicalAuditors:auditors})});
+let scopedStatus=0,scopedBody;
+await scopedRouter({url:'/api/v1/availability/manager-overview?fromDate=2026-03-08&toDate=2026-03-08',method:'GET',headers:{}},{writeHead:value=>{scopedStatus=value;},end:value=>{scopedBody=JSON.parse(value);}});
+assert.equal(scopedStatus,200,'Full canonical roster must remain available when directory is scoped');
+assert.equal(scopedBody.unknownReservationOwner,false);
+assert.deepEqual(scopedBody.incompleteAuditDiagnostics,[]);
+currentRoster=[auditors[0]];
+await assert.rejects(()=>rosterSnapshot.managerOverview({actor,auditorIds:['b'],fromDate:'2026-03-08',toDate:'2026-03-08'}),/AUDIT_PLANNING_AUDITOR_UID_UNKNOWN/);
+assert.equal(requestRosterReads,2,'Later read requests must not reuse an old roster');
+let mutationRosterReads=0,mutationPlanningFresh;
+const freshMutation=createPlanningOverlayService({service:av003Storage,readPlanningRows:async options=>{mutationPlanningFresh=options.fresh;return av003Rows;},listCanonicalAuditors:async()=>{mutationRosterReads++;return auditors;}});
+await freshMutation.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}});
+assert.equal(mutationPlanningFresh,true,'Mutations must bypass the planning cache');
+assert.equal(mutationRosterReads,2,'Mutations retain the separate diagnostic roster recheck');
+av003Writes=0;
 const av003=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>av003Rows,listCanonicalAuditors:async()=>auditors});
 const av003Result=await av003.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}});
 assert.equal(av003Result.success,true,'Unrelated accepted audit and unassigned undated provisional must not block auditor A');
@@ -114,6 +171,13 @@ await assert.rejects(()=>av003.mutate({actor:{id:'b',role:'auditor'},auditorId:'
 assert.equal(av003Writes,1,'An auditor with incomplete accepted plans must not reach storage');
 const unknownOwner=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','','','','']],listCanonicalAuditors:async()=>auditors});
 await assert.rejects(()=>unknownOwner.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN/);
+for(const email of ['a@example.com','unknown@example.com']){
+ const assignedWithoutUid=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['INCOMPLETE','PENDING_APPROVAL',email,'','','']],listCanonicalAuditors:async()=>auditors});
+ for(const action of ['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE']){
+  await assert.rejects(()=>assignedWithoutUid.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action,date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN/);
+ }
+}
+assert.equal(av003Writes,1,'Incomplete assigned provisional audits must not reach storage without a UID');
 const conflictingOwner=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','a@example.com','','b','2027-01-12']],listCanonicalAuditors:async()=>auditors});
 await assert.rejects(()=>conflictingOwner.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT/);
 assert.equal(av003Writes,1);
@@ -127,4 +191,47 @@ const unknownUid=createPlanningOverlayService({service:av003Storage,readPlanning
 await assert.rejects(()=>unknownUid.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_UID_UNKNOWN/);
 console.log('PASS AV-003 auditor-scoped incomplete planning isolation and fail-closed cases');
 
+const staleSwap={auditId:'STALE',revision:'2026-11-18T20:13:12.613140Z',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'10:00'}]};
+const staleRows=[['Audit ID','Status','Assigned to','Planning JSON','Date - Planned','Last manager decision'],['STALE','Pending Planning','','','','CANCEL']];
+const cancellation={
+ audit:{auditId:'STALE',revision:1,snapshot:{status:'Pending Planning'},lastOperationId:'cancel',lastProjectedOperationId:'cancel',pendingOperationId:null,blocks:[],claimIds:[]},
+ record:{createTime:'2026-11-18T21:09:02.999Z',value:{auditId:'STALE',operationId:'cancel',revision:1,action:'CANCEL',state:'PROJECTED',proof:{verified:true,auditId:'STALE',rowHash:'a'.repeat(64)}}}
+};
+const withSwap=(evidence,sourceRows=staleRows)=>createPlanningOverlayService({service,readPlanningRows:async()=>sourceRows,listCanonicalAuditors:async()=>auditors,readCanonicalSwaps:async()=>({ok:true,rows:[staleSwap]}),readInactiveSwapEvidence:async()=>evidence});
+const staleQuery={actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'};
+const cancelled=await withSwap(cancellation).period(staleQuery);
+assert.equal(Object.keys(cancelled.auditDetails).length,0,'A verified later cancellation supersedes stale SWAP occupancy');
+assert.equal((await withSwap(cancellation).mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}})).success,true);
+for(const bad of [
+ null,
+ {...cancellation,record:{...cancellation.record,createTime:'2026-11-18T20:00:00Z'}},
+ {...cancellation,record:{...cancellation.record,createTime:'2026-11-18T20:13:12.613999Z'}},
+ {...cancellation,record:{...cancellation.record,createTime:null}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,state:'UNCERTAIN'}}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,proof:{verified:false}}}},
+ {...cancellation,record:{...cancellation.record,value:{...cancellation.record.value,proof:{...cancellation.record.value.proof,auditId:'OTHER'}}}},
+ {...cancellation,audit:{...cancellation.audit,pendingOperationId:'pending'}},
+ {...cancellation,audit:{...cancellation.audit,claimIds:['occupied']}},
+ {...cancellation,audit:{...cancellation.audit,revision:2}},
+]){
+ await assert.rejects(()=>withSwap(bad).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+}
+await assert.rejects(()=>withSwap(null).mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0],staleRows[1],staleRows[1]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0],['STALE','Pending Planning','',JSON.stringify({blocks:[{date:'2027-01-12',start:'09:00',end:'10:00'}]}),'','CANCEL']]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+for(const [state,action] of [['Rejected','REJECT'],['Completed','COMPLETE']]){
+ const evidence={
+  audit:{...cancellation.audit,snapshot:{status:state},removed:true},
+  record:{...cancellation.record,value:{...cancellation.record.value,action,multi:true,entities:[{auditId:'STALE',revision:1,removed:true}]}}
+ };
+ assert.equal(Object.keys((await withSwap(evidence,[staleRows[0],['STALE',state,'','']]).period(staleQuery)).auditDetails).length,0);
+ assert.equal(Object.keys((await withSwap(evidence,[staleRows[0]]).period(staleQuery)).auditDetails).length,0,'Projected tombstone may have left the open planning sheet');
+ evidence.record.value.entities[0].removed=false;
+ await assert.rejects(()=>withSwap(evidence,[staleRows[0]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+}
+await assert.rejects(()=>withSwap(cancellation,[staleRows[0]]).period(staleQuery),/AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND/);
+let evidenceReads=0;
+const activeSwap=createPlanningOverlayService({service,readPlanningRows:async()=>[['Audit ID','Status','Assigned to','Planning JSON'],['STALE','Accepted','a@example.com',JSON.stringify([{date:'2027-01-11',start:'09:00',end:'10:00'}])]],listCanonicalAuditors:async()=>auditors,readCanonicalSwaps:async()=>({ok:true,rows:[staleSwap]}),readInactiveSwapEvidence:async()=>{evidenceReads++;throw Error('UNEXPECTED_EVIDENCE_READ')}});
+assert.equal(Object.values((await activeSwap.period(staleQuery)).auditDetails)[0].date,'2027-01-12');
+assert.equal(evidenceReads,0,'Active SWAP replacement must retain existing behavior');
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

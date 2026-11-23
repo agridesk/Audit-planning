@@ -6,6 +6,7 @@
 import {createHash} from 'node:crypto';
 import {v211AssignmentHardCheck} from './assignment-validation-v211.js';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
+import {canonicalPlanningRowMatches20} from './planning-canonical-row-parity-20.js';
 const clean=x=>String(x??'').trim();
 const norm=x=>clean(x).toLowerCase().replace(/[^a-z0-9]/g,'');
 const status=x=>clean(x).toUpperCase().replace(/[\s-]+/g,'_');
@@ -68,6 +69,8 @@ export function prepareSeparateCompositionAuthority20({
     sourceCanonical.snapshot?.sourceRevision!==body.sourceRevision||
     status(sourceCanonical.snapshot?.status)!=='PENDING_PLANNING')
   throw Error('COMPOSITION_SPLIT_FIRESTORE_SOURCE_CAS_INVALID');
+ if(!canonicalPlanningRowMatches20(sourceCanonical.snapshot,{sourceRowBefore:before,canonicalSnapshot:{headers:ph}}))
+  throw Error('COMPOSITION_SPLIT_FIRESTORE_SOURCE_ROW_CONFLICT');
  let originalPlanning;
  try{originalPlanning=val(before,pj)?JSON.parse(val(before,pj)):{};}
  catch{throw Error('COMPOSITION_SPLIT_SOURCE_PLANNING_JSON_INVALID');}
@@ -308,9 +311,11 @@ export function prepareSeparateCompositionAuthority20({
  const visits=[],entities=[],newPlanning=[],newLinks=[],notifications=[],stamp=now.slice(0,16);
  const parentSnapshot=partial?
   {auditId,status:'Pending Planning',sourceRevision:fingerprint(ph,sourceAfter),
+   headers:clone(ph),row:clone(sourceAfter),
    companyUid,partialScopePlanning:true,composition:'SEPARATELY',
    successorAuditIds:lineage,remainingObligationIds:remainingIds,updatedAt:now}:
   {auditId,status:'Pending Planning',sourceRevision:body.sourceRevision,
+   headers:clone(ph),row:clone(sourceAfter),
    companyUid,identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
    successorAuditIds:lineage,retiredAt:now};
  entities.push({auditId,expectedRevision:sourceCanonical.revision,remove:!partial,
@@ -345,6 +350,7 @@ export function prepareSeparateCompositionAuthority20({
   row[extended]='';row[extensionApplied]='';
   const nextRevision=fingerprint(ph,row);
   const snapshot={auditId:x.visitId,status:'Approved',sourceRevision:nextRevision,
+   headers:clone(ph),row:clone(row),
    companyUid,sourceAuditId:auditId,obligationIds:[x.ob.id],windowSource:x.ob.windowSource||'OBLIGATION_CANONICAL',
    auditorUid:x.auditorId,auditorEmail:x.auditorEmail,
    formalMinutes:x.ob.minutes,blocks:x.blocks,planningJson};

@@ -30,5 +30,5 @@ function walk(name,parent){
 }
 entries.forEach(entry=>walk(entry,'entry'));
 assert.deepEqual(missing,[],'All ESM runtime dependencies must be packaged in Cloud Run Docker image');
-for(const module of ['auditor-scope-qualifications-20.js','auditor-scope-qualifications-migration-20.js','auditor-scope-qualifications-firestore-lock-20.js','auditor-scope-qualifications-migration-sheets-20.js','model-c-new-obligation-provenance-20.js','company-scope-hours-snapshot-20.js'])assert.ok(packaged.has(module),'Missing critical staged module: '+module);
+for(const module of ['auditor-scope-qualifications-20.js','auditor-scope-qualifications-migration-20.js','auditor-scope-qualifications-firestore-20.js','auditor-scope-qualifications-firestore-lock-20.js','auditor-scope-qualifications-migration-sheets-20.js','model-c-new-obligation-provenance-20.js','company-scope-hours-snapshot-20.js'])assert.ok(packaged.has(module),'Missing critical staged module: '+module);
 console.log('Runtime Docker import closure verified: '+visited.size+' modules including Fase 2.5 and Model C');

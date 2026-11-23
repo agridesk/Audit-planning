@@ -51,3 +51,35 @@ export async function normalizeLifecycleWriteset({writes,readBefore}={}){
   projectionPreconditions:ordered.map(([key])=>{const g=merged.get(key);return {range:g.range,before:g.before};})
  };
 }
+
+// Reject's deleted planning row is read with the other BEFORE images, without
+// reusing the writer's earlier snapshot or skipping the projector's rechecks.
+export async function normalizeRejectWritesetWithPlanning({writes,readBefore}={}){
+ if(!Array.isArray(writes)||writes.some(w=>/^Audit planning!/.test(w?.range||'')))
+  throw Error('LIFECYCLE_REJECT_PLANNING_WRITES_UNSUPPORTED');
+ let planning;
+ const normalized=await normalizeLifecycleWriteset({writes,readBefore:async ranges=>{
+  const result=await readBefore(['Audit planning!A1:BW2000',...ranges]);
+  if(!Array.isArray(result)||result.length!==ranges.length+1||!result[0]||
+     !Array.isArray(result[0].values))throw Error('LIFECYCLE_PREFLIGHT_PLANNING_INCOMPLETE');
+  planning=result[0].values;
+  return result.slice(1);
+ }});
+ return {planning,normalized};
+}
+
+export function mergeLifecycleWritesets(first,second){
+ const entries=[];
+ for(const part of [first,second]){
+  if(!Array.isArray(part?.projectionWrites)||!Array.isArray(part?.projectionPreconditions)||
+     part.projectionWrites.length!==part.projectionPreconditions.length)throw Error('LIFECYCLE_WRITESET_INPUT_INVALID');
+  for(let i=0;i<part.projectionWrites.length;i++){
+   const write=part.projectionWrites[i],pre=part.projectionPreconditions[i],r=parseRange(write.range);
+   if(r.startRow!==r.endRow||pre?.range!==write.range)throw Error('LIFECYCLE_WRITESET_RANGE_INVALID');
+   entries.push({key:r.sheet+'!'+r.startRow,write,pre});
+  }
+ }
+ entries.sort((a,b)=>a.key.localeCompare(b.key));
+ if(entries.some((entry,i)=>i>0&&entry.key===entries[i-1].key))throw Error('LIFECYCLE_WRITESET_OVERLAPPING_ROWS');
+ return {projectionWrites:entries.map(x=>x.write),projectionPreconditions:entries.map(x=>x.pre)};
+}

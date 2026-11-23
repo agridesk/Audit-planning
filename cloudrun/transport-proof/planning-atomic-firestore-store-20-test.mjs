@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 const store=new Map(),db='https://firestore.googleapis.com/v1/projects/audit-management-system-dev/databases/(default)/documents';
 let clock=0,failCommit=false,conflict=false;
@@ -13,6 +14,11 @@ const encode=v=>{
 };
 const decode=v=>'nullValue'in v?null:'stringValue'in v?v.stringValue:'integerValue'in v?Number(v.integerValue):'booleanValue'in v?v.booleanValue:'arrayValue'in v?(v.arrayValue.values||[]).map(decode):Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));
 const response=(status,json)=>({ok:status>=200&&status<300,status,async json(){return copy(json)}});
+const completedAt=new Date().toISOString().slice(0,10);
+const realizedAudit=(auditId,auditorUid,companyUid='COMPANY-1')=>({
+ auditId,auditorUid,company:'Example company',companyUid,status:'Completed',completedAt,
+ year:Number(completedAt.slice(0,4)),scopeSlots:['SCOPE_01']
+});
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
  if(path.endsWith('/documents:beginTransaction'))return response(200,{transaction:'test-transaction'});
@@ -45,13 +51,17 @@ const fetchImpl=async(url,init={})=>{
 };
 const authority=createPlanningAtomicFirestoreStore({projectId:'audit-management-system-dev',getToken:async()=> 'token',fetchImpl});
 const auditId='A1';
-store.set('ams_planning_20_dev_audits/'+auditId,{name:db+'/ams_planning_20_dev_audits/'+auditId,updateTime:'t0',fields:{payload:encode({auditId,revision:0,snapshot:{auditId,status:'Pending Planning'},claimIds:[],pendingOperationId:null})}});
+store.set('ams_planning_20_dev_audits/'+auditId,{name:db+'/ams_planning_20_dev_audits/'+auditId,updateTime:'t0',fields:{payload:encode({auditId,revision:0,snapshot:{auditId,status:'Pending Planning',headers:['Company','Company_UID'],row:['Example company','COMPANY-1']},claimIds:[],pendingOperationId:null})}});
 const body={auditId,operationId:'op-one',actorId:'manager',expectedRevision:0,nextSnapshot:{auditId,status:'Approved',scope:'GAP'},auditorId:'aud-1',blocks:[{date:'2027-03-02',start:'09:00',end:'10:00'}],action:'APPROVE'};
 await assert.rejects(()=>authority.commit({...body,operationId:'op-unknown',expectedRevision:1}),/PLANNING_CANONICAL_REVISION_CONFLICT/);
 const committed=await authority.commit(body);
 assert.equal(committed.state,'PENDING');assert.equal(committed.revision,1);assert.equal(committed.claimCount,4);
 assert.equal((await authority.readAudit(auditId)).pendingOperationId,'op-one');
 assert.equal((await authority.readOutbox('op-one')).snapshot.status,'Approved');
+assert.equal((await authority.readOutboxWithCreateTime('op-one')).createTime,null);
+store.get('ams_planning_20_dev_outbox/op-one').createTime='2026-11-18T21:09:02.999Z';
+assert.equal((await authority.readOutboxWithCreateTime('op-one')).createTime,'2026-11-18T21:09:02.999Z');
+assert.equal(await authority.readOutboxWithCreateTime('not-present'),null);
 assert.equal((await authority.commit(body)).replayed,true);
 await assert.rejects(()=>authority.commit({...body,operationId:'op-two',expectedRevision:1}),/PLANNING_PREVIOUS_PROJECTION_UNRESOLVED/);
 await authority.markUncertain({auditId,operationId:'op-one',reason:'TIMEOUT'});
@@ -81,18 +91,26 @@ assert.equal([...store.keys()].filter(x=>x.includes('_claims/')).length,0);
 assert.equal((await authority.readAudit(auditId)).snapshot.status,'Accepted');
 // One Firestore transaction archives parent, creates successor, and shifts claims.
 const parent='PARENT',successor='SUCCESSOR';
-store.set('ams_planning_20_dev_audits/'+parent,{name:db+'/ams_planning_20_dev_audits/'+parent,updateTime:'t0',fields:{payload:encode({auditId:parent,revision:0,snapshot:{auditId:parent,status:'Accepted'},auditorId:'aud-3',blocks:[{date:'2027-09-04',start:'09:00',end:'10:00'}],claimIds:[],pendingOperationId:null})}});
+store.set('ams_planning_20_dev_audits/'+parent,{name:db+'/ams_planning_20_dev_audits/'+parent,updateTime:'t0',fields:{payload:encode({auditId:parent,revision:0,snapshot:{auditId:parent,status:'Accepted',headers:['Company','Company_UID'],row:['Example company','COMPANY-1']},auditorId:'aud-3',blocks:[{date:'2027-09-04',start:'09:00',end:'10:00'}],claimIds:[],pendingOperationId:null})}});
 const entities=[
  {auditId:parent,expectedRevision:0,remove:true,nextSnapshot:{auditId:parent,status:'Completed',sourceRevision:'rev-parent'},auditorId:null,blocks:[]},
  {auditId:successor,expectedRevision:null,nextSnapshot:{auditId:successor,status:'Pending Planning',sourceRevision:'rev-child'},auditorId:'aud-3',blocks:[{date:'2027-09-04',start:'09:00',end:'10:00'}]}
 ];
-const args={operationId:'multi-complete-1',actorId:'manager',action:'COMPLETE',entities,projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['parent','completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['parent','accepted']}],appendIntents:[]}};
+const parentRealizedAudit=realizedAudit(parent,'aud-3');
+const args={operationId:'multi-complete-1',actorId:'manager',action:'COMPLETE',entities,projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['parent','completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['parent','accepted']}],appendIntents:[],realizedAudit:parentRealizedAudit}};
+await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-missing-event',projectionPlan:{...args.projectionPlan,realizedAudit:undefined}}),/PLANNING_MULTI_REALIZED_AUDIT_REQUIRED/);
 const multi=await authority.commitMulti(args);
 assert.equal(multi.entities.length,2);assert.equal((await authority.readAudit(parent)).removed,true);
 assert.equal((await authority.readAudit(successor)).revision,0);
 assert.equal((await authority.readOutbox('multi-complete-1')).auditId,parent);
+const parentEventId=createHash('sha256').update(parent).digest('hex');
+const parentEvent=store.get('ams_rotation_realized_audit_events_20_dev/'+parentEventId);
+assert.ok(parentEvent,'realized audit event must commit in Firestore with the lifecycle transaction');
+assert.deepEqual(decode(parentEvent.fields.payload),parentRealizedAudit);
 assert.equal((await authority.commitMulti(args)).replayed,true);
-await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',entities:[{...entities[1],auditId:'other-successor',nextSnapshot:{auditId:'other-successor'}},{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}]}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
+await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',action:'TRANSFER',
+ entities:[{...entities[1],auditId:'other-successor',nextSnapshot:{auditId:'other-successor'}},{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}],
+ projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
 await authority.markUncertain({auditId:parent,operationId:'multi-complete-1',reason:'SHEETS_TIMEOUT'});
 assert.equal((await authority.markProjected({auditId:parent,operationId:'multi-complete-1',proof:{verified:true,auditId:parent,rowHash:'c'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
@@ -100,13 +118,18 @@ assert.equal((await authority.readAudit(parent)).pendingOperationId,null);
 
 await authority.markProjected({auditId,operationId:'op-two',proof:{verified:true,auditId,rowHash:'d'.repeat(64)}});
 await authority.markProjected({auditId,operationId:'op-two',proof:{verified:true,auditId,rowHash:'d'.repeat(64)}});
+const auditCanonical=store.get('ams_planning_20_dev_audits/'+auditId);
+const auditCanonicalPayload=decode(auditCanonical.fields.payload);
+auditCanonical.fields.payload=encode({...auditCanonicalPayload,auditorId:'aud-1',
+ snapshot:{...auditCanonicalPayload.snapshot,headers:['Company','Company_UID'],row:['Example company','COMPANY-1']}});
 const multiSuccessor='A3';
+const auditRealizedAudit=realizedAudit(auditId,'aud-1');
 const multiReceiptFixture=await authority.commitMulti({
  operationId:'multiReceiptFixture-one',actorId:'manager',action:'COMPLETE',
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
   {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
- ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
+ ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[],realizedAudit:auditRealizedAudit}
 });
 assert.equal(multiReceiptFixture.state,'PENDING');
 assert.equal(multiReceiptFixture.entities.length,2);
@@ -117,7 +140,7 @@ assert.equal((await authority.commitMulti({
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
   {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
- ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
+ ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[],realizedAudit:auditRealizedAudit}
 })).replayed,true);
 assert.equal((await authority.markProjected({auditId,operationId:'multiReceiptFixture-one',proof:{verified:true,auditId,rowHash:'b'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,null);
@@ -136,15 +159,31 @@ await assert.rejects(()=>authority.commitMulti({
 }),/PLANNING_MULTI_REVISION_CONFLICT/);
 // A successor that sorts before its parent cannot hijack the outbox root.
 const lateParent='ZZZ_PARENT',earlySuccessor='AAA_SUCCESSOR';
-store.set('ams_planning_20_dev_audits/'+lateParent,{name:db+'/ams_planning_20_dev_audits/'+lateParent,updateTime:'t0',fields:{payload:encode({auditId:lateParent,revision:0,snapshot:{auditId:lateParent,status:'Accepted'},claimIds:[],pendingOperationId:null})}});
+store.set('ams_planning_20_dev_audits/'+lateParent,{name:db+'/ams_planning_20_dev_audits/'+lateParent,updateTime:'t0',fields:{payload:encode({auditId:lateParent,revision:0,snapshot:{auditId:lateParent,status:'Accepted',headers:['Company','Company_UID'],row:['Example company','COMPANY-1']},auditorId:'aud-lexical',claimIds:[],pendingOperationId:null})}});
 const lexical=await authority.commitMulti({operationId:'lexical-root',actorId:'manager',action:'COMPLETE',
  entities:[{auditId:lateParent,expectedRevision:0,remove:true,nextSnapshot:{auditId:lateParent,status:'Completed'}},
  {auditId:earlySuccessor,expectedRevision:null,nextSnapshot:{auditId:earlySuccessor,status:'Pending Planning'}}],
- projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}});
+ projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[],realizedAudit:realizedAudit(lateParent,'aud-lexical')}});
 assert.equal(lexical.state,'PENDING');
 assert.equal((await authority.readOutbox('lexical-root')).auditId,lateParent);
 assert.equal((await authority.markProjected({auditId:lateParent,operationId:'lexical-root',proof:{verified:true,auditId:lateParent,rowHash:'e'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(earlySuccessor)).pendingOperationId,null);
+const conflictRoot='CONFLICT_ROOT',conflictEvent=realizedAudit(conflictRoot,'uid-conflict');
+store.set('ams_planning_20_dev_audits/'+conflictRoot,{name:db+'/ams_planning_20_dev_audits/'+conflictRoot,updateTime:'t0',
+ fields:{payload:encode({auditId:conflictRoot,revision:0,snapshot:{auditId:conflictRoot,status:'Accepted',headers:['Company','Company_UID'],row:['Example company','COMPANY-1']},auditorId:'uid-conflict',claimIds:[],pendingOperationId:null})}});
+const conflictEventId=createHash('sha256').update(conflictRoot).digest('hex');
+store.set('ams_rotation_realized_audit_events_20_dev/'+conflictEventId,{
+ name:db+'/ams_rotation_realized_audit_events_20_dev/'+conflictEventId,
+ updateTime:'t0',fields:{payload:encode({...conflictEvent,company:'Conflicting company'})}
+});
+const commitsBeforeEventConflict=clock;
+await assert.rejects(()=>authority.commitMulti({
+ operationId:'conflicting-realized-event',actorId:'manager',action:'COMPLETE',
+ entities:[{auditId:conflictRoot,expectedRevision:0,remove:true,nextSnapshot:{auditId:conflictRoot,status:'Completed'}}],
+ projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[],realizedAudit:conflictEvent}
+}),/PLANNING_MULTI_REALIZED_AUDIT_CONFLICT/);
+assert.equal(clock,commitsBeforeEventConflict,'conflicting existing event must not partially commit');
+assert.equal((await authority.readAudit(conflictRoot)).revision,0);
 await assert.rejects(()=>authority.commit({
  auditId:parent,operationId:'retired-plan',actorId:'manager',expectedRevision:1,
  nextSnapshot:{auditId:parent,status:'Approved'},auditorId:null,blocks:[],action:'PLAN'

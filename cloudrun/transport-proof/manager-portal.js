@@ -78,7 +78,7 @@ function updateSelectionUi(){
     if(eligible&&!auditorMode&&currentView==="open")swap20WarmPreview(chosen);
     if(accepted&&!eligible&&!swap20EligibleLoading&&!swap20CanonicalGasMode)swap20DiagnoseSelection20(chosen);
      var excluded=accepted&&swap20EligibleAuditIds?chosen.filter(function(r){return !swap20EligibleAuditIds.has(String(r.auditId));}).map(function(r){return String(r.company||r.auditId);}):[];
-    swap.title=!accepted?"Select exactly two Accepted audits":swap20EligibleError?"Firestore SWAP eligibility check failed: "+swap20EligibleError:swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Accepted audit time slots (canonical validation required)":"Not migrated to Firestore SWAP: "+excluded.join(", ");
+    swap.title=!accepted?"Select exactly two Ready audits":swap20EligibleError?"Firestore SWAP eligibility check failed: "+swap20EligibleError:swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Ready audit time slots (canonical validation required)":"Not migrated to Firestore SWAP: "+excluded.join(", ");
     var notice=document.getElementById("swap20SelectionEligibilityNotice");
     if(!notice){notice=document.createElement("span");notice.id="swap20SelectionEligibilityNotice";notice.setAttribute("role","status");notice.style.cssText="margin-left:12px;font-size:12px;color:#a34813";swap.insertAdjacentElement("afterend",notice);}
     notice.textContent=swap20IsolatedPreviewBlocked20?"SWAP is not available in this isolated DEV preview.":accepted&&!eligible?(swap20PairDiagnosis20.status&&swap20PairDiagnosis20.key===[String(chosen[0].auditId),String(chosen[1].auditId)].sort().join("|")?swap20PairDiagnosis20.status:swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+").":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
@@ -262,7 +262,7 @@ function extensionControls(r){if(String(actorRole).toLowerCase()==="auditor"||r.
 async function runSingleScopeExtension20(button){
  var auditId=String(button.dataset.auditId||''),row=all.find(function(x){return String(x.auditId)===auditId});
  if(!row||row.statusKey!=='PENDING_PLANNING'||busyAudits.has(auditId))return;
- busyAudits.add(auditId);button.disabled=true;
+ busyAudits.add(auditId);button.disabled=true;var commandSent=false,verified=false,started=Date.now(),sourceMs=null,commandMs=null;
  try{
   var uid=String(row.companyUid||row.companyUID||'').trim();
   if(!uid){
@@ -285,17 +285,21 @@ async function runSingleScopeExtension20(button){
   if(!window.crypto||typeof window.crypto.randomUUID!=='function')throw Error('Secure request ID unavailable');
   var body={command:command,auditId:auditId,companyUid:uid,obligationId:obligation.obligationId,expectedRevision:obligation.revision,requestId:window.crypto.randomUUID()};
   if(command==='undo')body.extensionTransactionId=obligation.extensionTransactionId;
+  sourceMs=Date.now()-started;var writeStarted=Date.now();
+  commandSent=true;
   var write=await fetch('/api/v1/manager/extension-obligation-command',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   var receipt=await write.json().catch(function(){return null});
+  commandMs=Date.now()-writeStarted;
   if(!write.ok||!receipt||receipt.success!==true||!receipt.operationId)throw Error(receipt?.error||'Scope change not confirmed; do not retry before reconciliation');
   if(receipt.direct===true&&receipt.projection==='PROJECTED'){
+   verified=true;
    var patch=Object.assign({},receipt.patch||{});
    patch.effectiveExpiry=patch.expiryZ;
    patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
    patch.planningWindow=patch.planningWindowText;
    patch.extApplied=patch.extensionApplied;
    mergeRowInPlace(auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:obligation.scopeCode,extensionApplied:command==='apply'}]).forEach(function(change){updateExtendedScopeCodes20(auditId,change.scopeCode,change.extensionApplied===true)});
-   document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV';
+   document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV · '+((Date.now()-started)/1000).toFixed(1)+' s';
    return;
   }
   var projection=await fetch('/api/v1/manager/extension-reconcile-projection',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({operationId:receipt.operationId})});
@@ -304,10 +308,11 @@ async function runSingleScopeExtension20(button){
    window.alert('Firestore change committed. Sheets projection not confirmed. Do not retry; operation: '+receipt.operationId);
    return;
   }
+  verified=true;
   mergeRowInPlace(auditId,{extensionApplied:command==='apply',extApplied:command==='apply'});updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply');
-  document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · projection confirmed';
- }catch(e){window.alert('EXT/Undo not performed: '+String(e.message||e))}
- finally{busyAudits.delete(auditId);button.disabled=false}
+  document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · projection confirmed · '+((Date.now()-started)/1000).toFixed(1)+' s';
+ }catch(e){window.alert((commandSent?'EXT/Undo outcome not confirmed. Do not retry until reconciled: ':'EXT/Undo not performed: ')+String(e.message||e))}
+ finally{console.info('[AMS_EXT_CLIENT_TIMING]',JSON.stringify({entry:'single',command:command,sourceMs:sourceMs,commandMs:commandMs,totalMs:Date.now()-started,projected:verified}));busyAudits.delete(auditId);button.disabled=false}
 }
 function grid4ScopeBadges(r){
  var raw=String(r.scopesText||"").trim()?String(r.scopesText).split(","):(Array.isArray(r.scopes)?r.scopes:[]);
@@ -549,7 +554,10 @@ function runAction(button){
       var st=wr&&wr.statusPerf||{},core=wr&&wr.actionPerf||{};
       perf.statusPerf=st;perf.actionPerf=core;
       var coreDetail="avail "+(core.availabilityMs==null?"-":core.availabilityMs)+" / reset "+(core.resetPlanningMs==null?"-":core.resetPlanningMs)+" / statuswrite "+(core.statusWriteMs==null?"-":core.statusWriteMs)+" / lifecycle "+(core.lifecycleMs==null?"-":core.lifecycleMs)+" / cache "+(core.cacheInvalidationMs==null?"-":core.cacheInvalidationMs)+(core.archiveMs==null?"":" / archive "+core.archiveMs);
-      document.getElementById("status").textContent=wr&&(wr.owner==='CLOUD_RUN_DIRECT_MANAGER_APPROVE'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_REJECT'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_COMPLETE')
+      var atomicTiming=wr&&wr.timings;
+      document.getElementById("status").textContent=atomicTiming&&wr.authority==='FIRESTORE'&&wr.projection==='PROJECTED'
+        ? Number(openCounts.total||all.length)+" open audits · "+String(action||"").toUpperCase()+" "+perf.totalMs+" ms (server "+atomicTiming.totalMs+" · preflight "+atomicTiming.preflightMs+" · rows "+atomicTiming.rowProjectionMs+" · append "+atomicTiming.appendProjectionMs+" · verify "+atomicTiming.verifyMs+" · patch "+perf.patchMs+")"
+        : wr&&(wr.owner==='CLOUD_RUN_DIRECT_MANAGER_APPROVE'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_REJECT'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_COMPLETE')
         ? Number(openCounts.total||all.length)+" open audits · "+String(action||"").toUpperCase()+" "+perf.totalMs+" ms (Cloud Run "+(perf.cloudRunMs==null?"-":perf.cloudRunMs)+" · read "+(wr.readMs==null?"-":wr.readMs)+" · archive "+(wr.archiveMs==null?"-":wr.archiveMs)+" · write "+(wr.writeMs==null?"-":wr.writeMs)+" · delete "+(wr.deleteMs==null?"-":wr.deleteMs)+" · queue "+(wr.sideEffectMs==null?"-":wr.sideEffectMs)+" · availability rows "+(wr.availabilityRows==null?"-":wr.availabilityRows)+" · patch "+perf.patchMs+")"
         : Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · b→w "+(perf.browserToWorkerMs==null?"-":perf.browserToWorkerMs)+" · preRPC "+(perf.workerPreRpcMs==null?"-":perf.workerPreRpcMs)+" · RPC "+(perf.workerRpcWallMs==null?"-":perf.workerRpcWallMs)+" · w→b "+(perf.workerToBrowserMs==null?"-":perf.workerToBrowserMs)+" · status "+(st.totalMs==null?"-":st.totalMs)+" [guard "+(st.writeGuardMs==null?"-":st.writeGuardMs)+" / load "+(st.loadAuditMs==null?"-":st.loadAuditMs)+" / core "+(st.coreMs==null?"-":st.coreMs)+" / notify "+(st.notificationOnlyMs==null?"-":st.notificationOnlyMs)+"] · "+coreDetail+" · patch "+perf.patchMs+" · trace "+(perf.traceId||"-")+")";
       console.info("[MANAGER_ACTION_TIMING]",perf)
@@ -741,7 +749,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
   try{
     var prefetchKey=[pair.auditA,pair.auditB].sort().join("|");
     preview=swap20PreviewPrefetch.key===prefetchKey&&Date.now()-swap20PreviewPrefetch.at<60000?await swap20PreviewPrefetch.promise.catch(function(){return swapRequest("preview",pair);}):await swapRequest("preview",pair);
-    if(!preview.eligible){explain.textContent="This Accepted pair cannot be swapped: "+String(preview.reason||"not eligible");return;}
+    if(!preview.eligible){explain.textContent="This Ready pair cannot be swapped: "+String(preview.reason||"not eligible");return;}
     explain.textContent=preview.requiresAcknowledgement?
       "The proposed audit dates will change. The assigned auditor(s) must confirm before the change is applied.":
       "Only the audit times will change; auditor confirmation is not required.";
@@ -808,7 +816,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
     finally{busy=false;apply.disabled=true;}
   };
   withdraw.onclick=async function(){
-    if(busy||!submitted||!window.confirm("Withdraw this audit date change request? Accepted audits will remain unchanged."))return;
+    if(busy||!submitted||!window.confirm("Withdraw this audit date change request? Ready audits will remain unchanged."))return;
     busy=true;withdraw.disabled=true;
     try{
       var result=await swapRequest("withdraw",{operationId:requestId});
@@ -1467,26 +1475,30 @@ if(tab==='scopes'){
   if(extensionCell){extensionCell.textContent=predictedApplied?'Applied':'Not applied';extensionCell.style.fontWeight='650'}
   if(button){button.textContent=(predictedApplied?'Undo':'EXT')+' · saving…';button.disabled=true;button.setAttribute('aria-busy','true')}
   var info=extContent.querySelector('[data-ext-feedback]');if(info)info.textContent='Updating '+String(o.scopeCode||'scope')+'…';
-  var committed=false;
+  var committed=false,verified=false,started=Date.now(),commandMs=null,refreshMs=null;
   try{
    var body={command:command,auditId:o.auditId,companyUid:extSelectedUid,obligationId:o.obligationId,expectedRevision:o.revision,requestId:requestId};
    if(command==='undo')body.extensionTransactionId=o.extensionTransactionId;
    var receipt=await extPost('/api/v1/manager/extension-obligation-command',body);committed=true;
+   commandMs=Date.now()-started;
    if(!receipt.operationId)throw Error('EXT_OPERATION_RECEIPT_MISSING');
    if(receipt.direct===true&&receipt.projection==='PROJECTED'){
+    verified=true;
     var patch=Object.assign({},receipt.patch||{});
     patch.effectiveExpiry=patch.expiryZ;
     patch.extApplied=patch.extensionApplied;
     patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
     patch.planningWindow=patch.planningWindowText;
     mergeRowInPlace(o.auditId,patch);(Array.isArray(patch.scopeChanges)?patch.scopeChanges:[{scopeCode:o.scopeCode,extensionApplied:predictedApplied}]).forEach(function(change){updateExtendedScopeCodes20(o.auditId,change.scopeCode,change.extensionApplied===true)});
-    if(extCurrent())await loadExtObligations();
+    if(extCurrent()){var refreshStarted=Date.now();await loadExtObligations();refreshMs=Date.now()-refreshStarted;}
    }else{
     if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
     var projected=await extPost('/api/v1/manager/extension-reconcile-projection',{operationId:receipt.operationId});
     if(projected.state!=='PROJECTED')throw Error('EXT_PROJECTION_NOT_CONFIRMED');
-    if(extCurrent())await loadExtObligations();
+    verified=true;
+    if(extCurrent()){var refreshStarted=Date.now();await loadExtObligations();refreshMs=Date.now()-refreshStarted;}
    }
+   if(extCurrent()){var feedback=extContent.querySelector('[data-ext-feedback]');if(feedback)feedback.textContent='EXT '+(command==='undo'?'undone':'applied')+' · verified · '+((Date.now()-started)/1000).toFixed(1)+' s';}
   }catch(e){
    if(extCurrent()){
     if(!committed&&extensionCell){extensionCell.textContent=oldCellText;extensionCell.style.fontWeight=''}
@@ -1496,6 +1508,7 @@ if(tab==='scopes'){
     extContent.prepend(feedback);
    }
   }finally{
+   console.info('[AMS_EXT_CLIENT_TIMING]',JSON.stringify({entry:'dossier',command:command,commandMs:commandMs,refreshMs:refreshMs,totalMs:Date.now()-started,projected:verified}));
    extBusy=false;
    if(button&&button.isConnected)button.removeAttribute('aria-busy');
   }
@@ -1522,7 +1535,7 @@ if(tab==='scopes'){
  var headings=[['Scope','17%'],['Effective expiry','16%'],['Planning window','25%'],['Extension','15%'],['Audit status','15%'],['Actions','12%']];
  var head=el('tr');headings.forEach(function(k){var th=el('th',k[0]);th.style.cssText='text-align:left;padding:8px 9px;border-bottom:2px solid #cbd5e1;width:'+k[1];head.appendChild(th)});table.appendChild(head);
  visibleRecords.forEach(function(o){
-  var tr=el('tr');var statuses=(o.auditStatuses||[]).filter(function(x){return !extTargetAuditId||x.auditId===extTargetAuditId}).map(function(x){return x.status}).join(', ')||'Not linked';
+  var tr=el('tr');var statuses=(o.auditStatuses||[]).filter(function(x){return !extTargetAuditId||x.auditId===extTargetAuditId}).map(function(x){return /^accepted$/i.test(String(x.status||'').trim())?'Ready':x.status}).join(', ')||'Not linked';
   var cols=[o.scopeCode,o.effectiveExpiry,(o.windowFrom||'—')+' – '+(o.windowTo||'—'),o.extensionApplied?'Applied':'Not applied',statuses];
   cols.forEach(function(v,i){var td=el('td',String(v||'—'));td.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:middle';if(i===0){td.style.fontWeight='650';td.title='Obligation '+String(o.obligationId||'')}tr.appendChild(td)});
   var actions=el('td');actions.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap';
@@ -1728,7 +1741,7 @@ function showAuditor(a,initialPage='Profile'){
  var out=label.nextElementSibling;if(!out||!out.classList.contains('auditor-impact-result')){out=el('div');out.className='auditor-impact-result';out.style.cssText='margin:5px 0 12px 18px';label.after(out)}out.textContent='Loading qualification impact…';
  try{const res=await fetch('/api/v1/manager/auditor-management/qualification-impact?email='+encodeURIComponent(a.email)+'&scopeCode='+encodeURIComponent(sc.code),{credentials:'same-origin'}),data=await auditorJson(res);
  if(!res.ok||!data.ok)throw Error(data.error||'IMPACT_READ_FAILED');
- out.replaceChildren();const title=el('strong',data.impactedCount+' open assigned/preassigned audits affected · '+data.acceptedCount+' Accepted');if(data.acceptedCount)title.style.color='#b91c1c';out.appendChild(title);
+ out.replaceChildren();const title=el('strong',data.impactedCount+' open assigned/preassigned audits affected · '+data.acceptedCount+' Ready');if(data.acceptedCount)title.style.color='#b91c1c';out.appendChild(title);
  (data.impacted||[]).forEach(item=>{const line=el('div',[item.company,item.status,item.datePlanned||'Date not set',item.assigned?'Assigned':'Preassigned'].join(' · '));line.style.padding='3px 0';out.appendChild(line);if(item.auditId){const transferRow=el('div');transferRow.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px 12px';const choice=el('select');choice.appendChild(new Option('Checking eligible colleagues…',''));choice.disabled=true;const transfer=el('button','Transfer → Pending Approval');transfer.type='button';transfer.disabled=true;const note=el('span');note.style.cssText='font-size:13px;color:inherit;white-space:pre-line;line-height:1.5;max-width:700px';transferRow.append(choice,transfer,note);out.appendChild(transferRow);let eligible=[];fetch('/api/v1/manager/auditor-management/audit/transfer-candidates?auditId='+encodeURIComponent(item.auditId)+'&fromEmail='+encodeURIComponent(a.email),{credentials:'same-origin'}).then(async response=>{const data=await auditorJson(response);if(!response.ok||!data.ok)throw Error(data.error||'CANDIDATE_CHECK_FAILED');eligible=data.eligible||[];line.textContent=[data.company,(data.scopes||[]).join(', '),item.status,item.datePlanned||'Date not set',item.assigned?'Assigned':'Preassigned'].join(' · ');choice.replaceChildren(new Option(eligible.length?'Select qualified colleague':'No eligible colleagues',''));eligible.forEach(x=>choice.appendChild(new Option(x.name+' ('+x.email+')',x.email)));choice.disabled=!eligible.length;if(!item.datePlanned){note.textContent='No audit date set: eligibility must be rechecked when the audit is scheduled.'}if(!eligible.length){const excluded=data.excluded||[];note.textContent=excluded.length?'No eligible colleagues:\n'+auditorExcludedSummary(excluded):'No other active qualified auditors found';note.style.cssText='display:block;flex-basis:100%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;max-width:none'}choice.onchange=()=>{transfer.disabled=!choice.value;const selected=eligible.find(x=>x.email===choice.value);note.textContent=selected?.planningWarnings?.length?'Date restriction: review required before approval':(!item.datePlanned&&selected?'Eligibility provisional — recheck when audit date is set':'')}}).catch(e=>{choice.replaceChildren(new Option('Candidate check failed',''));note.textContent=e.message});transfer.onclick=async()=>{if(!choice.value||!window.confirm('Transfer '+auditorAuditLabel(item)+' to '+choice.value+'? Existing date retained. Availability is NOT confirmed. Colleague approval required.'))return;transfer.disabled=true;try{const response=await fetch('/api/v1/manager/auditor-management/audit/transfer',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({auditId:item.auditId,fromEmail:a.email,toEmail:choice.value,expectedStatus:item.status,acknowledgeDateRestriction:true,reason:'Qualification withdrawal reassignment'})});const result=await auditorJson(response);if(!response.ok||!result.ok)throw Error(result.error||'TRANSFER_FAILED');const rr=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),fresh=await auditorJson(rr);if(!rr.ok||!fresh.ok)throw Error('TRANSFER_SUCCEEDED_REFRESH_FAILED');auditors=fresh.rows||[];scopeCatalog=fresh.scopeCatalog||[];render();showAuditor(auditors.find(x=>x.email===a.email)||a,'Qualifications');const status=document.querySelector('#auditorManagement20Dossier [role=status]');if(status)status.textContent='Audit transferred to '+choice.value+' · pending colleague approval'}catch(e){note.textContent='Transfer not confirmed: '+e.message;transfer.disabled=false}}}});
  if(check.checked){const scheduled=(a.withdrawals||[]).find(w=>w.scopeCode===sc.code);if(scheduled){out.appendChild(el('p','Withdrawal effective '+scheduled.effectiveDate));const cancel=el('button','Cancel withdrawal');cancel.type='button';cancel.onclick=async()=>{if(!confirm('Cancel withdrawal '+sc.code+'?'))return;const response=await fetch('/api/v1/manager/auditor-management/qualification/withdraw/cancel',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:a.email,scopeCode:sc.code,expectedEffectiveDate:scheduled.effectiveDate})});const result=await auditorJson(response);if(!response.ok||!result.ok){alert(result.error||'Cancellation failed');return}await load();showAuditor(auditors.find(x=>x.email===a.email)||a,'Qualifications')};out.appendChild(cancel)}else{const line=el('div');line.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px';line.appendChild(el('span','Not qualified after'));const date=el('input');date.type='date';date.min=new Date(Date.now()+86400000).toISOString().slice(0,10);date.value=date.min;line.appendChild(date);const action=el('button','Schedule withdrawal');action.type='button';action.disabled=!data.withdrawalWriteEnabled;action.onclick=async()=>{if(!date.value||date.value<date.min)return;if(!window.confirm('Schedule qualification withdrawal '+sc.code+' from '+date.value+'?'))return;action.disabled=true;try{const rr=await fetch('/api/v1/manager/auditor-management/qualification/withdraw',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:a.email,scopeCode:sc.code,effectiveDate:date.value,grandfatheredAuditIds:(data.impacted||[]).map(x=>x.auditId)})});const result=await auditorJson(rr);if(!rr.ok||!result.ok)throw Error(result.error||'WITHDRAWAL_FAILED');await load();showAuditor(auditors.find(x=>x.email===a.email)||a,'Qualifications')}catch(e){out.appendChild(el('p','Withdrawal not saved: '+e.message));action.disabled=false}};line.appendChild(action);out.appendChild(line);if(!data.withdrawalWriteEnabled)out.appendChild(el('p','Scheduling locked until DEV runtime guards are verified and enabled.'))}}
  }catch(e){out.textContent='Impact preview unavailable: '+e.message}

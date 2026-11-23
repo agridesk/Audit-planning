@@ -4228,15 +4228,24 @@ async function savePlanning(){
         async function doSave(){
           log("Saving planning: "+JSON.stringify(payload));
           setSavingState('saving');
+          // Watchdog: a hanging RPC must never look like a finished save. No automatic retry.
+          var __saveWatchdog = setTimeout(function(){
+            try { setBanner('Save is taking longer than expected. Outcome not yet confirmed - do not save again; wait for the result or reopen the Planning Toolkit from the grid to verify.', true); } catch(_eWd) {}
+          }, 45000);
           try{
             const res = await v5GasCall_('saveManagerPlanning', auditId, payload);
+            clearTimeout(__saveWatchdog);
             log("saveManagerPlanning → "+JSON.stringify(res));
-            if(!res || res.success===false){
+            // Success only on an explicit, complete confirmation from the server.
+            if(!res || res.success!==true || !String(res.newStatus||'').trim()){
               resetSaveUi_();
-              await v5ShowError_("Save failed: "+(res && res.message ? res.message : "unknown"));
+              var __definiteFailure = !!(res && (res.success===false || res.ok===false));
+              await v5ShowError_(__definiteFailure
+                ? "Save failed: "+(res.message || res.error || "unknown")
+                : "Save outcome unconfirmed (no valid server confirmation). Reopen the Planning Toolkit from the grid to verify the audit status before saving again.");
               return;
             }
-            const status = res.newStatus || "Pending Approval";
+            const status = String(res.newStatus).trim();
 
             try{
               var __savedAuditorEmail = payload && payload.auditorEmail ? payload.auditorEmail : '';
@@ -4274,6 +4283,7 @@ async function savePlanning(){
             }catch(e){}
             v5ShowPostSaveStayOpenState_(isAuditorToolkit_() ? 'Planning submitted for approval.' : 'Planning saved successfully.', status);
           }catch(err){
+            clearTimeout(__saveWatchdog);
             resetSaveUi_();
             await v5ShowError_("Save failed: "+(err && err.message ? err.message : "unknown"));
           }

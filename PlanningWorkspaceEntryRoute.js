@@ -13,7 +13,7 @@ function PlanningWorkspaceEntryRoute_render(ctx){
   var role=PWER_normRole_(ctx.role),email=PWER_clean_(ctx.email).toLowerCase(),auditId=PWER_clean_(ctx.auditId);
   var auth={email:email,role:role,token:PWER_clean_(ctx.trustedToken||ctx.token),deviceId:PWER_clean_(ctx.deviceFingerprint||ctx.deviceId),auditId:auditId,action:'planningworkspace'};
   var out=PlanningWorkspaceUi_render(ctx),html=out&&typeof out.getContent==='function'?out.getContent():String(out||''),bootstrap=null;
-  if(auditId)bootstrap=PlanningWorkspaceRpc_bootstrap({auditId:auditId,role:role,actorRole:role,actorEmail:email,auditorEmail:role==='Auditor'?email:''});
+  if(auditId)bootstrap=PlanningWorkspaceRpc_bootstrap({auditId:auditId,role:role,actorRole:role,actorEmail:email,auditorEmail:role==='Auditor'?email:'',trustedToken:auth.token,deviceFingerprint:auth.deviceId});
   var seed='<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH='+PWER_js_(auth)+';window.__PW_HTTP_BOOTSTRAP='+(bootstrap?PWER_js_(bootstrap):'null')+';<\/script>';
   return HtmlService.createHtmlOutput(html.replace('</body>',seed+'\n</body>')).setTitle('AMS - Planning Workspace');
 }

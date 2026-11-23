@@ -5,10 +5,12 @@
  * External availability/lifecycle writers MUST be fenced at the same authority.
  */
 import {createHash} from 'node:crypto';
+import {isValidRotationRealizedAudit20,rotationRealizedAuditDocumentId20} from './rotation-realized-audit-firestore-20.mjs';
 const clone=x=>structuredClone(x);
 const str=x=>String(x??'').trim();
 const validId=x=>typeof x==='string'&&x.length>0&&x.length<=180&&!/[\\/]/.test(x)&&x!=='.'&&x!=='..';
 const hex=x=>createHash('sha256').update(x).digest('hex');
+const stableRotationAudit=value=>JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(key=>[key,key==='scopeSlots'?[...value[key]].sort():value[key]])));
 function encode(v){
  if(v===null)return {nullValue:null};
  if(typeof v==='string')return {stringValue:v};
@@ -32,7 +34,7 @@ function decode(v){
 const decodeDoc=raw=>{
  if(!raw)return null;
  if(!raw.fields?.payload||!raw.updateTime)throw Error('PLANNING_FIRESTORE_CORRUPT');
- return {value:decode(raw.fields.payload),updateTime:raw.updateTime};
+ return {value:decode(raw.fields.payload),updateTime:raw.updateTime,createTime:raw.createTime};
 };
 const time=x=>{if(!/^\d\d:\d\d$/.test(str(x)))throw Error('PLANNING_TIME_INVALID');const [h,m]=x.split(':').map(Number);const n=h*60+m;if(h>23||m>59||n%15)throw Error('PLANNING_TIME_INVALID');return n;};
 function claimsFor(blocks,auditorId){
@@ -57,7 +59,7 @@ function claimsFor(blocks,auditorId){
 export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl=fetch,databaseId='(default)',prefix='ams_planning_20_dev'}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!validId(prefix)||!databaseId)throw Error('PLANNING_FIRESTORE_CONFIG_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
- const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox'};
+ const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox',rotation:'ams_rotation_realized_audit_events_20_dev'};
  const doc=(type,id)=>{if(!coll[type]||!validId(id))throw Error('PLANNING_FIRESTORE_ID_INVALID');return base+'/'+coll[type]+'/'+encodeURIComponent(id)};
  // Firestore Write.update.name / Write.delete require a resource name, not an HTTP URL.
  const writeName=(type,id)=>{
@@ -121,6 +123,10 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   return {ok:true,checked:ids.length};
  }
  async function readOutbox(operationId){return clone((await get('outbox',operationId))?.value??null);}
+ async function readOutboxWithCreateTime(operationId){
+  const record=await get('outbox',operationId);
+  return record?{value:clone(record.value),createTime:record.createTime??null}:null;
+ }
  async function transaction(fn){
   const started=await request(base+':beginTransaction','POST',{options:{readWrite:{}}});
   if(!started.ok)throw Error('PLANNING_FIRESTORE_BEGIN_'+started.status);
@@ -171,7 +177,8 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
     writeCount:writes.length,
     mutationTypes:{audit:writes.filter(w=>w.update?.name?.includes('/'+coll.audit+'/')).length,
      claim:writes.filter(w=>w.update?.name?.includes('/'+coll.claim+'/')).length,
-     outbox:writes.filter(w=>w.update?.name?.includes('/'+coll.outbox+'/')).length}
+     outbox:writes.filter(w=>w.update?.name?.includes('/'+coll.outbox+'/')).length,
+     realizedAudit:writes.filter(w=>w.update?.name?.includes('/'+coll.rotation+'/')).length}
    }));
    throw Error('PLANNING_FIRESTORE_COMMIT_'+committed.status);
   }
@@ -225,6 +232,9 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   */
  async function commitMulti({operationId,actorId,action,entities,projectionPlan}){
   if(!validId(operationId)||!validId(actorId)||!str(action)||!Array.isArray(entities)||!entities.length||entities.length>15||!projectionPlan||typeof projectionPlan!=='object')throw Error('PLANNING_MULTI_INPUT_INVALID');
+  const realizedAudit=projectionPlan.realizedAudit;
+  if(action==='COMPLETE'&&(!isValidRotationRealizedAudit20(realizedAudit)||realizedAudit.auditId!==entities[0]?.auditId||entities[0]?.remove!==true))throw Error('PLANNING_MULTI_REALIZED_AUDIT_REQUIRED');
+  if(action!=='COMPLETE'&&realizedAudit!==undefined)throw Error('PLANNING_MULTI_REALIZED_AUDIT_UNEXPECTED');
   const auditIds=entities.map(e=>e?.auditId);
   if(new Set(auditIds).size!==auditIds.length||auditIds.some(x=>!validId(x)))throw Error('PLANNING_MULTI_AUDIT_ID_INVALID');
   for(const e of entities){
@@ -251,6 +261,25 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
     newClaimGroups.set(e.auditId,nextClaims);
     for(const c of nextClaims){if(newIds.has(c.claimId))throw Error('PLANNING_MULTI_INTERNAL_SLOT_CONFLICT');newIds.add(c.claimId);}
     for(const id of old?.value?.claimIds||[])oldIds.add(id);
+   }
+   if(realizedAudit){
+    const root=existing.get(entities[0].auditId);
+    if(!root?.value?.auditorId||root.value.auditorId!==realizedAudit.auditorUid)throw Error('PLANNING_MULTI_REALIZED_AUDIT_OWNER_MISMATCH');
+    const sourceHeaders=root.value.snapshot?.headers,sourceRow=root.value.snapshot?.row;
+    if(!Array.isArray(sourceHeaders)||!Array.isArray(sourceRow))throw Error('PLANNING_MULTI_REALIZED_AUDIT_COMPANY_SOURCE_INVALID');
+    const norm=value=>str(value).toLowerCase().replace(/[\s_-]+/g,'');
+    const companyColumns=sourceHeaders.map((value,index)=>norm(value)==='company'?[index]:[]).flat();
+    const companyUidColumns=sourceHeaders.map((value,index)=>norm(value)==='companyuid'?[index]:[]).flat();
+    if(companyColumns.length!==1||companyUidColumns.length!==1||
+       str(sourceRow[companyColumns[0]])!==realizedAudit.company||
+       str(sourceRow[companyUidColumns[0]])!==realizedAudit.companyUid)
+     throw Error('PLANNING_MULTI_REALIZED_AUDIT_COMPANY_MISMATCH');
+    const eventId=rotationRealizedAuditDocumentId20(realizedAudit.auditId);
+    const priorEvent=await tx.get('rotation',eventId);
+    if(priorEvent){
+     const priorValue=priorEvent.value;
+     if(!isValidRotationRealizedAudit20(priorValue)||stableRotationAudit(priorValue)!==stableRotationAudit(realizedAudit))throw Error('PLANNING_MULTI_REALIZED_AUDIT_CONFLICT');
+    }else tx.set('rotation',eventId,realizedAudit);
    }
    const ids=[...new Set([...oldIds,...newIds])].sort();
    if(ids.length>450)throw Error('PLANNING_MULTI_CLAIMS_TOO_MANY');
@@ -340,5 +369,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
 }

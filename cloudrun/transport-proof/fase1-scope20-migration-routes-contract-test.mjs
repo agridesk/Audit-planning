@@ -16,11 +16,12 @@ for(const [url,method] of endpoints){
  assert.ok(block.includes("sessionFromRequestValidated(req)"),url+' must authenticate');
  assert.ok(block.includes("MANAGER_REQUIRED"),url+' must require manager');
 }
-assert.ok(s.includes("AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true'"));
+assert.ok(s.includes("AMS_SCOPE20_QUALIFICATION_FIRESTORE_MIGRATION_WRITE_ENABLED!=='true'"));
 assert.ok(s.includes("SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'"));
 assert.ok(s.includes("withQualificationMigrationFirestoreLock20"));
-assert.ok(s.includes("migrateAuditorQualificationsSheets20"));
-assert.ok(s.includes("planAuditorQualificationMigration20"));
+assert.ok(s.includes("store.applySnapshot(prepared,{verifySource})"));
+assert.ok(s.includes("destination:'FIRESTORE',writeToSheets:false"));
+assert.ok(s.includes("prepareAuditorQualificationFirestoreMigration20"));
 assert.ok(s.includes("compareAuditorQualificationParity20"));
 assert.ok(s.includes("previewAuditorQualificationMigration20"));
 console.log('Fase2.5 migration routes: manager auth, isolated DEV apply and lock prerequisites present');

@@ -1,12 +1,14 @@
 'use strict';
 // Maps the actual Log realized audits layout to canonical Completed history.
 // All identities and scope-column mappings must come from trusted server sources.
-function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
- if(!Array.isArray(values)||!values.length||(resolveAuditorUid!=null&&typeof resolveAuditorUid!=='function')||!scopeByColumn||typeof scopeByColumn!=='object')throw Error('ROTATION_AMS_SOURCE_MISSING');
+function completedLogRowsFromAms20(values,{scopeByColumn}={}){
+ if(!Array.isArray(values)||!values.length||!scopeByColumn||typeof scopeByColumn!=='object')throw Error('ROTATION_AMS_SOURCE_MISSING');
  const h=values[0].map(v=>String(v||'').trim().toLowerCase().replace(/[\s_-]/g,''));
- const index=(name)=>h.indexOf(name);
- const company=index('companyuid'),auditor=index('auditor'),auditorUidIndex=index('auditoruid'),status=index('status'),date=index('datecompleted'),audit=index('auditid');
- if([company,status,date,audit].some(i=>i<0)||(auditor<0&&auditorUidIndex<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
+ const index=name=>h.indexOf(name);
+ const indices=name=>h.flatMap((value,i)=>value===name?[i]:[]);
+ const uniqueIndex=name=>{const found=indices(name);if(found.length!==1)throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');return found[0];};
+ const company=uniqueIndex('companyuid'),auditorUidIndex=uniqueIndex('auditoruid'),
+  status=uniqueIndex('status'),date=uniqueIndex('datecompleted'),audit=uniqueIndex('auditid');
  const scopeColumns=Object.keys(scopeByColumn);
  if(!scopeColumns.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
  const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
@@ -14,11 +16,10 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  const result=[],auditOwner=new Map();
  for(const row of values.slice(1)){
   if(String(row[status]||'').trim().toLowerCase()!=='completed')continue;
-  const companyUid=String(row[company]||'').trim(),auditId=String(row[audit]||'').trim(),completedAt=String(row[date]||'').trim(),rawAuditor=String(row[auditor]||'').trim();
+  const companyUid=String(row[company]||'').trim(),auditId=String(row[audit]||'').trim(),completedAt=String(row[date]||'').trim();
   if(!companyUid||!auditId||!completedAt||!Number.isFinite(Date.parse(completedAt)))throw Error('ROTATION_AMS_COMPLETED_ROW_INCOMPLETE');
-  const storedAuditorUid=auditorUidIndex>=0?String(row[auditorUidIndex]||'').trim():'';
-  const auditorUid=storedAuditorUid||(rawAuditor&&typeof resolveAuditorUid==='function'?resolveAuditorUid(rawAuditor,completedAt):'');
-  if(typeof auditorUid!=='string'||!auditorUid.trim())throw Error('ROTATION_AMS_AUDITOR_UID_UNRESOLVED');
+  const auditorUid=String(row[auditorUidIndex]||'').trim();
+  if(!auditorUid||auditorUid.includes('@'))throw Error('ROTATION_AMS_AUDITOR_UID_UNRESOLVED');
   if(auditOwner.has(auditId))throw Error('ROTATION_AMS_DUPLICATE_AUDIT_ID');
   auditOwner.set(auditId,true);
   let found=0;

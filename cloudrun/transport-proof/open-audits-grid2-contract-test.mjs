@@ -29,7 +29,16 @@ const checks=[
 ['Manager Grid shows one Hours planned value only',manager.includes('function hoursPlannedCell(r){return esc(text(r.hoursPlanned))}')&&!manager.includes('scheduled "+esc(Number(scheduled))+" h')&&!html.includes('.scheduled-hours{')],
 ['Manager first paint has no scheduled-hours display contract',!r4.includes('scheduledHours:committedScheduledHours')&&!r4.includes('schedulingHoursTarget:schedulingTarget')],
 ['Manager Pending Planning clears Hours planned only',r10.includes("r.statusKey==='PENDING_PLANNING'")&&r10.includes("r.hoursPlanned='';r.plannedHours=''")&&!r10.includes("r.scheduledHours=''")],
-['Manager committed Hours planned resolves from formal hours',r10.includes("formalField:'hoursPlanned'")&&r10.includes("planningTarget:'formalHours'")&&!r10.includes("scheduledOwner:'PLANNING_JSON_BLOCKS'")],
+['Manager committed Hours planned resolves from committed Planning JSON blocks only',r10.includes("plannedSource:'PLANNING_JSON_COMMITTED_BLOCKS'")&&r10.includes("formalField:'formalHours'")&&!r10.includes("formalField:'hoursPlanned'")&&!r10.includes('r.hoursPlanned=Math.round(formal*100)/100')],
+['Manager detail Hours planned resolves from blocks, never Required or sheet column',r12.includes('const blocksHours=plannedHoursFromBlocks(planningJson)')&&!r10.includes("hoursPlanned:formal==null")],
+...(()=>{const load=(src,name)=>{const s=src.indexOf('function '+name+'(');const e=src.indexOf('\nfunction ',s+1);return new Function(src.slice(s,e)+';return '+name)();};
+const p10=load(r10,'plannedHoursFromBlocks'),p12=load(r12,'plannedHoursFromBlocks');
+const blocks={formalHours:8,blocks:[{date:'2026-03-02',start:'08:00',end:'12:15'},{date:'2026-03-03',start:'13:00',end:'14:00'}]};
+return[
+['blocks sum to Hours planned (r10)',p10(blocks)===5.25&&p10([{date:'2026-03-02',start:'09:00',end:'10:30'}])===1.5],
+['Pending Approval without blocks has no Hours planned, even with formalHours (r10)',p10({formalHours:8})===null&&p10(null)===null&&p10({blocks:[]})===null],
+['invalid or zero-length blocks ignored (r10)',p10({blocks:[{date:'2026-03-02',start:'10:00',end:'10:00'},{start:'08:00',end:'09:00'}]})===null],
+['detail parser matches grid parser (r12)',p12(JSON.stringify(blocks))===5.25&&p12('')===null&&p12('{bad')===null&&p12(JSON.stringify({formalHours:8}))===null]];})(),
 
 ['multi-day Date planned hover uses Planning JSON blocks',manager.includes('function planningBlocks(r)')&&manager.includes('function plannedDateCell(r)')&&manager.includes('b.date+" "+b.start+"–"+b.end')],
 ['slot comments are included in Date planned hover',manager.includes('if(b.slotComment)line+=" · "+b.slotComment')],

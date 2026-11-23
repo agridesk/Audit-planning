@@ -7,17 +7,47 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
+const key=x=>clean(x).toLowerCase().replace(/[\s_-]+/g,'');
+function verifiedInactiveSwap({audit,record,rows,swap}){
+ const headers=rows[0].map(key),column=(...names)=>names.map(key).map(n=>headers.indexOf(n)).find(i=>i>=0)??-1;
+ const id=column('Audit ID','Audit_ID'),status=column('Status');
+ if(id<0||status<0||headers.filter(x=>x===headers[id]).length!==1||headers.filter(x=>x===headers[status]).length!==1)return false;
+ const matched=rows.slice(1).filter(row=>clean(row[id])===swap.auditId);
+ if(matched.length>1)return false;
+ const state=key(audit?.snapshot?.status),action={pendingplanning:'CANCEL',rejected:'REJECT',completed:'COMPLETE'}[state];
+ if(matched.length===1&&key(matched[0][status])!==state)return false;
+ if(!matched.length&&action==='CANCEL')return false;
+ const outbox=record?.value,operationId=audit?.lastProjectedOperationId;
+ if(!action||!operationId||audit.auditId!==swap.auditId||audit.pendingOperationId||
+    audit.lastOperationId!==operationId||
+    !Array.isArray(audit.blocks)||audit.blocks.length||!Array.isArray(audit.claimIds)||audit.claimIds.length||
+    outbox?.operationId!==operationId||outbox.state!=='PROJECTED'||outbox.action!==action||
+    outbox.proof?.verified!==true||outbox.proof.auditId!==outbox.auditId||
+    !/^[a-f0-9]{64}$/.test(outbox.proof.rowHash||'')||!Number.isSafeInteger(audit.revision))return false;
+ if(action==='CANCEL'){
+  const planning=column('Planning JSON','Planning_JSON'),date=column('Date - Planned','Date Planned'),decision=column('Last manager decision');
+  if([planning,date,decision].some(i=>i<0)||clean(matched[0][planning])||clean(matched[0][date])||key(matched[0][decision])!=='cancel'||
+     audit.removed===true||outbox.multi===true||outbox.auditId!==swap.auditId||outbox.revision!==audit.revision)return false;
+ }else{
+  if(audit.removed!==true||outbox.multi!==true||!Array.isArray(outbox.entities))return false;
+  const entities=outbox.entities.filter(x=>x?.auditId===swap.auditId);
+  if(entities.length!==1||entities[0].revision!==audit.revision||entities[0].removed!==true)return false;
+ }
+ const validTime=x=>typeof x==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(x)&&Number.isFinite(Date.parse(x));
+ return validTime(record.createTime)&&validTime(swap.revision)&&Date.parse(record.createTime)>Date.parse(swap.revision);
+}
 function validateReadRange(fromDate,toDate){
  const parse=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
  const from=parse(fromDate),to=parse(toDate);if(to<from||to-from>92)throw Error('QUERY_RANGE_OUT_OF_BOUNDS');
 }
-export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps}={}){
+export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps,readInactiveSwapEvidence}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
- async function slotsFor(fromDate,toDate,{fresh=false,incompleteAuditDiagnostics}={}){
-  const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors(),readScopeNames?readScopeNames():{}]);
+ async function slotsFor(fromDate,toDate,{fresh=false,incompleteAuditDiagnostics,canonicalAuditors}={}){
+  if(canonicalAuditors!==undefined&&!Array.isArray(canonicalAuditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
+  const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),canonicalAuditors===undefined?listCanonicalAuditors({fresh}):canonicalAuditors,readScopeNames?readScopeNames():{}]);
   if(!Array.isArray(rows)||!Array.isArray(auditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
   const legacy=canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate:'1900-01-01',toDate:'2100-12-31',scopeNamesBySlot,incompleteAuditDiagnostics});
-  if(typeof readCanonicalSwaps!=='function')return legacy.filter(x=>x.date>=fromDate&&x.date<=toDate);
+  if(typeof readCanonicalSwaps!=='function')return {slots:legacy.filter(x=>x.date>=fromDate&&x.date<=toDate),auditors};
   const swaps=await readCanonicalSwaps();
   if(swaps?.ok!==true||!Array.isArray(swaps.rows))throw Error('AVAILABILITY_SWAP_CANONICAL_READ_UNVERIFIED');
   const replaceIds=new Set(),canonical=[];
@@ -26,17 +56,23 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    if(!id||replaceIds.has(id)||!Array.isArray(audit.plannedBlocks)||!audit.plannedBlocks.length)throw Error('AVAILABILITY_SWAP_CANONICAL_INVALID');
    replaceIds.add(id);
    const prior=legacy.filter(x=>x.auditId===id);
-   if(!prior.length)throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
+   if(!prior.length){
+    if(typeof readInactiveSwapEvidence==='function'){
+     const evidence=await readInactiveSwapEvidence(id);
+     if(verifiedInactiveSwap({...evidence,rows,swap:audit}))continue;
+    }
+    throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
+   }
    const meta=prior[0];
    for(const block of audit.plannedBlocks){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(String(block.date||''))||!/^\d{2}:\d{2}$/.test(String(block.start||''))||!/^\d{2}:\d{2}$/.test(String(block.end||''))||block.start>=block.end)throw Error('AVAILABILITY_SWAP_BLOCK_INVALID');
     canonical.push({...meta,date:block.date,start:block.start,end:block.end,state:'COMMITTED'});
    }
   }
-  return legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate));
+  return {slots:legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate)),auditors};
  }
- async function reviewDiagnostics(items,auditorIds,fromDate,toDate,{manager=false}={}){
-  const roster=await listCanonicalAuditors(),allowed=new Set(auditorIds);
+ function reviewDiagnostics(items,auditorIds,fromDate,toDate,{manager=false,roster}={}){
+  const allowed=new Set(auditorIds);
   const known=new Set(roster.map(a=>clean(a.auditorId)));
   const current=[],historical=[],uncertain=new Set();let unknownOwner=false;
   for(const item of items){
@@ -64,23 +100,23 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }
   return {incompleteAuditDiagnostics:current,outsidePeriodAuditDiagnostics:historical,uncertainAuditorIds:[...uncertain],unknownReservationOwner:unknownOwner};
  }
- async function period({actor,auditorId,fromDate,toDate}){
+ async function period({actor,auditorId,fromDate,toDate,canonicalAuditors}){
   validateReadRange(fromDate,toDate);
   const doc=await service.read(actor,auditorId);
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics});
-  const review=await reviewDiagnostics(incompleteAuditDiagnostics,[auditorId],fromDate,toDate,{manager:clean(actor?.role).toLowerCase()==='manager'});
+  const {slots,auditors:roster}=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics,...(clean(actor?.role).toLowerCase()==='manager'&&canonicalAuditors!==undefined?{canonicalAuditors}:{})});
+  const review=reviewDiagnostics(incompleteAuditDiagnostics,[auditorId],fromDate,toDate,{manager:clean(actor?.role).toLowerCase()==='manager',roster});
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
   const merged=withCommittedOverlay(doc,blocks);
   const auditDetails={};for(const slot of slots){if(slot.auditorId!==auditorId)continue;const id='audit:'+slot.auditId+'|'+slot.date+'|'+slot.start+'|'+slot.end;auditDetails[id]={auditId:slot.auditId,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||'',date:slot.date,start:slot.start,end:slot.end,state:slot.state};}
   return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,...review,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
- async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
+ async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={},canonicalAuditors}){
   validateReadRange(fromDate,toDate);
   if(clean(actor?.role).toLowerCase()!=='manager'||!clean(actor?.id))throw Error('NOT_AUTHORIZED');
   if(!Array.isArray(auditorIds)||auditorIds.length>250||new Set(auditorIds).size!==auditorIds.length)throw Error('INVALID_AUDITOR_SET');
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics});
+  const {slots,auditors:roster}=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics,...(canonicalAuditors!==undefined?{canonicalAuditors}:{})});
   const auditors=await Promise.all(auditorIds.map(async auditorId=>{
    const doc=await service.read(actor,auditorId);
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
@@ -88,7 +124,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }));
   const overview=buildManagerAvailabilityOverview({fromDate,toDate,auditors});
   const auditDetailsByAuditor={};for(const slot of slots){if(!auditorIds.includes(slot.auditorId))continue;(auditDetailsByAuditor[slot.auditorId]??=[]).push({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,state:slot.state,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||''});}
-  const review=await reviewDiagnostics(incompleteAuditDiagnostics,auditorIds,fromDate,toDate,{manager:true});
+  const review=reviewDiagnostics(incompleteAuditDiagnostics,auditorIds,fromDate,toDate,{manager:true,roster});
   return {...overview,auditDetailsByAuditor,...review};
  }
  async function searchAudits({actor,auditorId,term}){
@@ -99,7 +135,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   // Query canonical audit slots for all months, never only the visible calendar.
   // Incomplete historical plans cannot yield a dated search hit.
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor('1900-01-01','2100-12-31',{incompleteAuditDiagnostics});
+  const {slots}=await slotsFor('1900-01-01','2100-12-31',{incompleteAuditDiagnostics});
   const seen=new Set(),matches=[];
   for(const slot of slots){
    if(slot.auditorId!==target||!slot.company.toLocaleLowerCase().includes(query.toLocaleLowerCase()))continue;
@@ -130,11 +166,11 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
    const incompleteAuditDiagnostics=[];
-   const slots=await slotsFor(fromDate,toDate,{fresh:true,incompleteAuditDiagnostics});
+   const {slots}=await slotsFor(fromDate,toDate,{fresh:true,incompleteAuditDiagnostics});
    if(incompleteAuditDiagnostics.length){
     // Missing plan payload must not globally block unrelated auditors.
     // Unknown owner of an actually dated/accepted audit still fails closed.
-    const canonicalAuditors=await listCanonicalAuditors();
+    const canonicalAuditors=await listCanonicalAuditors({fresh:true});
     const validAuditorIds=new Set(canonicalAuditors.map(a=>clean(a.auditorId)));
     for(const audit of incompleteAuditDiagnostics){
      const state=clean(audit.status).toLowerCase().replace(/[\s_-]+/g,'');
@@ -147,7 +183,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
      if(!resolved){
       // An unassigned, undated Pending Approval has no auditor reservation
       // to protect. It remains a separate data-quality diagnostic.
-      if(state==='pendingapproval'&&!clean(audit.plannedDate)&&!knownUid)continue;
+      if(state==='pendingapproval'&&!clean(audit.plannedDate)&&!knownUid&&!legacyEmail)continue;
       throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');
      }
      if(resolved===auditorId)throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');

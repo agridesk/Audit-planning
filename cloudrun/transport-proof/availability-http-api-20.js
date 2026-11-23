@@ -26,8 +26,11 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
    stage='DIRECTORY';
    // A validated auditor session is the authoritative grant for its own UID.
    // Directory lookups are needed only for managers selecting other auditors.
-   const directory=actor.role==='manager'?await listAuditors(actor):[{auditorId:actor.id,displayName:actor.id}];
+   const directoryResult=actor.role==='manager'?await listAuditors(actor):[{auditorId:actor.id,displayName:actor.id}];
+   const directory=Array.isArray(directoryResult)?directoryResult:directoryResult?.directory;
+   const canonicalAuditors=Array.isArray(directoryResult)?undefined:directoryResult?.canonicalAuditors;
    if(!Array.isArray(directory)||directory.length>2500||directory.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.auditorId!=='string'||!x.auditorId.trim()))throw Error('INVALID_AUDITOR_DIRECTORY');
+   if(canonicalAuditors!==undefined&&!Array.isArray(canonicalAuditors))throw Error('INVALID_AUDITOR_DIRECTORY');
    const allowed=new Map(directory.map(x=>[clean(x.auditorId),clean(x.displayName)||clean(x.auditorId)]));
    if(allowed.size!==directory.length)throw Error('INVALID_AUDITOR_DIRECTORY');
    const authorizedId=id=>{const target=clean(id);if(!target||(actor.role==='auditor'?target!==actor.id:!allowed.has(target)))throw Error('NOT_AUTHORIZED');return target;};
@@ -38,7 +41,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
     const fromDate=url.searchParams.get('fromDate'),toDate=url.searchParams.get('toDate');
     if(!isoDate(fromDate)||!isoDate(toDate))throw Error('INVALID_DATE');
     stage='PERIOD_SERVICE';
-    result=await service.period({actor,auditorId,fromDate,toDate});
+    result=await service.period({actor,auditorId,fromDate,toDate,...(canonicalAuditors!==undefined?{canonicalAuditors}:{})});
    }else if(route==='search-audits'){
     stage='TARGET_AUTHORIZATION';
     const auditorId=authorizedId(url.searchParams.get('auditorId'));
@@ -62,7 +65,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
     const ids=requested.length?requested:[...allowed.keys()];
     if(ids.length>250||new Set(ids).size!==ids.length)throw Error('INVALID_AUDITOR_SET');
     ids.forEach(authorizedId);
-    result=await service.managerOverview({actor,auditorIds:ids,fromDate,toDate,displayNames:Object.fromEntries(ids.map(id=>[id,allowed.get(id)]))});
+    result=await service.managerOverview({actor,auditorIds:ids,fromDate,toDate,displayNames:Object.fromEntries(ids.map(id=>[id,allowed.get(id)])),...(canonicalAuditors!==undefined?{canonicalAuditors}:{})});
    }
    reply(res,200,{success:true,...result});
   }catch(e){const message=clean(e?.message)||'INTERNAL_ERROR';const status=message==='REQUEST_TOO_LARGE'?413:errorStatus(message);if(status===500)console.error('Availability 2.0 backend failure:',message);reply(res,status,{success:false,error:status===500?'INTERNAL_ERROR':message,...(status===403?{diagnosticStage:stage}:{})});}

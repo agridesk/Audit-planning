@@ -4,4 +4,31 @@
  ***********************************************************************/
 var CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD='2026-09-09_ROADMAP_2_4_CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_R2_ACTIVE_PREFIX';
 function CRCRB_clean_(v){return String(v==null?'':v).trim();}function CRCRB_norm_(v){return CRCRB_clean_(v).toLowerCase();}
-function ConceptReservationCommitReleaseBridge_releaseLocked(input){input=input||{};var auditId=CRCRB_clean_(input.auditId);if(!auditId)throw new Error('ConceptReservationCommitReleaseBridge: auditId required');var dryRun=input.dryRun===true;if(typeof CRCS_sheet_!=='function'||typeof CRCS_findRow_!=='function'||typeof CRCS_headerMap_!=='function'||typeof CRCS_now_!=='function'||typeof CRCS_demoteReleased_!=='function')throw new Error('ConceptReservationCommitReleaseBridge: ConceptReservationCommandService helpers unavailable');var sh=CRCS_sheet_(false);if(!sh)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'NOT_FOUND',meta:{writes:false,dryRun:dryRun,callerOwnsLock:true,nestedLock:false}};var row=CRCS_findRow_(sh,auditId);if(!row)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'NOT_FOUND',meta:{writes:false,dryRun:dryRun,callerOwnsLock:true,nestedLock:false}};var map=CRCS_headerMap_(sh),now=CRCRB_clean_(input.releasedAt)||CRCS_now_();if(dryRun)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'DRY_RUN_VALID',rowNumber:row,meta:{writes:false,dryRun:true,callerOwnsLock:true,nestedLock:false}};sh.getRange(row,map['state']).setValue('RELEASED');if(map['released by'])sh.getRange(row,map['released by']).setValue(CRCRB_norm_(input.releasedBy));if(map['released at'])sh.getRange(row,map['released at']).setValue(now);if(map['release reason'])sh.getRange(row,map['release reason']).setValue(CRCRB_clean_(input.reason||'CANONICAL_COMMIT'));if(map['updated at'])sh.getRange(row,map['updated at']).setValue(now);row=CRCS_demoteReleased_(sh,row);return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:true,reason:'RELEASED',rowNumber:row,meta:{writes:true,dryRun:false,callerOwnsLock:true,nestedLock:false,activePrefixMaintained:true,preliminaryOnly:true,finalPlanningWrites:false,availabilityWrites:false,statusWrites:false}};}
+function ConceptReservationCommitReleaseBridge_releaseLocked(input){
+ input=input||{};
+ var auditId=CRCRB_clean_(input.auditId);
+ if(!auditId)throw new Error('ConceptReservationCommitReleaseBridge: auditId required');
+ var dryRun=input.dryRun===true;
+ if(typeof CRFB_enabled_==='function'&&CRFB_enabled_()){
+  if(dryRun)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'DRY_RUN_UNSUPPORTED_IN_FIRESTORE_MODE',meta:{writes:false,dryRun:true,callerOwnsLock:true,nestedLock:false}};
+  var context=typeof CRFB_REQUEST_CONTEXT_!=='undefined'&&CRFB_REQUEST_CONTEXT_?CRFB_REQUEST_CONTEXT_:{};
+  var result=CRFB_release_(Object.assign({},context,input,{auditId:auditId,actorEmail:input.releasedBy||context.actorEmail,reason:input.reason||'CANONICAL_COMMIT'}));
+  result.build=CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD;
+  result.meta=Object.assign({},result.meta,{callerOwnsLock:true,nestedLock:false});
+  return result;
+ }
+ if(typeof CRCS_sheet_!=='function'||typeof CRCS_findRow_!=='function'||typeof CRCS_headerMap_!=='function'||typeof CRCS_now_!=='function'||typeof CRCS_demoteReleased_!=='function')throw new Error('ConceptReservationCommitReleaseBridge: ConceptReservationCommandService helpers unavailable');
+ var sh=CRCS_sheet_(false);
+ if(!sh)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'NOT_FOUND',meta:{writes:false,dryRun:dryRun,callerOwnsLock:true,nestedLock:false}};
+ var row=CRCS_findRow_(sh,auditId);
+ if(!row)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'NOT_FOUND',meta:{writes:false,dryRun:dryRun,callerOwnsLock:true,nestedLock:false}};
+ var map=CRCS_headerMap_(sh),now=CRCRB_clean_(input.releasedAt)||CRCS_now_();
+ if(dryRun)return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:false,reason:'DRY_RUN_VALID',rowNumber:row,meta:{writes:false,dryRun:true,callerOwnsLock:true,nestedLock:false}};
+ sh.getRange(row,map['state']).setValue('RELEASED');
+ if(map['released by'])sh.getRange(row,map['released by']).setValue(CRCRB_norm_(input.releasedBy));
+ if(map['released at'])sh.getRange(row,map['released at']).setValue(now);
+ if(map['release reason'])sh.getRange(row,map['release reason']).setValue(CRCRB_clean_(input.reason||'CANONICAL_COMMIT'));
+ if(map['updated at'])sh.getRange(row,map['updated at']).setValue(now);
+ row=CRCS_demoteReleased_(sh,row);
+ return{success:true,build:CONCEPT_RESERVATION_COMMIT_RELEASE_BRIDGE_BUILD,released:true,reason:'RELEASED',rowNumber:row,meta:{writes:true,dryRun:false,callerOwnsLock:true,nestedLock:false,activePrefixMaintained:true,preliminaryOnly:true,finalPlanningWrites:false,availabilityWrites:false,statusWrites:false}};
+}

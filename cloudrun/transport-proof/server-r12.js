@@ -22,6 +22,7 @@ function col(h,names){const m={};(h||[]).forEach((v,i)=>{const k=key(v);if(k&&m[
 function val(r,i){return i>=0?clean((r||[])[i]):'';}
 function dateOnly(v){const s=clean(v),m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:s.slice(0,10);}
 function statusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
+function plannedHoursFromBlocks(raw){let j=raw;if(typeof raw==='string'){if(!raw.trim())return null;try{j=JSON.parse(raw);}catch{return null;}}const a=Array.isArray(j)?j:(j&&Array.isArray(j.blocks)?j.blocks:[]);const m=t=>{const x=String(t||'').match(/^(\d{1,2}):(\d{2})/);return x?Number(x[1])*60+Number(x[2]):NaN;};let total=0,count=0;for(const b of a){if(!b||!b.date)continue;const d=m(b.end)-m(b.start);if(!Number.isFinite(d)||d<=0)continue;total+=d;count++;}return count?Math.round(total/60*100)/100:null;}
 function allowedActions(k){return k==='PENDING_PLANNING'?['PLAN','REJECT']:k==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:k==='APPROVED'||k==='ACCEPTED'?['CANCEL','REJECT']:[];}
 function b64url(buf){return Buffer.from(buf).toString('base64url');}
 function relayPayload(email,role,exp,origin,nonce){return['v3','MANAGER_ACTION_WARM_WORKER',clean(email).toLowerCase(),clean(role),String(exp),clean(origin),clean(nonce)].join('\n');}
@@ -55,14 +56,25 @@ function offsitePolicyForAuditRow(header,row,scopeValues){
 }
 async function readAuditPatch(auditId,sourceRow){
   const t=Date.now();let row=[],rowNo=Number(sourceRow)||0,header=[],scopeValues=[];
-  if(rowNo>1){const vr=await batchValues(['Audit planning!A1:BW1','Audit planning!A'+rowNo+':BW'+rowNo,'Config_Scopes!A1:Z128']);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];scopeValues=vr[2]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}}
-  if(!header.length)header=(await values('Audit planning!A1:BW1'))[0]||[];
-  if(!row.length){const ap=await values('Audit planning!A2:BW483'),ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}}
+  if(rowNo>1){
+    const vr=await batchValues(['Audit planning!A1:BW1','Audit planning!A'+rowNo+':BW'+rowNo,'Config_Scopes!A1:Z128']);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];scopeValues=vr[2]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}
+    if(!header.length)header=(await values('Audit planning!A1:BW1'))[0]||[];
+    if(!row.length){const ap=await values('Audit planning!A2:BW483'),ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}}
+  }else if(process.env.AMS_RUNTIME_ENV==='DEV'){
+    const vr=await batchValues(['Audit planning!A1:BW1','Audit planning!A2:BW483','Config_Scopes!A1:Z128']);
+    if(vr.length!==3)throw new Error('MANAGER_AUDIT_BATCH_READ_INCOMPLETE');
+    header=vr[0]?.[0]||[];scopeValues=vr[2]||[];
+    const ap=vr[1]||[],ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}
+  }else{
+    header=(await values('Audit planning!A1:BW1'))[0]||[];
+    const ap=await values('Audit planning!A2:BW483'),ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}
+  }
   if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-t};
   if(!scopeValues.length)scopeValues=await values('Config_Scopes!A1:Z128');
   const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=statusKey(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.')),offsitePolicy=offsitePolicyForAuditRow(header,row,scopeValues),maxOffsiteHours=Number(offsitePolicy.maxOffsiteHours||0);let hp=g(['Hours planned']),assigned=g(['Assigned to','Assigned auditor','Auditor']),planningJson=g(['Planning JSON','Planning_JSON']);
   // Semantic invariant: Pending Planning has no committed plan.
   if(k==='PENDING_PLANNING'){hp='';planningJson='';assigned='';}
+  else{const blocksHours=plannedHoursFromBlocks(planningJson);hp=blocksHours==null?'':blocksHours;}
   return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:hp,plannedHours:hp,requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours,offsitePolicy,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-t,build:BUILD};
 }
 function actionRelayUrl(identity){

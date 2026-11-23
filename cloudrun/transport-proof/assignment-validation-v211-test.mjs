@@ -244,3 +244,10 @@ assert.equal(v211AuditorQualified([...uidAuditors,['uid-david',...auditors[2]]],
 const uidExclusionCompanies=[['Company_UID','Company','Auditor_Exclusions'],['C1','Grower A',JSON.stringify([{auditorEmail:'david@example.com',active:true}])]];
 const uidExclusion=v211AssignmentHardCheck({auditorEmail:'uid-david',auditorValues:uidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:uidExclusionCompanies,companyUid:'C1',companyName:'Grower A',requestedDates:['2026-10-14']});
 assert.ok(uidExclusion.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),'Legacy email exclusion must still block UID assignment');
+
+const uidKeyedCompanies=[['Company_UID','Company','Auditor_Exclusions'],['C1','Grower A',JSON.stringify([{auditorUid:'uid-david',active:true},{auditorUid:'uid-other',active:false}])]];
+assert.equal(v211CompanyAuditorExclusions(uidKeyedCompanies,'C1','Grower A').has('uid:uid-david'),true);
+const uidKeyedArgs={auditorValues:uidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:uidKeyedCompanies,companyUid:'C1',companyName:'Grower A',requestedDates:['2026-10-14']};
+assert.ok(v211AssignmentHardCheck({...uidKeyedArgs,auditorEmail:'uid-david'}).reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),'UID exclusion blocks UID assignment');
+assert.ok(v211AssignmentHardCheck({...uidKeyedArgs,auditorEmail:'david@example.com'}).reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),'UID exclusion blocks email assignment of same auditor');
+assert.equal(v211AssignmentHardCheck({...uidKeyedArgs,auditorEmail:'uid-other',scopeCodes:['GRASP']}).reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),false,'Inactive UID exclusion is ignored');

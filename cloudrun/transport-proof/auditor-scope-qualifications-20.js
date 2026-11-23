@@ -45,3 +45,62 @@ export function resolveAuditorScopeQualifications20({auditors,catalog,relations,
  }
  return {auditorUid:uid,qualifiedScopeCodes:[...qualified],qualificationCount:qualified.size,source:'Auditor_Scope_Qualifications'};
 }
+
+// Complete sources are required: an unresolved owner must not hide an open audit.
+export function qualificationOpenAuditImpact20({auditors,planning,auditorUid,scopeColumns}={}){
+ if(!Array.isArray(auditors)||!Array.isArray(auditors[0])||auditors.length>=1000||
+    !Array.isArray(planning)||!Array.isArray(planning[0])||planning.length>=2500||
+    !norm(auditorUid)||!Array.isArray(scopeColumns)||!scopeColumns.length)
+  throw Error('QUALIFICATION_IMPACT_SOURCE_INCOMPLETE');
+ const headerKey=x=>key(x).replace(/[^a-z0-9]/g,'');
+ const column=(header,names,optional=false)=>{
+  const wanted=new Set(names.map(headerKey)),matches=header.map((x,i)=>wanted.has(headerKey(x))?i:-1).filter(i=>i>=0);
+  if(matches.length>1||(!optional&&matches.length!==1))throw Error('QUALIFICATION_IMPACT_SCHEMA_INVALID');
+  return matches.length?matches[0]:-1;
+ };
+ const ah=auditors[0],ph=planning[0],uidColumn=column(ah,['Auditor_UID','Auditor UID']),
+  emailColumn=column(ah,['E-mail','Email']),nameColumn=column(ah,['Name','Auditor name'],true),
+  assigned=column(ph,['Assigned to','Assigned auditor','Auditor']),
+  assignedUid=column(ph,['Auditor_UID','Assigned_Auditor_UID']),
+  preassigned=column(ph,['Preassigned Auditor']),statusColumn=column(ph,['Status']),
+  auditColumn=column(ph,['Audit ID','Audit_ID','AuditId']);
+ if(scopeColumns.some(i=>!Number.isSafeInteger(i)||i<0||i>=ph.length||
+    !headerKey(ph[i])||ph.filter(h=>headerKey(h)===headerKey(ph[i])).length!==1))
+  throw Error('QUALIFICATION_IMPACT_SCHEMA_INVALID');
+ const byUid=new Set(),aliases=new Map();
+ for(const row of auditors.slice(1)){
+  if(!Array.isArray(row))throw Error('QUALIFICATION_IMPACT_SOURCE_INCOMPLETE');
+  if(!row.some(x=>norm(x)))continue;
+  const uid=norm(row[uidColumn]),email=key(row[emailColumn]);
+  if(!uid||!email||byUid.has(uid))throw Error('QUALIFICATION_IMPACT_IDENTITY_INVALID');
+  byUid.add(uid);
+  for(const alias of [email,nameColumn<0?'':key(row[nameColumn])].filter(Boolean)){
+   const ids=aliases.get(alias)||new Set();ids.add(uid);aliases.set(alias,ids);
+  }
+ }
+ if(!byUid.has(norm(auditorUid)))throw Error('QUALIFICATION_IMPACT_IDENTITY_INVALID');
+ const resolve=value=>{
+  const alias=key(value);if(!alias)return '';
+  const ids=aliases.get(alias);
+  if(!ids||ids.size!==1)throw Error('QUALIFICATION_IMPACT_OWNER_UNRESOLVED');
+  return [...ids][0];
+ };
+ const ids=new Set(),impacted=[];
+ for(const row of planning.slice(1)){
+  if(!Array.isArray(row))throw Error('QUALIFICATION_IMPACT_SOURCE_INCOMPLETE');
+  const status=norm(row[statusColumn]).toUpperCase().replace(/[\s-]+/g,'_');
+  if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(status)||
+     !scopeColumns.some(i=>truth(row[i])||key(row[i])==='ja'))continue;
+  const auditId=norm(row[auditColumn]);
+  if(!auditId||ids.has(auditId))throw Error('QUALIFICATION_IMPACT_AUDIT_ID_INVALID');
+  ids.add(auditId);
+  const uid=norm(row[assignedUid]),assignedValue=norm(row[assigned]);
+  if(uid&&!byUid.has(uid))throw Error('QUALIFICATION_IMPACT_OWNER_UNRESOLVED');
+  // An old display email is not allowed to reassign a UID-bound audit.
+  const assignedAlias=assignedValue&&(!uid||aliases.has(key(assignedValue)))?resolve(assignedValue):'';
+  if(uid&&assignedAlias&&uid!==assignedAlias)throw Error('QUALIFICATION_IMPACT_OWNER_CONFLICT');
+  const preassignedUid=resolve(row[preassigned]);
+  if((uid||assignedAlias)===norm(auditorUid)||preassignedUid===norm(auditorUid))impacted.push(auditId);
+ }
+ return impacted;
+}

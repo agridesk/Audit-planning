@@ -51,7 +51,9 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
  var previousMarker=(typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_!=='undefined'&&AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_===true);
  try{
   AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=true;
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),ap=MCC20_table_(ss,'Audit planning'),ob=MCC20_table_(ss,'Audit_Obligations'),lk=MCC20_table_(ss,'Audit_Visit_Obligations'),cfg=MCC20_table_(ss,'Config_Scopes'),cr=MCC20_table_(ss,'Concept Reservations');
+  var firestoreReservations=typeof CRFB_enabled_==='function'&&CRFB_enabled_()===true;
+  if(firestoreReservations&&typeof ConceptReservationCommitReleaseBridge_releaseLocked!=='function')throw Error('COMBINED_CANONICAL_RESERVATION_RELEASE_OWNER_UNAVAILABLE');
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),ap=MCC20_table_(ss,'Audit planning'),ob=MCC20_table_(ss,'Audit_Obligations'),lk=MCC20_table_(ss,'Audit_Visit_Obligations'),cfg=MCC20_table_(ss,'Config_Scopes'),cr=firestoreReservations?null:MCC20_table_(ss,'Concept Reservations');
   var apId=MCC20_col_(ap.headers,['Audit ID']),apStatus=MCC20_col_(ap.headers,['Status']),apCompany=MCC20_col_(ap.headers,['Company_UID','Company UID']);
   var lkAudit=MCC20_col_(lk.headers,['Audit_ID']),lkOb=MCC20_col_(lk.headers,['Obligation_ID']),lkState=MCC20_col_(lk.headers,['Link_State']),lkEnd=MCC20_col_(lk.headers,['Unlinked_At']),lkStart=MCC20_col_(lk.headers,['Linked_At']);
   var obId=MCC20_col_(ob.headers,['Obligation_ID']),obState=MCC20_col_(ob.headers,['Obligation_State']),obCompany=MCC20_col_(ob.headers,['Company_UID']),obScope=MCC20_col_(ob.headers,['ScopeCode']),obHours=MCC20_col_(ob.headers,['Formal_Hours']);
@@ -92,9 +94,10 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
   composition.sourceAuditIds.forEach(function(id){var src=auditById[id];MCC20_stageRow_(journal,ap.sheet,src.row,new Array(ap.headers.length).fill(''),src.values);});
   // Release source members' provisional reservations under the same journal.
   // The canonical Plan finalizer is responsible for the target reservation.
-  var crAudit=MCC20_col_(cr.headers,['Audit ID']),crState=MCC20_col_(cr.headers,['State']);
-  var crBy=cr.headers.indexOf('Released By'),crAt=cr.headers.indexOf('Released At'),crReason=cr.headers.indexOf('Release Reason'),crUpdated=cr.headers.indexOf('Updated At');
-  for(var ci=0;ci<cr.rows.length;ci++){
+  if(!firestoreReservations){
+   var crAudit=MCC20_col_(cr.headers,['Audit ID']),crState=MCC20_col_(cr.headers,['State']);
+   var crBy=cr.headers.indexOf('Released By'),crAt=cr.headers.indexOf('Released At'),crReason=cr.headers.indexOf('Release Reason'),crUpdated=cr.headers.indexOf('Updated At');
+   for(var ci=0;ci<cr.rows.length;ci++){
     var crRow=cr.rows[ci],crId=MCC20_clean_(crRow[crAudit]);
     if(composition.sourceAuditIds.indexOf(crId)<0||MCC20_norm_(crRow[crState])!=='ACTIVE')continue;
     var changed=crRow.slice();changed[crState]='RELEASED';
@@ -103,6 +106,7 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
     if(crUpdated>=0)changed[crUpdated]=new Date().toISOString();
     if(crReason>=0)changed[crReason]='CANONICAL_COMBINED_VISIT_COMMIT';
     MCC20_stageRow_(journal,cr.sheet,ci+2,changed,crRow);
+   }
   }
   var now=new Date().toISOString(),linkRows={};
   for(var li=0;li<lk.rows.length;li++){var lr=lk.rows[li],key=MCC20_clean_(lr[lkAudit])+'|'+MCC20_clean_(lr[lkOb]);if(MCC20_norm_(lr[lkState])==='ACTIVE')linkRows[key]={row:li+2,values:lr.slice()};}
@@ -131,6 +135,21 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
     repairRequired:!restored||!!(result&&result.meta&&result.meta.availabilityRepairRequired),rolledBack:restored,canonicalPlanResult:result||null};
   }
   planned=true;journal=[];
+  var sourceReservationReleaseCount=0,sourceReservationReleaseRepairRequired=false;
+  if(firestoreReservations){
+   for(var sri=0;sri<composition.sourceAuditIds.length;sri++){
+    try{
+     var sourceRelease=ConceptReservationCommitReleaseBridge_releaseLocked({
+      auditId:composition.sourceAuditIds[sri],releasedBy:input.actorEmail,
+      reason:'CANONICAL_COMBINED_VISIT_COMMIT'
+     });
+     if(sourceRelease&&sourceRelease.released===true)sourceReservationReleaseCount++;
+     else if(!sourceRelease||sourceRelease.success!==true||
+       ['NOT_FOUND','ALREADY_RELEASED'].indexOf(MCC20_clean_(sourceRelease.reason))<0)
+      sourceReservationReleaseRepairRequired=true;
+    }catch(sourceReleaseError){sourceReservationReleaseRepairRequired=true;}
+   }
+  }
   var trailResult=null,trailError='';
   try{
    if(typeof ModelCCombinedVisitTrail20_emit!=='function')throw Error('COMBINED_AUDIT_TRAIL_OWNER_UNAVAILABLE');
@@ -145,7 +164,9 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
    obligationIds:composition.obligationIds,scopeCodes:composition.scopeCodes,formalHours:Math.round(required*100)/100,
    canonicalPlanResult:result,trailResult:trailResult,trailError:trailError,
    sourceAuditTrailRepairRequired:!!trailError,
-   postCommitRepairRequired:!!trailError||!!(result.meta&&result.meta.postCommitRepairRequired),
+   sourceReservationReleaseCount:sourceReservationReleaseCount,
+   sourceReservationReleaseRepairRequired:sourceReservationReleaseRepairRequired,
+   postCommitRepairRequired:!!trailError||sourceReservationReleaseRepairRequired||!!(result.meta&&result.meta.postCommitRepairRequired),
    build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};
  }catch(e){
   if(canonicalPlanAttempted){return{success:false,committed:false,commitOutcomeUncertain:true,

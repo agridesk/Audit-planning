@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 let fence=null,writes=0,projected=0,uncertain=0,fail=false,holder='old-auditor';
-const previous={revision:7,snapshot:{sourceRevision:'old-revision'},pendingOperationId:null,auditorId:'aud-old'};
+const headers=['Audit ID','Status','Auditor comment (last)'],sourceRow=['A1','Accepted','existing note'];
+const previous={revision:7,snapshot:{sourceRevision:'old-revision',headers,row:sourceRow},pendingOperationId:null,auditorId:'aud-old'};
 const outbox=new Map();
 const store={
  async readAudit(){return previous;},
@@ -16,7 +17,7 @@ const gate={
  async uncertain(){uncertain++;fence.state='UNCERTAIN';}
 };
 const preview={success:true,authorityPreflight:true,action:'TRANSFER',auditId:'A1',fromEmail:'old@example.test',toEmail:'new@example.test',expectedSourceRevision:'old-revision',
- canonicalSnapshot:{auditId:'A1',status:'Pending Approval',assignedTo:'',sourceRevision:'new-revision'},
+ sourceRowBefore:sourceRow.slice(),canonicalSnapshot:{auditId:'A1',status:'Pending Approval',assignedTo:'',sourceRevision:'new-revision',headers},
  projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Pending Approval']]}],
  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],
  appendIntents:[{range:'Diagnostics_Log!A:K',values:[['today','TRANSFER','A1']]}]};
@@ -24,6 +25,10 @@ const projector={async apply(){if(fail)throw Error('SHEETS_TIMEOUT');},async ins
 const appendProjector={async apply(){},async inspect(){return {state:'MATCH',count:1}}};
 const service=createPlanningAtomicTransferService({store,gate,projector,appendProjector,preflight:async()=>preview});
 const actor={role:'manager',auditorId:'manager-1'},body={auditId:'A1',fromEmail:'old@example.test',toEmail:'new@example.test'};
+preview.sourceRowBefore[2]='unreconciled note';
+await assert.rejects(()=>service.commit({actor,body}),/TRANSFER_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT/);
+assert.equal(writes,0);assert.equal(fence,null);
+preview.sourceRowBefore=sourceRow.slice();
 const result=await service.commit({actor,body});
 assert.equal(result.success,true);assert.equal(result.ok,true);assert.equal(result.status,'Pending Approval');assert.equal(holder,null);assert.equal(projected,1);
 const replay=await service.commit({actor,body});assert.equal(replay.ok,true);assert.equal(replay.idempotent,true);assert.equal(writes,1);

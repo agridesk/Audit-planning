@@ -5,13 +5,22 @@
  */
 import {createHash} from 'node:crypto';
 import {validateScopeVisitAllocation20} from './model-c-scope-allocation-20.mjs';
+import {canonicalPlanningRowMatches20} from './planning-canonical-row-parity-20.js';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const trim=x=>String(x??'').trim();
-export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,appendProjector,roster}={}){
+export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,appendProjector,roster,postCommit}={}){
  if(!atomicStore||typeof atomicStore.commit!=='function'||typeof atomicStore.readAudit!=='function'||typeof atomicStore.readOutbox!=='function'||typeof atomicStore.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof availabilityService?.acquirePlanningLease!=='function'||typeof availabilityService?.releasePlanningLease!=='function'||typeof availabilityService?.markPlanningLeaseUncertain!=='function'||typeof hardGate!=='function'||typeof preflight!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof roster!=='function')throw Error('PLANNING_ATOMIC_SERVICE_CONFIG_INVALID');
  async function commit({actor,body}){
   if(!['manager','auditor'].includes(actor?.role)||!trim(actor?.auditorId)||!body||typeof body!=='object'||!trim(body.auditId)||!trim(body.auditorEmail)||!trim(body.sourceRevision)||!Array.isArray(body.blocks)||!body.blocks.length)throw Error('PLANNING_ATOMIC_INPUT_INVALID');
   const auditId=trim(body.auditId),auditorEmail=trim(body.auditorEmail).toLowerCase();
+  async function finalizePostCommit(operationId){
+   if(typeof postCommit!=='function')return {repairRequired:false,reason:''};
+   try{
+    const result=await postCommit({actor,body,operationId});
+    return {repairRequired:result?.repairRequired===true||result?.success===false,
+     reason:result?.repairRequired===true||result?.success===false?trim(result?.reason)||'POST_COMMIT_FINALIZATION_FAILED':''};
+   }catch{return {repairRequired:true,reason:'POST_COMMIT_FINALIZATION_FAILED'};}
+  }
   const matches=(await roster()).filter(x=>x.role==='auditor'&&x.email===auditorEmail&&x.active!==false);
   if(matches.length!==1||!trim(matches[0].auditorId))throw Error('PLANNING_ATOMIC_AUDITOR_UID_UNRESOLVED');
   const auditorId=matches[0].auditorId;
@@ -20,7 +29,11 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
   const replay=await atomicStore.readOutbox(operationId);
   if(replay){
    if(replay.auditId!==auditId||replay.actorId!==actor.auditorId)throw Error('PLANNING_ATOMIC_REPLAY_IDENTITY_CONFLICT');
-   if(replay.state==='PROJECTED')return {success:true,idempotent:true,auditId,operationId,authority:'FIRESTORE',projection:'PROJECTED'};
+   if(replay.state==='PROJECTED'){
+    const finalization=await finalizePostCommit(operationId);
+    return {success:true,idempotent:true,auditId,operationId,authority:'FIRESTORE',projection:'PROJECTED',
+     postCommitRepairRequired:finalization.repairRequired,postCommitRepairReason:finalization.reason};
+   }
    throw Error('PLANNING_ATOMIC_OUTBOX_RECOVERY_REQUIRED');
   }
   const leaseActor={role:actor.role,id:actor.auditorId};
@@ -50,6 +63,7 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const previous=await atomicStore.readAudit(auditId);
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId)throw Error('PLANNING_ATOMIC_BACKFILL_OR_PROJECTION_REQUIRED');
    if(previous.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('PLANNING_ATOMIC_CANONICAL_PARITY_CONFLICT');
+   if(!canonicalPlanningRowMatches20(previous.snapshot,preview))throw Error('PLANNING_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT');
    const notificationIntents=preview.notificationIntents||[];
    if(!Array.isArray(notificationIntents)||!notificationIntents.length)throw Error('PLANNING_NOTIFICATION_OUTBOX_REQUIRED');
    const appendIntents=[{range:'Notification Queue!A:M',values:notificationIntents}];
@@ -58,7 +72,7 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const accepted=await atomicStore.commit({auditId,operationId,actorId:actor.auditorId,expectedRevision:previous.revision,nextSnapshot,auditorId,blocks:body.blocks,action:'PLAN'});
    committed=true;
    if(accepted.replayed)throw Error('PLANNING_ATOMIC_UNEXPECTED_REPLAY');
-   await projector.apply({operationId,gateToken:lock.token,plan:nextSnapshot});
+   await projector.apply({operationId,gateToken:lock.token,plan:nextSnapshot,allowMissingAvailabilityRows:true});
    const inspection=await projector.inspect(nextSnapshot);
    if(inspection.state!=='MATCH')throw Error('PLANNING_ATOMIC_PROJECTION_NOT_VERIFIED');
    await appendProjector.apply({operationId,gateToken:lock.token,intents:appendIntents});
@@ -67,11 +81,13 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const proof={verified:true,auditId,rowHash:hash(JSON.stringify({rows:inspection.detail,appendCount:appendEvidence.count}))};
    await atomicStore.markProjected({auditId,operationId,proof});
    projected=true;
+   const finalization=await finalizePostCommit(operationId);
    await availabilityService.releasePlanningLease({actor:leaseActor,auditorId,token:lease.token});
    lease=null;
    await gate.release({token:lock.token,verified:true,proof:'VERIFIED_FIRESTORE_AND_SHEETS'});
    lock=null;
-   return {success:true,auditId,operationId,authority:'FIRESTORE',projection:'PROJECTED',revision:accepted.revision};
+   return {success:true,auditId,operationId,authority:'FIRESTORE',projection:'PROJECTED',revision:accepted.revision,
+    postCommitRepairRequired:finalization.repairRequired,postCommitRepairReason:finalization.reason};
   }finally{
    // Cleanup is evidence-aware: a timeout during or after Firestore commit may
    // have succeeded. No lock can be released on guessed outcome.

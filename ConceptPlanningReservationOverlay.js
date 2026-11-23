@@ -36,7 +36,7 @@ function ConceptPlanningReservationOverlay_get(input){
   var emailSet={};for(var i=0;i<emails.length;i++)emailSet[emails[i]]=1;
   if(typeof ConceptReservationReadModel_get!=='function')throw new Error('ConceptPlanningReservationOverlay: ConceptReservationReadModel_get unavailable');
   var perf=(typeof DPL_start_==='function')?DPL_start_('ConceptPlanningReservationOverlay_get',{from:from,to:to,candidateAuditors:emails.length}):null;
-  var rm=ConceptReservationReadModel_get({from:from,to:to});
+  var rm=ConceptReservationReadModel_get(Object.assign({},input,{from:from,to:to,auditorEmails:emails}));
   if(typeof DPL_mark_==='function')DPL_mark_(perf,'reservationBatch',{rows:rm&&rm.rows?rm.rows.length:0});
   var rows=[],byAud={},byAudit={};
   var src=rm&&rm.rows?rm.rows:[];

@@ -39,40 +39,74 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(!Array.isArray(data.sheets))throw Error('SHEETS_PROJECTOR_METADATA_INVALID');
   return new Map(data.sheets.map(x=>[x.properties?.title,x.properties]));
  }
- async function inspect(plan){
+ async function inspect(plan,{allowMissingAvailabilityRows=false}={}){
   const changes=rows(plan),url=new URL(base+'/values:batchGet');
   // Match the canonical R4 preflight reader: unformatted values, formatted dates.
   url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
   url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
   for(const change of changes)url.searchParams.append('ranges',change.range);
-  const results=(await request(url.toString())).valueRanges;
+  let results,missing=new Set();
+  try{
+   results=(await request(url.toString())).valueRanges;
+  }catch(error){
+   if(!allowMissingAvailabilityRows||error?.message!=='SHEETS_PROJECTOR_HTTP_400')throw error;
+   const meta=await metadata();
+   for(const [i,change] of changes.entries()){
+    const count=meta.get(change.sheet)?.gridProperties?.rowCount;
+    if(!Number.isSafeInteger(count)||count<1)throw Error('SHEETS_PROJECTION_TAB_MISSING');
+    if(change.row>count){
+     if(change.sheet!=='Auditor Availability'||normalize(change.before).length)
+      throw Error('SHEETS_PROJECTION_MISSING_ROW_CONFLICT');
+     missing.add(i);
+    }
+   }
+   if(!missing.size)throw error;
+   const existing=changes.filter((_,i)=>!missing.has(i));
+   url.searchParams.delete('ranges');
+   for(const change of existing)url.searchParams.append('ranges',change.range);
+   const available=existing.length?(await request(url.toString())).valueRanges:[];
+   if(!Array.isArray(available)||available.length!==existing.length)throw Error('SHEETS_PROJECTION_READ_INCOMPLETE');
+   let index=0;
+   results=changes.map((_,i)=>missing.has(i)?null:available[index++]);
+  }
   if(!Array.isArray(results)||results.length!==changes.length)throw Error('SHEETS_PROJECTION_READ_INCOMPLETE');
   let allMatch=true;
   const detail=changes.map((change,i)=>{
-   const actual=results[i].values?.[0]||[];
-   const target=equal(actual,change.values),before=equal(actual,change.before);
+   const actual=results[i]?.values?.[0]||[];
+   const target=!missing.has(i)&&equal(actual,change.values),before=equal(actual,change.before);
    if(!target)allMatch=false;
    return {range:change.range,target,before};
   });
   return {state:allMatch?'MATCH':detail.every(x=>x.target||x.before)?'READY':'CONFLICT',detail};
  }
- async function apply({operationId,plan,gateToken}){
+ async function apply({operationId,plan,gateToken,prefetchMetadata=false,allowMissingAvailabilityRows=false,existingRowsOnly=false}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
+  const existingRows=existingRowsOnly&&changes.every(change=>
+   /^(?:Audit planning|Auditor Availability)!A\d+:[A-Z]+\d+$/.test(change.range)&&
+   change.before.some(value=>str(value)!=='')&&change.values.some(value=>str(value)!==''));
   await verifyFence({operationId,gateToken});
-  const first=await inspect(plan);
+  const pendingMetadata=prefetchMetadata&&!existingRows?metadata().then(value=>({ok:true,value}),error=>({ok:false,error})):null;
+  // Matching nonempty rows need no expansion; keep the fence and fresh read together.
+  const [first]=await Promise.all([inspect(plan,{allowMissingAvailabilityRows}),
+   existingRows?verifyFence({operationId,gateToken}):null]);
   if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
-  const meta=await metadata(),requests=[];
-  for(const sheet of new Set(changes.map(x=>x.sheet))){
-   const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
-   if(!Number.isSafeInteger(props?.sheetId)||!Number.isSafeInteger(props?.gridProperties?.rowCount))throw Error('SHEETS_PROJECTION_TAB_MISSING');
-   if(props.gridProperties.rowCount<max)requests.push({appendDimension:{sheetId:props.sheetId,dimension:'ROWS',length:max-props.gridProperties.rowCount}});
+  let second=first;
+  if(!existingRows){
+   const metadataResult=pendingMetadata?await pendingMetadata:{ok:true,value:await metadata()};
+   if(!metadataResult.ok)throw metadataResult.error;
+   const meta=metadataResult.value,requests=[];
+   for(const sheet of new Set(changes.map(x=>x.sheet))){
+    const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
+    if(!Number.isSafeInteger(props?.sheetId)||!Number.isSafeInteger(props?.gridProperties?.rowCount))throw Error('SHEETS_PROJECTION_TAB_MISSING');
+    if(props.gridProperties.rowCount<max)requests.push({appendDimension:{sheetId:props.sheetId,dimension:'ROWS',length:max-props.gridProperties.rowCount}});
+   }
+   await verifyFence({operationId,gateToken});
+   if(requests.length)await request(base+':batchUpdate','POST',{requests});
+   await verifyFence({operationId,gateToken});
+   second=await inspect(plan);
   }
-  await verifyFence({operationId,gateToken});
-  if(requests.length)await request(base+':batchUpdate','POST',{requests});
-  await verifyFence({operationId,gateToken});
-  const second=await inspect(plan);
   if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];

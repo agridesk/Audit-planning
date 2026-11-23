@@ -643,7 +643,7 @@ input[type="checkbox"]{
             <span>Status</span>
             <select id="selStatusFilter" onchange="auditorUi_applyFilters_()">
               <option value="">All</option>
-              <option value="ACCEPTED">Accepted</option>
+              <option value="ACCEPTED">Ready</option>
               <option value="APPROVED">Pending acceptance</option>
               <option value="PENDING_APPROVAL">Pending approval</option>
               <option value="PENDING_PLANNING">Pending planning</option>
@@ -2129,13 +2129,13 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
       if (s === 'APPROVED') return window.UiStatuses.badgeHtml('approved', 'Pending acceptance');
       if (s === 'PENDING_APPROVAL') return window.UiStatuses.badgeHtml('pending_approval', 'Pending approval');
       if (s === 'PENDING_PLANNING') return window.UiStatuses.badgeHtml('pending_planning', 'Pending planning');
-      if (s === 'ACCEPTED') return window.UiStatuses.badgeHtml('accepted', 'Accepted');
+      if (s === 'ACCEPTED') return window.UiStatuses.badgeHtml('accepted', 'Ready');
       if (s === 'COMPLETED') return window.UiStatuses.badgeHtml('completed', 'Completed');
       if (!s) return window.UiStatuses.badgeHtml('', '—');
       return window.UiStatuses.badgeHtml(raw, V5.escape(raw));
     }
 
-    if (s === 'ACCEPTED') return '<span class="aud-status-badge v5-status-pill aud-status-accepted v5-status-accepted">Accepted</span>';
+    if (s === 'ACCEPTED') return '<span class="aud-status-badge v5-status-pill aud-status-accepted v5-status-accepted">Ready</span>';
     if (s === 'APPROVED') return '<span class="aud-status-badge v5-status-pill aud-status-approved v5-status-approved">Pending acceptance</span>';
     if (s === 'PENDING_APPROVAL') return '<span class="aud-status-badge v5-status-pill aud-status-pending-approval v5-status-pending-approval">Pending approval</span>';
     if (s === 'PENDING_PLANNING') return '<span class="aud-status-badge v5-status-pill aud-status-pending-planning v5-status-pending-planning">Pending planning</span>';
@@ -2717,7 +2717,7 @@ function v5_callAuditorAction_(auditId, verb, payload, btnEl, setBtnBusyFn, onSu
         try {
           var verbLc = String(verb || '').toLowerCase();
           var msg = 'Action completed.';
-          if (verbLc === 'accept') msg = 'Accepted. The audit is now marked as Accepted.';
+          if (verbLc === 'accept') msg = 'Accepted. The audit is now marked as Ready.';
           else if (verbLc === 'deny') msg = 'Returned to Pending Planning. The planning block has been released.';
           else if (verbLc === 'cancel') msg = 'Returned to Pending Planning. The planning block has been released.';
           else if (verbLc === 'complete') msg = 'Completed. The audit is now marked as Completed.';

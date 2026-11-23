@@ -4,6 +4,7 @@
  * the transfer row + notification in the durable Firestore outbox.
  */
 import {createHash} from 'node:crypto';
+import {canonicalPlanningRowMatches20} from './planning-canonical-row-parity-20.js';
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const txt=x=>String(x??'').trim();
 export function createPlanningAtomicTransferService({store,gate,projector,appendProjector,preflight}={}){
@@ -24,6 +25,7 @@ export function createPlanningAtomicTransferService({store,gate,projector,append
    if(preview?.success!==true||preview?.authorityPreflight!==true||preview?.auditId!==auditId||preview?.action!=='TRANSFER'||preview?.toEmail!==txt(body.toEmail).toLowerCase()||preview?.fromEmail!==txt(body.fromEmail).toLowerCase()||!preview.canonicalSnapshot||!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!Array.isArray(preview.appendIntents)||!preview.appendIntents.length)throw Error('TRANSFER_ATOMIC_PREFLIGHT_INVALID');
    const old=await store.readAudit(auditId);
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision||old.snapshot?.legacyUnverified)throw Error('TRANSFER_ATOMIC_CANONICAL_REVISION_CONFLICT');
+   if(!canonicalPlanningRowMatches20(old.snapshot,preview))throw Error('TRANSFER_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT');
    const status=String(preview.canonicalSnapshot.status||'').toUpperCase().replace(/[\s-]/g,'_');
    if(status!=='PENDING_APPROVAL'||txt(preview.canonicalSnapshot.assignedTo))throw Error('TRANSFER_ATOMIC_TARGET_STATE_INVALID');
    const plan={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};

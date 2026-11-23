@@ -75,7 +75,8 @@ const verifyFence=async({operationId,gateToken})=>{
 };
 const projector=createPlanningSheetsWritesetProjector({spreadsheetId:'simulator',getToken:async()=> 'token',fetchImpl:sheetsFetch,verifyFence});
 const appendProjector=createPlanningSheetsAppendProjector({spreadsheetId:'simulator',getToken:async()=> 'token',fetchImpl:sheetsFetch,verifyFence});
-const audits=new Map([['A1',{auditId:'A1',revision:2,snapshot:{auditId:'A1',status:'Accepted',sourceRevision:'rev-old'},auditorId:'uid-old',claimIds:[],pendingOperationId:null}]]);
+const headers=['Audit ID','Status','Assigned to','Planning JSON'];
+const audits=new Map([['A1',{auditId:'A1',revision:2,snapshot:{auditId:'A1',status:'Accepted',sourceRevision:'rev-old',headers,row:old},auditorId:'uid-old',claimIds:[],pendingOperationId:null}]]);
 const outboxes=new Map();let failAck=false;
 const store={
  async readAudit(id){return structuredClone(audits.get(id)||null);},
@@ -104,12 +105,16 @@ const store={
   for(const e of out.entities)audits.get(e.auditId).pendingOperationId=null;
  }
 };
-const plan={auditId:'A1',sourceRevision:'rev-done',status:'Completed',assignedTo:'',
+const completedAt=new Date().toISOString().slice(0,10);
+const realizedAudit={auditId:'A1',auditorUid:'uid-old',company:'Example company',companyUid:'COMPANY-1',
+ status:'Completed',completedAt,year:Number(completedAt.slice(0,4)),scopeSlots:['SCOPE_01']};
+const plan={auditId:'A1',sourceRevision:'rev-done',status:'Completed',assignedTo:'',headers,
+ realizedAudit,
  projectionWrites:[{range:'Audit planning!A2:D2',values:[complete]},{range:'Audit planning!A10:D10',values:[successor]}],
  projectionPreconditions:[{range:'Audit planning!A2:D2',before:old},{range:'Audit planning!A10:D10',before:[]}],
  appendIntents:[{range:'Notification Queue!A:M',values:[['now','PENDING','COMPLETE','','A1','','','','','','hash-A1-COMPLETE']]}]
 };
-const preview={success:true,authorityPreflight:true,auditId:'A1',expectedSourceRevision:'rev-old',
+const preview={success:true,authorityPreflight:true,auditId:'A1',expectedSourceRevision:'rev-old',sourceRowBefore:old,
  removedSourceRows:[{sheetTitle:'Audit planning',rowNumber:2}],canonicalSnapshot:plan,
  successorSnapshots:[{auditId:'A2',status:'Pending Planning',assignedTo:'',sourceRevision:'rev-child'}],
  ...plan};
@@ -120,6 +125,8 @@ await assert.rejects(()=>service.commit(request),/SIMULATED_ACK_LOSS/);
 assert.equal(holder.state,'UNCERTAIN');
 assert.equal((await store.readAudit('A1')).pendingOperationId!==null,true);
 assert.equal((await store.readAudit('A2')).pendingOperationId!==null,true);
+assert.deepEqual(outboxes.get([...outboxes.keys()][0]).snapshot.realizedAudit,realizedAudit,
+ 'completion event is part of the durable Firestore outbox snapshot');
 assert.equal((await projector.inspect(plan)).state,'MATCH');
 assert.equal((await appendProjector.inspect(plan.appendIntents)).state,'MATCH');
 const writesBeforeRecovery=rowWrites,appendsBeforeRecovery=appendWrites;

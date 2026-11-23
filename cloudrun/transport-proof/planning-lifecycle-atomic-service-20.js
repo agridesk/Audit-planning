@@ -4,6 +4,7 @@
  * Fail closed for multi-audit effects or side effects not captured in preview.
  */
 import {createHash} from 'node:crypto';
+import {canonicalPlanningRowMatches20} from './planning-canonical-row-parity-20.js';
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const str=x=>String(x??'').trim();
 const statuses=new Set(['PENDING_APPROVAL','APPROVED','ACCEPTED']);
@@ -27,6 +28,9 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   let lock=null,attempted=false,committed=false,projected=false;
   try{
    lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_LIFECYCLE_'+action}));
+   // APPROVE/ACCEPT always resolve the assignee; overlap that read with the preflight.
+   const rosterPrefetch=['APPROVE','ACCEPT'].includes(action)?measure('rosterMs',()=>roster()):null;
+   rosterPrefetch?.catch(()=>{});
    const [preview,old]=await Promise.all([
     measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action})),
     measure('auditMs',()=>atomicStore.readAudit(auditId))
@@ -35,6 +39,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    if(preview.idempotent===true)throw Error('LIFECYCLE_ATOMIC_LEGACY_REPLAY_UNVERIFIED');
    if(!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!preview.canonicalSnapshot||!Array.isArray(preview.appendIntents))throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_INCOMPLETE');
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('LIFECYCLE_ATOMIC_CANONICAL_PARITY_CONFLICT');
+   if(!canonicalPlanningRowMatches20(old.snapshot,preview))throw Error('LIFECYCLE_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT');
    if(old.snapshot?.legacyUnverified===true)throw Error('LIFECYCLE_LEGACY_UNVERIFIED_BLOCKED');
    if(actor.role==='auditor'){
     const before=norm(old.snapshot?.status);
@@ -46,7 +51,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    let auditorId=null,blocks=[];
    if(statuses.has(status)){
     const email=str(snapshot.assignedTo).toLowerCase();
-    const matching=(await measure('rosterMs',()=>roster())).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
+    const matching=(await (rosterPrefetch||measure('rosterMs',()=>roster()))).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
     if(matching.length!==1||!str(matching[0].auditorId))throw Error('LIFECYCLE_ATOMIC_AUDITOR_IDENTITY_UNRESOLVED');
     auditorId=matching[0].auditorId;
     const head=snapshot.headers||[],row=snapshot.row||[];
@@ -62,7 +67,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
    if(receipt.replayed)throw Error('LIFECYCLE_ATOMIC_UNEXPECTED_REPLAY');
-   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot}));
+   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot,existingRowsOnly:action==='CANCEL'&&actor.role==='manager'}));
    await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
     projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)

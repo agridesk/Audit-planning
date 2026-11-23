@@ -27,6 +27,7 @@ COPY auditor-uid-backfill-preview.js ./
 COPY rotation-*.cjs ./
 COPY rotation-manager-20.mjs ./
 COPY rotation-uid-reconciliation-20.mjs ./
+COPY rotation-realized-audit-firestore-20.mjs ./
 COPY model-c-scope-visit-preview-20.mjs ./
 COPY scope-dependency-policy-20.mjs ./
 COPY dev-cutover-freeze-20.mjs ./
@@ -53,6 +54,9 @@ COPY manager-canonical-write-bridge-20.mjs ./
 COPY auditor-accept-direct-sheets-20.mjs ./
 COPY combined-visit-*.mjs ./
 COPY server-r4.js ./
+COPY concept-reservation-firestore-store-20.js ./
+COPY concept-reservation-bridge-20.js ./
+COPY concept-reservation-sheets-projector-20.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./
 COPY server-r7.js ./

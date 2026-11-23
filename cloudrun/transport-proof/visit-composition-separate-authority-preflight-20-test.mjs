@@ -23,7 +23,7 @@ const body={auditId:'A1',composition:'SEPARATELY',sourceRevision:revision,
   {obligationId:'OB2',auditorEmail:'auditor@example.test',blocks:blocks2}]};
 const actor={role:'manager',auditorId:'manager-1',email:'manager@example.test'};
 const sourceCanonical={auditId:'A1',revision:1,snapshot:{auditId:'A1',status:'Pending Planning',
- sourceRevision:revision},pendingOperationId:null};
+ sourceRevision:revision,headers:h,row:source},pendingOperationId:null};
 const fixture={
  actor,body,sourceCanonical,planningRows:[h,source],
  obligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours',
@@ -60,6 +60,8 @@ assert.deepEqual(result.visits.map(x=>x.snapshot.status),['Approved','Approved']
 assert.equal(result.entities[0].remove,true);
 assert.equal(result.sourceTombstone.status,'Pending Planning');
 assert.equal(result.sourceTombstone.identityRetired,true);
+assert.deepEqual(result.visits[0].snapshot.row,result.appendIntents.find(x=>x.range==='Audit planning!A:CN').values[0]);
+assert.deepEqual(result.visits[0].snapshot.headers,h);
 const sourceWrite=result.projectionWrites.find(x=>x.range.startsWith('Audit planning!'));
 assert.equal(JSON.parse(sourceWrite.values[0][32]).identityRetired,true);
 assert.equal(sourceWrite.values[0][28],'Pending Planning');
@@ -89,7 +91,7 @@ const sequentialLinks=structuredClone(fixture.linkRows);
 sequentialLinks[1][2]='INACTIVE';
 sequentialLinks.push(['VIS-'+createHash('sha256').update('AMS_SPLIT_V1|A1|company1|OB1').digest('hex').slice(0,20).toUpperCase(),'OB1','ACTIVE','','','']);
 const secondSourceCanonical={...fixture.sourceCanonical,revision:2,
- snapshot:{...fixture.sourceCanonical.snapshot,sourceRevision:partial.sourceTombstone.sourceRevision}};
+ snapshot:partial.sourceTombstone};
 const secondBody={...body,sourceRevision:partial.sourceTombstone.sourceRevision,visits:[body.visits[1]]};
 const finalScope=prepareSeparateCompositionAuthority20({...fixture,body:secondBody,
  planningRows:[h,partialSource],linkRows:sequentialLinks,sourceCanonical:secondSourceCanonical});
@@ -99,6 +101,12 @@ assert.equal(finalScope.entities[0].remove,true);
 assert.equal(finalScope.sourceTombstone.identityRetired,true);
 assert.equal(finalScope.sourceTombstone.successorAuditIds.length,2);
 const prepare=overrides=>prepareSeparateCompositionAuthority20({...fixture,...overrides});
+const drifted=source.slice();drifted[60]='unreconciled note';
+assert.throws(()=>prepare({planningRows:[h,drifted]}),/COMPOSITION_SPLIT_FIRESTORE_SOURCE_ROW_CONFLICT/);
+const driftedHeaders=h.slice();driftedHeaders[60]='Changed note header';
+assert.throws(()=>prepare({planningRows:[driftedHeaders,source]}),/COMPOSITION_SPLIT_FIRESTORE_SOURCE_ROW_CONFLICT/);
+assert.throws(()=>prepare({sourceCanonical:{...sourceCanonical,snapshot:{...sourceCanonical.snapshot,row:undefined}}}),
+ /COMPOSITION_SPLIT_FIRESTORE_SOURCE_ROW_CONFLICT/);
 const offsiteBlocks=[
  {date:'2027-03-12',start:'08:00',end:'09:00',executionType:'OFFSITE',execLoc:''},
  {date:'2027-03-12',start:'09:00',end:'16:00',executionType:'ONSITE',execLoc:'S1'}
@@ -154,6 +162,14 @@ const availabilityService={
 };
 const projection={async apply(){},async inspect(){return{state:'MATCH',detail:[]}}};
 const appended={async apply(){},async inspect(){return{state:'MATCH',count:4}}};
+const driftService=createVisitCompositionAtomicService20({
+ store,gate,availabilityService,hardGate:()=>true,
+ preflight:async()=>prepare({planningRows:[h,drifted]}),
+ projector:projection,appendProjector:appended
+});
+await assert.rejects(driftService.commit({actor,body}),/COMPOSITION_SPLIT_FIRESTORE_SOURCE_ROW_CONFLICT/);
+assert.equal(committed,0);assert.equal(projected,0);assert.equal(lease,0);
+assert.equal(gateHeld,false);
 const service=createVisitCompositionAtomicService20({
  store,gate,availabilityService,hardGate:()=>true,
  preflight:async()=>prepareSeparateCompositionAuthority20(fixture),

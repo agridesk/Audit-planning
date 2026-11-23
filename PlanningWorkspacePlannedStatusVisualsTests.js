@@ -10,7 +10,7 @@ function RUN_PLANNING_WORKSPACE_PLANNED_STATUS_VISUALS_REGRESSION(){
  t('clientOnly',ui.plannedStatusVisualsClientOnly===true);
  t('canonicalStatusProjected',ctx.indexOf("['Status']")>=0&&ctx.indexOf('status:cStatus')>=0);
  t('overlayPrefersCanonicalStatus',bundle.indexOf('status:PWOB_clean_')>=0&&bundle.indexOf('c&&c.status')>=0&&bundle.indexOf('s&&s.status')>=0&&bundle.indexOf('(c&&c.status)||(s&&s.status)')>=0,bundle);
- t('acceptedGreen',src.indexOf("status==='ACCEPTED'")>=0&&src.indexOf("label:'ACCEPTED'")>=0&&src.indexOf("#e8f5e9")>=0);
+ t('acceptedGreen',src.indexOf("status==='ACCEPTED'")>=0&&src.indexOf("label:'READY'")>=0&&src.indexOf("#e8f5e9")>=0);
  t('approvedBlue',src.indexOf("status==='APPROVED'")>=0&&src.indexOf("label:'APPROVED'")>=0&&src.indexOf("#e8f1fb")>=0);
  t('pendingApprovalAmber',src.indexOf("status==='PENDING_APPROVAL'")>=0&&src.indexOf("label:'PENDING APPROVAL'")>=0&&src.indexOf("#fff3d9")>=0);
  t('statusBadge',src.indexOf('pw-canonical-status')>=0);

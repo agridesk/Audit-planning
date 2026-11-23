@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
-let activeLease=null,activeGate=null,writeCount=0,uncertain=0,preflightCalls=0,failAt='';
-const outbox=new Map(),audit={revision:0,snapshot:{sourceRevision:'r1'},pendingOperationId:null},blocks=[{date:'2027-03-01',start:'09:00',end:'10:00'}];
+let activeLease=null,activeGate=null,writeCount=0,uncertain=0,preflightCalls=0,postCommitCalls=0,failAt='';
+const headers=['Audit ID','Manager comment (last)'],sourceRow=['audit-1','original note'];
+const outbox=new Map(),audit={revision:0,snapshot:{sourceRevision:'r1',headers,row:sourceRow},pendingOperationId:null},blocks=[{date:'2027-03-01',start:'09:00',end:'10:00'}];
 const store={
  async readOutbox(id){return structuredClone(outbox.get(id)||null);},
  async readAudit(){return structuredClone(audit);},
@@ -19,16 +20,21 @@ const gate={
  async release(){activeGate=null;},
  async uncertain(){uncertain++;activeGate.state='UNCERTAIN';}
 };
-const preview={success:true,authorityPreflight:true,auditId:'audit-1',expectedSourceRevision:'r1',canonicalSnapshot:{auditId:'audit-1',sourceRevision:'r2'},projectionWrites:[{range:'Audit planning!A2:B2',values:[['a','b']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','a']}],notificationIntents:[['2026-10-29','PENDING','PLANNED','','audit-1']]};
-const projector={async apply(){if(failAt==='projection')throw Error('TIMEOUT');return {projected:true};},async inspect(){return {state:'MATCH',detail:[{range:'Audit planning!A2:B2',target:true}]};}};
+const preview={success:true,authorityPreflight:true,auditId:'audit-1',expectedSourceRevision:'r1',sourceRowBefore:sourceRow.slice(),canonicalSnapshot:{auditId:'audit-1',sourceRevision:'r2',headers},projectionWrites:[{range:'Audit planning!A2:B2',values:[['a','b']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','a']}],notificationIntents:[['2026-10-29','PENDING','PLANNED','','audit-1']]};
+const projector={async apply(input){assert.equal(input.allowMissingAvailabilityRows,true);if(failAt==='projection')throw Error('TIMEOUT');return {projected:true};},async inspect(){return {state:'MATCH',detail:[{range:'Audit planning!A2:B2',target:true}]};}};
 const appendProjector={async apply(){if(failAt==='append')throw Error('APPEND_TIMEOUT');return {confirmed:true};},async inspect(){return {state:'MATCH',count:1};}};
-const service=createPlanningAtomicCommandService({atomicStore:store,gate,availabilityService:availability,hardGate:()=>{},preflight:async()=>{preflightCalls++;return preview;},projector,appendProjector,roster:async()=>[{role:'auditor',email:'auditor@example.test',auditorId:'uid-1'}]});
+const service=createPlanningAtomicCommandService({atomicStore:store,gate,availabilityService:availability,hardGate:()=>{},preflight:async()=>{preflightCalls++;return preview;},projector,appendProjector,roster:async()=>[{role:'auditor',email:'auditor@example.test',auditorId:'uid-1'}],postCommit:async({operationId})=>{postCommitCalls++;return {success:true,operationId};}});
 const actor={role:'manager',auditorId:'manager-1'},body={auditId:'audit-1',auditorEmail:'auditor@example.test',sourceRevision:'r1',blocks};
+preview.sourceRowBefore[1]='unreconciled note';
+await assert.rejects(()=>service.commit({actor,body}),/PLANNING_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT/);
+assert.equal(writeCount,0);assert.equal(activeGate,null);assert.equal(activeLease,null);
+preview.sourceRowBefore=sourceRow.slice();
+preflightCalls=0;
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);assert.equal(receipt.projection,'PROJECTED');
-assert.equal(writeCount,1);assert.equal(activeGate,null);assert.equal(activeLease,null);
+assert.equal(receipt.postCommitRepairRequired,false);assert.equal(writeCount,1);assert.equal(postCommitCalls,1);assert.equal(activeGate,null);assert.equal(activeLease,null);
 assert.equal((await service.commit({actor,body})).idempotent,true);
-assert.equal(writeCount,1);assert.equal(preflightCalls,1);
+assert.equal(writeCount,1);assert.equal(postCommitCalls,2);assert.equal(preflightCalls,1);
 await assert.rejects(()=>service.commit({actor,body:{...body,composition:'SEPARATELY'}}),/SPLIT_ATOMIC_ROUTE_REQUIRED/);
 await assert.rejects(()=>service.commit({actor,body:{...body,composition:'TOGETHER'}}),/TOGETHER_PREFLIGHT_REQUIRED/);
 assert.equal(writeCount,1);

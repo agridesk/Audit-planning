@@ -778,12 +778,17 @@ function Status_validateAndBuildPlanning_(payload) {
     return Status_fail_('Missing blocks[] for planning');
   }
   if (payload.blocks.length > 5) return Status_fail_('Max 5 planning days allowed');
+  var auditorIdentity = String(payload.auditorUid || payload.auditorEmail || '').trim();
+  if (!auditorIdentity) return Status_fail_('PLAN_AUDITOR_REQUIRED: planning requires an assigned auditor');
 
   var normalized = [];
   var total = 0;
   for (var i = 0; i < payload.blocks.length; i++) {
     var b = payload.blocks[i] || {};
     if (!b.date || !b.start || !b.end) return Status_fail_('Invalid block: missing date/start/end');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) || !/^\d{1,2}:\d{2}$/.test(String(b.start)) || !/^\d{1,2}:\d{2}$/.test(String(b.end))) {
+      return Status_fail_('Invalid block: date must be YYYY-MM-DD and times HH:MM');
+    }
     var hours = Status_computeHours_(b.start, b.end);
     if (hours <= 0) return Status_fail_('Invalid hours for ' + b.date + ' ' + b.start + '-' + b.end);
     normalized.push({

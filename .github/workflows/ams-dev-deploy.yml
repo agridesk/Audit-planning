@@ -8,8 +8,15 @@ on:
       - 'cloudrun/transport-proof/planning-atomic-extension-service-20.js'
       - 'cloudrun/transport-proof/planning-atomic-extension-writeset-20.mjs'
       - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/server-r4.js'
+      - 'cloudrun/transport-proof/concept-reservation-firestore-store-20.js'
+      - 'cloudrun/transport-proof/concept-reservation-bridge-20.js'
+      - 'cloudrun/transport-proof/concept-reservation-*-20-test.mjs'
+      - 'cloudrun/transport-proof/package.json'
       - 'cloudrun/transport-proof/swap-dev-backfill-cli-20.mjs'
       - 'cloudrun/transport-proof/server-r5.js'
+      - 'cloudrun/transport-proof/server-r10.js'
+      - 'cloudrun/transport-proof/server-r12.js'
       - 'cloudrun/transport-proof/manager-portal.js'
   workflow_dispatch:
 
@@ -35,6 +42,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Test DEV concept-reservation Firestore boundary
+        run: npm run test:concept-reservations
+        working-directory: cloudrun/transport-proof
+      - name: Regression gate before deploy
+        run: npm run -s test:part-1 && npm run -s test:part-2 && npm run -s test:part-3 && npm run -s test:planning-authority-p0
+        working-directory: cloudrun/transport-proof
       - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
@@ -76,3 +89,19 @@ jobs:
           deployed_sha=$(gcloud run revisions describe "$revision" "${args[@]}" --format='value(metadata.labels.commit-sha)')
           [[ "$deployed_sha" == "$GITHUB_SHA" ]]
           printf 'Revision: %s\nURL: %s\nCommit: %s\nRegular traffic: unchanged\n' "$revision" "$url" "$GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Smoke: the tagged candidate must boot and keep protected routes fail-closed for unauthenticated callers.
+          # Only status codes are inspected; response bodies are discarded (no business data in logs).
+          for spec in '/api/v1/build:^(200|302|303|401|403)$' '/api/v1/manager/open:^(302|303|401|403)$'; do
+            path="${spec%%:*}"; expected="${spec#*:}"
+            code=""
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl --silent --output /dev/null --max-time 20 --write-out '%{http_code}' "$url$path" || true)
+              [[ "$code" =~ $expected ]] && break
+              sleep 10
+            done
+            echo "Smoke $path (unauthenticated): HTTP $code" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [[ ! "$code" =~ $expected ]]; then
+              echo "::error::Tagged candidate smoke failed for $path (got HTTP $code)."
+              exit 1
+            fi
+          done

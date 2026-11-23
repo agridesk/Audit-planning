@@ -64,6 +64,7 @@ import {executeSnapshotShapeUpgrades20,planSnapshotShapeUpgrades20} from './plan
 import {managerGridBuilder20,setFirestoreGridAuditSource20,setFirestoreGridReferenceSource20} from './planning-grid-source-registry-20.js';
 import {createGridReferenceSource20,createReferenceTablesFirestoreStore20,createVersionedReferenceTableReader20} from './reference-tables-firestore-20.js';
 import {createReferenceTablesGateway20} from './reference-tables-gateway-20.js';
+import {createAuditPlanningWriteGuard20} from './audit-planning-write-guard-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -223,6 +224,12 @@ if(referenceGatewayWriteEnabled){
   store:createReferenceTablesFirestoreStore20({projectId:project,getToken,fetchImpl:originalFetch}),log:x=>console.log(JSON.stringify(x))});
  globalThis.fetch=referenceGateway.fetch;
 }
+// Golf 2 (DEV): Sheets writes to Audit planning outside the atomic projectors are attributed per caller.
+// observe = log only, enforce = refuse (409) before Sheets. Atomic projectors use the trusted path.
+const auditPlanningGuardMode=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'?String(process.env.AMS_DEV_AUDIT_PLANNING_WRITE_GUARD||'').trim():'';
+const auditPlanningGuard=['observe','enforce'].includes(auditPlanningGuardMode)?createAuditPlanningWriteGuard20({spreadsheetId:spreadsheet,fetchImpl:globalThis.fetch,mode:auditPlanningGuardMode,log:x=>console.log(JSON.stringify(x))}):null;
+const atomicProjectionFetch=auditPlanningGuard?auditPlanningGuard.trustedFetch:globalThis.fetch;
+if(auditPlanningGuard)globalThis.fetch=auditPlanningGuard.fetch;
 const rotationHistoryMigrationEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev';
 const rotationHistoryFirestoreReadEnabled=rotationHistoryMigrationEnabled&&
  process.env.AMS_DEV_ROTATION_HISTORY_FIRESTORE_READ_ENABLED==='true'&&
@@ -299,13 +306,13 @@ const planningAtomicBackfill=planningAtomicStore?createPlanningBackfillRunner({
  atomicStore:planningAtomicStore,readPlanningRows,getRoster
 }):null;
 const planningAtomicProjector=planningAtomicEnabled?createPlanningSheetsWritesetProjector({
- spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+ spreadsheetId:spreadsheet,getToken,fetchImpl:atomicProjectionFetch,verifyFence:async({operationId,gateToken})=>{
   const gate=await planningGlobalGate.read();
   if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_DISTRIBUTED_FENCE_LOST');
  }
 }):null;
 const planningAtomicAppendProjector=planningAtomicEnabled?createPlanningSheetsAppendProjector({
- spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+ spreadsheetId:spreadsheet,getToken,fetchImpl:atomicProjectionFetch,verifyFence:async({operationId,gateToken})=>{
   const gate=await planningGlobalGate.read();
   if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_APPEND_FENCE_LOST');
  }
@@ -2475,6 +2482,13 @@ http.createServer(async(req,res)=>{
    const result=await planningOutboxReconciler.scan();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/audit-planning-write-guard'){
+   if(!auditPlanningGuard){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,readOnly:true,...auditPlanningGuard.stats()}));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/firestore-authority-status'){
    if(!planningAuthorityEnabled){res.writeHead(404);res.end();return;}

@@ -77,6 +77,7 @@ COPY planning-firestore-authority-20.js ./
 COPY planning-*.js ./
 COPY reference-tables-firestore-20.js ./
 COPY reference-tables-gateway-20.js ./
+COPY audit-planning-write-guard-20.js ./
 COPY realized-hours-atomic-service-20.js ./
 COPY planning-atomic-extension-writeset-20.mjs ./
 COPY planning-cutover-compatibility-20.mjs ./

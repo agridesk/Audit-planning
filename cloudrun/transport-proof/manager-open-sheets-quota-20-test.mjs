@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {buildPlanningValuesFromAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r9=readFileSync(new URL('./server-r9.js',import.meta.url),'utf8');
@@ -30,17 +31,22 @@ planningRows.push(row('visit-483','{"totalPlannedHours":4.5}'));
 planningRows.push(row('visit-484','{"totalPlannedHours":7}'));
 const gridRows=['visit-1','visit-2','visit-483','visit-484'].map(auditId=>({auditId,hoursPlanned:'',scopes:[]}));
 
-let sheetsReads=0,fallbackReads=0,forceSheetsError=false,identity=null,lastForwarded=null,responseOverride=null;
+let sheetsReads=0,fallbackReads=0,forceSheetsError=false,identity=null,lastForwarded=null,responseOverride=null,gridAuditSource=null,lastPlanningValues=null;
 const r4Context={
  process:{env:{AMS_RUNTIME_ENV:'DEV',K_SERVICE:'ams-fase12-dev'}},
- SESSION_SECRET:secret,BUILD:'test',Date:{now:()=>1000},URL,clean,key,col,
+ SESSION_SECRET:secret,BUILD:'test',Date:{now:()=>1000},URL,clean,key,col,console:{warn:()=>{}},
+ firestoreGridAuditSource20:()=>gridAuditSource,buildPlanningValuesFromAudits20,scopeDefaultHours20,
  sessionConfigured:()=>secret.length>=32,safeEq:(a,b)=>a===b,
  scopeCatalog:()=>[],gridScopeStyles20:()=>({}),extensionMonthsForScopes:()=>0,
- directAuditorDisplayName:()=>'',managerOpen:()=>({success:true,rows:structuredClone(gridRows)}),
+ directAuditorDisplayName:()=>'',managerOpen:values=>{lastPlanningValues=values;return {success:true,rows:structuredClone(gridRows)};},
  auditorOpenRead:async()=>({success:true,actorRole:'Auditor',rows:structuredClone(gridRows)}),
  sessionFromRequestValidated:async req=>req.identity,
  sheetsBatchGet:async ranges=>{
   sheetsReads++;
+  if(gridAuditSource){
+   assert.deepEqual(Array.from(ranges),['Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256'],'Firestore Grid skips the Audit planning read');
+   return [{values:[['SlotKey','Default_hours']]},{values:[]},{values:[]}];
+  }
   assert.deepEqual(Array.from(ranges),['Audit planning!A1:BW2000','Config_Scopes!A1:Z128',
    'Companies!A1:AZ1024','Auditors!A1:Z256']);
   if(forceSheetsError)throw Error('SHEETS_API_429');
@@ -157,6 +163,20 @@ assert.equal(limited[1][1],'','Planning JSON beyond AX must not enter the legacy
 const beyondOnly=Array(51).fill('');beyondOnly[50]='outside range';
 assert.equal(r4Context.managerR9PlanningSnapshot20([['Audit ID'],beyondOnly]).length,1);
 assert.throws(()=>r4Context.managerR9PlanningSnapshot20([['Audit ID'],null]),/MANAGER_GRID_SNAPSHOT_SOURCE_INVALID/);
+
+// Firestore Grid source (DEV flag in r15): rows come from Firestore snapshots; any failure falls back to Sheets.
+r4Context.process.env.AMS_RUNTIME_ENV='DEV';
+gridAuditSource=async()=>[{auditId:'fs-1',revision:0,snapshot:{auditId:'fs-1',sourceRow:3,headers:['Audit ID','Status'],row:['fs-1','Approved']}}];
+result=await direct({role:'Manager',email:'manager@example.test'},{});
+assert.equal(result.body.gridSource,'FIRESTORE');
+assert.deepEqual(lastPlanningValues,[['Audit ID','Status'],[],['fs-1','Approved']],'Firestore rows keep their sheet position');
+gridAuditSource=async()=>{throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');};
+const fallbackSource=gridAuditSource;
+r4Context.sheetsBatchGet=(original=>async ranges=>{if(ranges.length===3)return original(ranges);gridAuditSource=null;try{return await original(ranges);}finally{gridAuditSource=fallbackSource;}})(r4Context.sheetsBatchGet);
+result=await direct({role:'Manager',email:'manager@example.test'},{});
+assert.equal(result.body.gridSource,'SHEETS_FALLBACK');
+assert.equal(lastPlanningValues[0][0],'Audit ID');assert.equal(lastPlanningValues.length,planningRows.length);
+gridAuditSource=null;
 
 await assert.rejects(()=>request({override:response(200,{success:true,rows:gridRows})}),/MANAGER_GRID_SNAPSHOT_REQUIRED/);
 await assert.rejects(()=>request({override:response(200,{success:true,rows:gridRows,_r9PlanningRows20:{}})}),/MANAGER_GRID_SNAPSHOT_INVALID/);

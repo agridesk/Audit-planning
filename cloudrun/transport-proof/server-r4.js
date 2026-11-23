@@ -1,4 +1,6 @@
 import {requiredTogetherScopePairs20} from './scope-dependency-policy-20.mjs';
+import {firestoreGridAuditSource20,setManagerGridBuilder20} from './planning-grid-source-registry-20.js';
+import {buildPlanningValuesFromAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 import http from 'node:http';
 import {validateTogetherCompositionPreflight20} from './visit-composition-together-r4-preflight-20.mjs';
 import {managerApprovalBlocks20,resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
@@ -970,7 +972,19 @@ function managerGridSnapshotRequested20(req,role){
   role==='manager'&&sessionConfigured()&&clean(req.headers['x-ams-r9-grid-snapshot'])==='1'&&
   safeEq(clean(req.headers['x-ams-internal-secret']),SESSION_SECRET);
 }
-async function managerOpenRead(email,loaded,includePlanningSnapshot=false){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=loaded||await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;if(includePlanningSnapshot)out._r9PlanningRows20=managerR9PlanningSnapshot20(vr[0]?.values??[]);out.serverMs=Date.now()-t;return out;}
+// Grid rows come from Firestore only when r15 registered a source (DEV flag); any failure falls back to Sheets.
+async function managerGridSources20(loaded){
+ const source=loaded?null:firestoreGridAuditSource20();
+ if(source){
+  try{
+   const [rest,records]=await Promise.all([sheetsBatchGet(['Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),source()]);
+   const planning=buildPlanningValuesFromAudits20(records,{scopeDefaults:scopeDefaultHours20(rest[0]?.values||[])});
+   return {vr:[{values:planning},...rest],gridSource:'FIRESTORE'};
+  }catch(e){console.warn('[AMS_GRID_FIRESTORE_FALLBACK]',clean(e?.message||'').slice(0,80));}
+ }
+ return {vr:loaded||await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),gridSource:source?'SHEETS_FALLBACK':'SHEETS'};
+}
+async function managerOpenRead(email,loaded,includePlanningSnapshot=false){const t=Date.now(),actorEmail=clean(email).toLowerCase(),{vr,gridSource}=await managerGridSources20(loaded),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.gridSource=gridSource;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;if(includePlanningSnapshot)out._r9PlanningRows20=managerR9PlanningSnapshot20(vr[0]?.values??[]);out.serverMs=Date.now()-t;return out;}
 async function managerEnrichmentSource20(email){
  const ranges=['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024'];
  const result=await sheetsBatchGet(ranges);
@@ -2495,6 +2509,7 @@ async function focused(id,identity){
   };
 }
 
+setManagerGridBuilder20((planningValues,email,scopeValues,companyValues,auditorValues)=>managerOpen(planningValues,clean(email).toLowerCase(),scopeValues,companyValues,auditorValues));
 http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type','access-control-allow-credentials':'true','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_CANONICAL_GAS_WRITE',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),sessionSecretPresent:SESSION_SECRET.length>0,sessionSecretLength:SESSION_SECRET.length,writeUrlConfigured:!!GAS_WRITE_URL,writeBridgeSecretConfigured:WRITE_KEY.length>=32,authState:sessionConfigured()?'SESSION_EXCHANGE_READY':'PENDING_SESSION_SECRET'});

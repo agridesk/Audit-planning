@@ -59,7 +59,8 @@ import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
-import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20,compareManagerGridOutputs20,comparePlanningGridSources20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {managerGridBuilder20,setFirestoreGridAuditSource20} from './planning-grid-source-registry-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -201,6 +202,10 @@ if(compositionWriteRequested&&(!runtime.isDev||!planningAtomicEnabled||
 const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
 validatePlanningAtomicRuntime20({enabled:planningAtomicEnabled,legacyWriterRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',backfillParityVerified:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true',otherAuthorityEnabled:planningAuthorityEnabled,deferredManagementRoutes:planningAtomicDeferredManagementRoutes20});
 const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
+// Manager Grid reads Firestore instead of Sheets only with this explicit DEV flag; r4 falls back to Sheets on any error.
+const gridFirestoreReadEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&
+ process.env.AMS_DEV_FIRESTORE_GRID_READ_ENABLED==='true'&&Boolean(planningAtomicStore);
+if(gridFirestoreReadEnabled)setFirestoreGridAuditSource20(()=>listAllPlanningAudits20(planningAtomicStore));
 const rotationHistoryMigrationEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev';
 const rotationHistoryFirestoreReadEnabled=rotationHistoryMigrationEnabled&&
  process.env.AMS_DEV_ROTATION_HISTORY_FIRESTORE_READ_ENABLED==='true'&&
@@ -2073,14 +2078,17 @@ http.createServer(async(req,res)=>{
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end();return;}
    const started=Date.now();
-   const configUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent('Config_Scopes!A1:Z128');
-   const readConfigScopes=async()=>{const r=await fetch(configUrl,{headers:{authorization:'Bearer '+await getToken()}});if(!r.ok)throw Error('GRID_CONFIG_SCOPES_READ_'+r.status);return (await r.json()).values||[];};
-   const [sheetValues,records,configScopes]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore),readConfigScopes()]);
+   const readRange=async range=>{const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range),{headers:{authorization:'Bearer '+await getToken()}});if(!r.ok)throw Error('GRID_PARITY_SHEETS_READ_'+r.status);return (await r.json()).values||[];};
+   const [sheetValues,records,configScopes,companies,auditors]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore),readRange('Config_Scopes!A1:Z128'),readRange('Companies!A1:AZ1024'),readRange('Auditors!A1:Z256')]);
    const scopeDefaults=scopeDefaultHours20(configScopes);
    const report=comparePlanningGridSources20(sheetValues,records,{scopeDefaults});
-   let projection='OK';try{buildPlanningValuesFromAudits20(records,{scopeDefaults});}catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
+   let projection='OK',grid={gridParity:'BUILDER_UNAVAILABLE'};
+   try{
+    const fsValues=buildPlanningValuesFromAudits20(records,{scopeDefaults}),builder=managerGridBuilder20();
+    if(builder)grid={gridParity:'OK',...compareManagerGridOutputs20(builder(sheetValues,actor.email,configScopes,companies,auditors),builder(fsValues,actor.email,configScopes,companies,auditors))};
+   }catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-   res.end(JSON.stringify({success:true,readOnly:true,projection,...report,serverMs:Date.now()-started}));return;
+   res.end(JSON.stringify({success:true,readOnly:true,gridFirestoreReadEnabled,projection,...report,grid,serverMs:Date.now()-started}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-parity'){
    if(!planningAtomicParity){res.writeHead(404);res.end();return;}

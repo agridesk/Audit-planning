@@ -31,6 +31,20 @@ export function deriveTotalAuditHours20(headers,row,defaults){
  const out=row.slice();while(out.length<=idx)out.push('');out[idx]=total;return out;
 }
 
+// Compares two manager Grid outputs (managerOpen) per audit; reports field names and counts only.
+export function compareManagerGridOutputs20(sheetGrid,firestoreGrid){
+ const index=grid=>new Map((grid?.rows||[]).map(row=>[clean(row.auditId),row]));
+ const a=index(sheetGrid),b=index(firestoreGrid),diffFields={};let matched=0,missing=0,extra=0;
+ for(const [id,row] of a){
+  const other=b.get(id);if(!other){missing++;continue;}
+  const fields=[...new Set([...Object.keys(row),...Object.keys(other)])].filter(k=>JSON.stringify(row[k])!==JSON.stringify(other[k]));
+  if(!fields.length)matched++;
+  for(const k of fields)diffFields[k]=(diffFields[k]||0)+1;
+ }
+ for(const id of b.keys())if(!a.has(id))extra++;
+ return {ready:missing===0&&extra===0&&matched===a.size,gridRowsSheet:a.size,gridRowsFirestore:b.size,gridMatched:matched,gridMissing:missing,gridExtra:extra,gridDiffFields:diffFields};
+}
+
 export async function listAllPlanningAudits20(store,{maxPages=20,pageSize=200}={}){
  if(typeof store?.listAudits!=='function')throw Error('GRID_FIRESTORE_STORE_INVALID');
  const audits=[];let pageToken='';
@@ -60,7 +74,10 @@ export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null}={})
  if(headers===null)throw Error('GRID_FIRESTORE_EMPTY');
  // Firestore-first writers have no Sheets row; they follow legacy rows, ordered by Audit ID.
  rows.sort((a,b)=>a.sourceRow-b.sourceRow||(a.auditId<b.auditId?-1:a.auditId>b.auditId?1:0));
- return [headers,...rows.map(x=>x.row)];
+ // Keep legacy rows at their sheet position so Grid sourceRow stays stable.
+ const out=[headers];
+ for(const x of rows){if(Number.isFinite(x.sourceRow))while(out.length<x.sourceRow-1)out.push([]);out.push(x.row);}
+ return out;
 }
 
 // Compares the live Sheets tab with Firestore by Audit ID and full row content.

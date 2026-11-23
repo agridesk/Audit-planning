@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,deriveTotalAuditHours20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,compareManagerGridOutputs20,deriveTotalAuditHours20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 
 const headers=['Audit ID','Company','Status','Planning JSON'];
 const audit=(auditId,sourceRow,row,extra={})=>({auditId,revision:0,snapshot:{auditId,sourceRow,headers,row},...extra});
@@ -17,6 +17,7 @@ assert.throws(()=>buildPlanningValuesFromAudits20([{auditId:'C',snapshot:{auditI
 assert.throws(()=>buildPlanningValuesFromAudits20([]),/GRID_FIRESTORE_EMPTY/);
 // Firestore-first audits without a Sheets row follow legacy rows, ordered by Audit ID.
 assert.deepEqual(buildPlanningValuesFromAudits20([audit('Q',undefined,['Q']),audit('P',undefined,['P']),audit('A',2,['A'])]).slice(1),[['A'],['P'],['Q']]);
+assert.deepEqual(buildPlanningValuesFromAudits20([audit('A',2,['A']),audit('D',5,['D'])]).slice(1),[['A'],[],[],['D']],'sheet row positions are preserved');
 assert.equal(comparePlanningGridSources20([headers,['A','Co A','Pending Planning']],[audit('A',undefined,['A','Co A','Pending Planning'])]).ready,true);
 const hoursDrift=comparePlanningGridSources20([['Audit ID','SCOPE_01','Total audit time in hours'],['A','x','3']],
  [{auditId:'A',revision:0,snapshot:{auditId:'A',sourceRow:2,headers:['Audit ID','SCOPE_01','Total audit time in hours'],row:['A','x','3']}}],
@@ -58,4 +59,7 @@ assert.deepEqual(comparePlanningGridSources20(changedSheet,stale).mismatchColumn
 const rederived=comparePlanningGridSources20(changedSheet,stale,{scopeDefaults:scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','5.5']])});
 assert.equal(rederived.ready,true);
 assert.deepEqual(buildPlanningValuesFromAudits20(stale,{scopeDefaults:defaultsDot})[1],['A','x','','',4]);
+const gridCmp=compareManagerGridOutputs20({rows:[{auditId:'A',company:'Co',requiredHours:4},{auditId:'B',company:'Co'}]},{rows:[{auditId:'A',company:'Co',requiredHours:5},{auditId:'C'}]});
+assert.deepEqual(gridCmp,{ready:false,gridRowsSheet:2,gridRowsFirestore:2,gridMatched:0,gridMissing:1,gridExtra:1,gridDiffFields:{requiredHours:1}});
+assert.equal(compareManagerGridOutputs20({rows:[{auditId:'A',x:1}]},{rows:[{auditId:'A',x:1}]}).ready,true);
 console.log('planning-firestore-grid-projection-20-test: ok');

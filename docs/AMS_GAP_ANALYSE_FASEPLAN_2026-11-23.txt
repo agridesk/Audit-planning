@@ -63,6 +63,13 @@ Snelheid (gecorrigeerd): op DEV (AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED=true,
   Rollback: rosterFor() terug naar getRoster(). Grid volledig uit Firestore lezen vereist eerst de P3-backfill.
 Auditoractie-idempotentie: write-safe al aanwezig (verplichte expectedRevision + statusguard => replay geeft 409, nooit dubbele write; verloren antwoord => readback of OUTCOME_UNCONFIRMED_DO_NOT_RETRY). Replay-succes via requestId vereist duurzaam Firestore-requestledger (in-memory schaalt niet over instances) => verplaatst naar P2 bij de Firestore-lifecycleketen.
 P2: Toolkit -> atomaire Firestore-keten; Combined Audits; schrijffence + notitiemigratie; jaarcapaciteit readmodel.
+P2a Grid uit Firestore (bezig): projectie planning-firestore-grid-projection-20.js + GET /api/v1/planning/grid-firestore-parity
+  (DEV, manager, read-only, alleen tellingen). Uren worden bij lezen afgeleid (zelfde regel als GAS AuditTimeV5).
+  Meting DEV-kandidaat 00386-xuh: 118 Sheet-audits, 95 Firestore, 88 gelijk; 7 afwijkingen = Sheet-uren niet herberekend
+  (Firestore-afleiding juist); 23 ontbreken in Firestore (Rejected 7, Completed 11, Approved 3, Pending Planning 2)
+  door schrijvers buiten de atomaire keten (GAS/Model C, afwijzen, Combined); 3 archief-snapshots zonder rij (commitRealizedHours).
+  Volgende: die schrijvers Firestore-first, archief-snapshot behoudt rij, daarna DEV-backfill en managerOpenRead achter vlag.
+  Rollback: endpoint/module verwijderen; geen data geraakt.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

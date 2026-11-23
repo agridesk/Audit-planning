@@ -65,7 +65,7 @@ export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null}={})
 export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=null}={}){
  const head=(sheetValues?.[0]||[]).map(clean),idCol=head.indexOf('Audit ID');
  if(idCol<0)throw Error('GRID_PARITY_SHEET_SCHEMA_INVALID');
- const problems=[],sheetById=new Map(),mismatchColumns={},missingStatuses={},hoursDiagnostics={},statusCol=head.indexOf('Status');let matched=0;
+ const problems=[],sheetById=new Map(),mismatchColumns={},missingStatuses={},hoursDiagnostics={},shapeDiagnostics={},statusCol=head.indexOf('Status');let matched=0;
  sheetValues.slice(1).forEach((row,i)=>{
   const id=clean(row[idCol]);if(!id)return;
   if(sheetById.has(id))problems.push({sourceRow:i+2,reason:'SHEET_AUDIT_ID_DUPLICATE'});
@@ -75,7 +75,11 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
  for(const record of records||[]){
   if(!record||record.removed===true)continue;
   const s=record.snapshot;
-  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)){problems.push({sourceRow:null,reason:'FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED'});continue;}
+  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)){
+   problems.push({sourceRow:null,reason:'FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED'});
+   const k=Object.keys(s||{}).sort().join('|')+(record.lastOperationId?'#op':'#noop')+'#rev'+record.revision;
+   shapeDiagnostics[k]=(shapeDiagnostics[k]||0)+1;continue;
+  }
   fsById.set(clean(record.auditId),record);
  }
  for(const [id,sheet] of sheetById){
@@ -98,5 +102,5 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
  }
  for(const [id,record] of fsById)if(!sheetById.has(id))problems.push({sourceRow:record.snapshot?.sourceRow??null,reason:'FIRESTORE_AUDIT_NOT_IN_SHEET'});
  const reasons={};for(const p of problems)reasons[p.reason]=(reasons[p.reason]||0)+1;
- return {ready:problems.length===0&&matched===sheetById.size,sheetAudits:sheetById.size,firestoreAudits:fsById.size,matched,reasons,mismatchColumns,missingStatuses,hoursDiagnostics,problems:problems.slice(0,200)};
+ return {ready:problems.length===0&&matched===sheetById.size,sheetAudits:sheetById.size,firestoreAudits:fsById.size,matched,reasons,mismatchColumns,missingStatuses,hoursDiagnostics,shapeDiagnostics,problems:problems.slice(0,200)};
 }

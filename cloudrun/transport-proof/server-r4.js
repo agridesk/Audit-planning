@@ -977,14 +977,16 @@ async function managerGridSources20(loaded){
  const source=loaded?null:firestoreGridAuditSource20();
  if(source){
   try{
-   const [rest,records]=await Promise.all([sheetsBatchGet(['Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),source()]);
-   const planning=buildPlanningValuesFromAudits20(records,{scopeDefaults:scopeDefaultHours20(rest[0]?.values||[])});
-   return {vr:[{values:planning},...rest],gridSource:'FIRESTORE'};
+   const t0=Date.now(),timed=p=>p.then(v=>[v,Date.now()-t0]);
+   const [[rest,sheetsMs],[records,firestoreMs]]=await Promise.all([timed(sheetsBatchGet(['Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256'])),timed(source())]);
+   const t1=Date.now(),planning=buildPlanningValuesFromAudits20(records,{scopeDefaults:scopeDefaultHours20(rest[0]?.values||[])});
+   return {vr:[{values:planning},...rest],gridSource:'FIRESTORE',gridTimings:{sheetsMs,firestoreMs,projectMs:Date.now()-t1,records:records.length}};
   }catch(e){console.warn('[AMS_GRID_FIRESTORE_FALLBACK]',clean(e?.message||'').slice(0,80));}
  }
- return {vr:loaded||await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),gridSource:source?'SHEETS_FALLBACK':'SHEETS'};
+ const t0=Date.now();
+ return {vr:loaded||await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),gridSource:source?'SHEETS_FALLBACK':'SHEETS',gridTimings:loaded?null:{sheetsMs:Date.now()-t0}};
 }
-async function managerOpenRead(email,loaded,includePlanningSnapshot=false){const t=Date.now(),actorEmail=clean(email).toLowerCase(),{vr,gridSource}=await managerGridSources20(loaded),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.gridSource=gridSource;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;if(includePlanningSnapshot)out._r9PlanningRows20=managerR9PlanningSnapshot20(vr[0]?.values??[]);out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email,loaded,includePlanningSnapshot=false){const t=Date.now(),actorEmail=clean(email).toLowerCase(),{vr,gridSource,gridTimings}=await managerGridSources20(loaded),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=(row.scopes||[]).filter(name=>catalog.some(def=>[def.displayName,def.scopeCode,def.slotKey].some(k=>key(k)===key(name))&&Number(def.extensionMonths||0)>0));row.canExtend=null;}out.fastFirstPaint=true;out.gridSource=gridSource;out.gridTimings=gridTimings||null;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;if(includePlanningSnapshot)out._r9PlanningRows20=managerR9PlanningSnapshot20(vr[0]?.values??[]);out.serverMs=Date.now()-t;return out;}
 async function managerEnrichmentSource20(email){
  const ranges=['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024'];
  const result=await sheetsBatchGet(ranges);

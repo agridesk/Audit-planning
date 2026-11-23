@@ -108,6 +108,20 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   });
   return {claims,nextPageToken:data.nextPageToken||null};
  }
+ async function listAudits({pageSize=100,pageToken=''}={}){
+  if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>200||typeof pageToken!=='string')throw Error('PLANNING_AUDIT_SCAN_INPUT_INVALID');
+  const u=new URL(base+'/'+coll.audit);u.searchParams.set('pageSize',String(pageSize));
+  if(pageToken)u.searchParams.set('pageToken',pageToken);
+  const r=await request(u.toString());
+  if(!r.ok)throw Error('PLANNING_AUDIT_SCAN_'+r.status);
+  const data=await r.json(),audits=(data.documents||[]).map(raw=>{
+   const key=decodeURIComponent(String(raw.name||'').split('/').at(-1)||'');
+   const decoded=decodeDoc(raw);
+   if(!validId(key)||decoded?.value?.auditId!==key)throw Error('PLANNING_AUDIT_SCAN_CORRUPT');
+   return decoded.value;
+  });
+  return {audits,nextPageToken:data.nextPageToken||null};
+ }
  async function readAudit(auditId){return clone((await get('audit',auditId))?.value??null);}
  async function inspectAuditClaimIndex(auditId){
   const audit=await readAudit(auditId);
@@ -393,5 +407,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,listAudits,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
 }

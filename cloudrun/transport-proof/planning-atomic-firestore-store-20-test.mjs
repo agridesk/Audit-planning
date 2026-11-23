@@ -38,8 +38,9 @@ const fetchImpl=async(url,init={})=>{
   }
   return response(200,{commitTime:'2026-10-29T12:00:00Z',writeResults:writes.map(()=>({updateTime:'t'+clock}))});
  }
- if(method==='GET'&&path.endsWith('/documents/ams_planning_20_dev_claims')){
-  const all=[...store.entries()].filter(([key])=>key.startsWith('ams_planning_20_dev_claims/')).map(([,doc])=>doc);
+ const listed=method==='GET'&&path.match(/\/documents\/(ams_planning_20_dev_(?:claims|audits))$/);
+ if(listed){
+  const all=[...store.entries()].filter(([key])=>key.startsWith(listed[1]+'/')).map(([,doc])=>doc);
   const offset=u.searchParams.get('pageToken')?Number(u.searchParams.get('pageToken')):0,size=Number(u.searchParams.get('pageSize')||100);
   return response(200,{documents:all.slice(offset,offset+size),...(offset+size<all.length?{nextPageToken:String(offset+size)}:{})});
  }
@@ -80,6 +81,12 @@ assert.equal(nextClaims.nextPageToken,null);
 assert.equal((await authority.inspectAuditClaimIndex(auditId)).ok,true);
 const other='A2';store.set('ams_planning_20_dev_audits/'+other,{name:db+'/ams_planning_20_dev_audits/'+other,updateTime:'t0',fields:{payload:encode({auditId:other,revision:0,snapshot:{auditId:other},claimIds:[],pendingOperationId:null})}});
 await assert.rejects(()=>authority.commit({...body,auditId:other,operationId:'op-other',nextSnapshot:{auditId:other},expectedRevision:0}),/PLANNING_SLOT_ALREADY_CLAIMED/);
+const auditPage=await authority.listAudits({pageSize:1});
+assert.equal(auditPage.audits.length,1);assert.ok(auditPage.nextPageToken);
+const auditRest=await authority.listAudits({pageSize:1,pageToken:auditPage.nextPageToken});
+assert.deepEqual([...auditPage.audits,...auditRest.audits].map(x=>x.auditId).sort(),['A1','A2']);
+assert.equal(auditRest.nextPageToken,null);
+await assert.rejects(()=>authority.listAudits({pageSize:201}),/PLANNING_AUDIT_SCAN_INPUT_INVALID/);
 conflict=true;
 await assert.rejects(()=>authority.commit({...body,operationId:'op-two',expectedRevision:1,nextSnapshot:{auditId,status:'Accepted'}}),/PLANNING_TRANSACTION_CONFLICT/);
 failCommit=true;

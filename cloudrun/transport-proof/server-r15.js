@@ -59,6 +59,7 @@ import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
+import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,listAllPlanningAudits20} from './planning-firestore-grid-projection-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -2064,6 +2065,19 @@ http.createServer(async(req,res)=>{
    if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
    const result=await planningGlobalClaimsParity.verify({maxPages:50});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  // Read-only Grid source parity: Sheets tab vs Firestore audit snapshots.
+  // Reports counts, row numbers and reason codes only; never writes.
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/grid-firestore-parity'){
+   if(!runtime.isDev||!planningAtomicStore){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end();return;}
+   const started=Date.now();
+   const [sheetValues,records]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore)]);
+   const report=comparePlanningGridSources20(sheetValues,records);
+   let projection='OK';try{buildPlanningValuesFromAudits20(records);}catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,readOnly:true,projection,...report,serverMs:Date.now()-started}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-parity'){
    if(!planningAtomicParity){res.writeHead(404);res.end();return;}

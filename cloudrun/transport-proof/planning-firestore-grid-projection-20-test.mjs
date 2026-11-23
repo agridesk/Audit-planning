@@ -23,6 +23,8 @@ assert.equal(same.ready,true);assert.equal(same.matched,2);assert.deepEqual(same
 const drift=comparePlanningGridSources20([headers,['A','Co A','Approved'],['B','Co B','Accepted','{}'],['N','Co N','Pending Planning']],[...records,audit('Z',9,['Z','Co Z','Approved'])]);
 assert.equal(drift.ready,false);
 assert.deepEqual(drift.reasons,{ROW_CONTENT_MISMATCH:1,FIRESTORE_AUDIT_MISSING:1,FIRESTORE_AUDIT_NOT_IN_SHEET:1});
+assert.deepEqual(drift.mismatchColumns,{Status:1});
+assert.deepEqual(drift.missingStatuses,{'Pending Planning':1});
 assert.ok(drift.problems.every(p=>Object.keys(p).sort().join()==='reason,sourceRow'));
 assert.ok(!JSON.stringify(drift).includes('Co '),'parity report must not contain business data');
 

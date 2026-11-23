@@ -115,6 +115,16 @@ P2c Golf 1 stap B (CODE GEDAAN, DEV, vlaggen uit): reference-tables-gateway-20.j
   (Firestore eerst, Sheets 200); Firestore-rij (sleutel Auditor_UID) bijgewerkt; teruggezet (200, 2,3 s); daarna
   pariteitsrun 45218651100: auditors/companies/config_scopes + Grid equal, manifest = oorspronkelijke backfill.
   Lezen auditor-management 0,8-0,9 s. Rollback: verkeer naar 00366-puc (vlaggen uit).
+P2d Golf 2 stap A (LIVE IN DEV, observe): audit-planning-write-guard-20.js als fetch-laag in r15.
+  Elke Sheets-schrijf op 'Audit planning' buiten de atomaire projectors (die via trustedFetch schrijven) wordt
+  per aanroeper (bestand:regel, 3 frames) gelogd: AUDIT_PLANNING_UNFENCED_WRITE. Vlag AMS_DEV_AUDIT_PLANNING_WRITE_GUARD
+  = observe (alleen loggen) | enforce (409 AUDIT_PLANNING_WRITE_NOT_FIRESTORE_FIRST, niets naar Sheets) | leeg (uit).
+  Status (manager, alleen-lezen, per instantie): GET /api/v1/planning/audit-planning-write-guard. Bron van waarheid
+  voor attributie: Cloud Logging (jsonPayload.event=AUDIT_PLANNING_UNFENCED_WRITE). Revisie 00230-2zm (image 038544b6)
+  100% verkeer sinds 2026-11-23 18:08, observe; grid/auditor-management 200. Rollback: verkeer naar 00426-dov.
+  Volgende: na representatieve gebruiksperiode de gelogde aanroepers Firestore-first maken (of verwijderen),
+  dan enforce. GAS-schrijvers buiten Cloud Run ziet deze laag niet: tabbeveiliging 'Audit planning' (zoals Golf 1)
+  is de fence daarvoor; vereist eerst bevestiging dat annual-cycle/onEdit-triggers niet meer nodig zijn (inventaris 5a).
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

@@ -77,7 +77,7 @@ Doel: niets vergeten bij Firestore als enige bron (Auditor_UID als koppeling, Sh
 5. FUNCTIONALITEIT DIE VERLOREN GAAT ALS JE HEM VERGEET
   a. Annual cycle (volgende auditrij bij Completed) - draait op onEdit van de Sheet; bij Firestore-only stopt dit stil.
   b. Notificatieverzending - de minuuttrigger leest de Queue-tab; Firestore-commits zonder queue-projectie => geen mails.
-  c. Totale uren - GAS herberekent in de Sheet; Firestore leidt al af bij lezen (P2a), GAS-writer daarna overbodig.
+  c. Totale uren - GAS herberekent in de Sheet; Firestore bewaart uren als opgeslagen velden (shape-upgrade), GAS-writer daarna overbodig.
   d. Reject - archief + obligation-unlink + statusvelden horen in een transactie.
   e. Beschikbaarheid - dagelijkse GAS-job en handmatige blokken buiten Firestore-claims om.
   f. Scope Manager / Model C - maakt audits rechtstreeks in de Sheet; Firestore-Grid mist ze dan.
@@ -88,6 +88,7 @@ Doel: niets vergeten bij Firestore als enige bron (Auditor_UID als koppeling, Sh
   Golf 1 Referentie (snelheid Grid): Auditors(+Identity_Versions, Tokens), Companies, Company_Scopes,
          Company_Scope_Hours, Config_Scopes(+Dependencies, ScopeVersions), Standards, Certification_Bodies.
   Golf 2 Planning-levenscyclus: Audit planning-schrijvers (Cloud Run + GAS), Obligations, Visit_Obligations,
+         [stap A live in DEV 2026-11-23: write guard observe, zie gap-analyse P2d]
          Rejected audits, Log realized audits, Availability, Concept Reservations, Qualifications/Eligibility.
   Golf 3 Notificaties: Queue -> Firestore-outbox + sender, Rules/Config/Settings/Templates, ECAS receipts.
   Golf 4 Opruimen: caches, diagnostics, GAS-triggers uitzetten na bewezen pariteit.

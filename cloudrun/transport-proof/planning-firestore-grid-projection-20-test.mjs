@@ -14,6 +14,8 @@ assert.deepEqual(buildPlanningValuesFromAudits20(records),[headers,['A','Co A','
 assert.throws(()=>buildPlanningValuesFromAudits20([audit('A',2,['A']),audit('B',2,['B'])]),/GRID_FIRESTORE_SOURCE_ROW_DUPLICATE/);
 assert.throws(()=>buildPlanningValuesFromAudits20([audit('A',2,['A']),{auditId:'B',snapshot:{auditId:'B',sourceRow:3,headers:['Other'],row:['B']}}]),/GRID_FIRESTORE_HEADERS_DIVERGENT/);
 assert.throws(()=>buildPlanningValuesFromAudits20([{auditId:'C',snapshot:{auditId:'C',status:'Approved'}}]),/GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED/);
+// Parity reports may skip unsupported legacy snapshots; the default stays strict.
+assert.deepEqual(buildPlanningValuesFromAudits20([...records,{auditId:'C',snapshot:{auditId:'C',status:'Approved'}}],{skipUnsupportedShapes:true}),[headers,['A','Co A','Pending Planning'],['B','Co B','Accepted','{}']]);
 assert.throws(()=>buildPlanningValuesFromAudits20([]),/GRID_FIRESTORE_EMPTY/);
 // Firestore-first audits without a Sheets row follow legacy rows, ordered by Audit ID.
 assert.deepEqual(buildPlanningValuesFromAudits20([audit('Q',undefined,['Q']),audit('P',undefined,['P']),audit('A',2,['A'])]).slice(1),[['A'],['P'],['Q']]);

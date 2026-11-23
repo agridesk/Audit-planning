@@ -57,14 +57,18 @@ export async function listAllPlanningAudits20(store,{maxPages=20,pageSize=200}={
  throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');
 }
 
-export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null}={}){
+// skipUnsupportedShapes is for parity reports only; the live Grid read must stay strict.
+export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null,skipUnsupportedShapes=false}={}){
  if(!Array.isArray(records))throw Error('GRID_FIRESTORE_RECORDS_INVALID');
  let headers=null;const rows=[],seenRows=new Set();
  for(const record of records){
   if(!record||record.removed===true)continue;
   const s=record.snapshot;
   const hasRow=s?.sourceRow!==undefined&&s?.sourceRow!==null;
-  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)||hasRow&&(!Number.isSafeInteger(s.sourceRow)||s.sourceRow<2))throw Error('GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED');
+  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)||hasRow&&(!Number.isSafeInteger(s.sourceRow)||s.sourceRow<2)){
+   if(skipUnsupportedShapes)continue;
+   throw Error('GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED');
+  }
   if(headers===null)headers=s.headers.slice();
   else if(!same(headers,s.headers))throw Error('GRID_FIRESTORE_HEADERS_DIVERGENT');
   if(hasRow&&seenRows.has(s.sourceRow))throw Error('GRID_FIRESTORE_SOURCE_ROW_DUPLICATE');

@@ -60,6 +60,7 @@ import {createPartialTimestampRepair20} from './planning-atomic-partial-timestam
 import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {buildPlanningValuesFromAudits20,compareManagerGridOutputs20,comparePlanningGridSources20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {executeSnapshotShapeUpgrades20,planSnapshotShapeUpgrades20} from './planning-snapshot-shape-upgrade-20.js';
 import {managerGridBuilder20,setFirestoreGridAuditSource20} from './planning-grid-source-registry-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
@@ -2089,6 +2090,28 @@ http.createServer(async(req,res)=>{
    }catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,readOnly:true,gridFirestoreReadEnabled,projection,...report,grid,serverMs:Date.now()-started}));return;
+  }
+  // DEV one-off: legacy Model C snapshots without Grid shape. Preview is read-only;
+  // execute needs its own default-off flag, same-origin and the preview manifest.
+  if(u.pathname==='/api/v1/planning/snapshot-shape-upgrade'&&(req.method==='GET'||req.method==='POST')){
+   if(!runtime.isDev||process.env.K_SERVICE!=='ams-fase12-dev'||!planningAtomicStore){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end();return;}
+   const writeEnabled=process.env.AMS_DEV_SNAPSHOT_SHAPE_UPGRADE_WRITE_ENABLED==='true';
+   const send=(status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(body));};
+   let manifest=null;
+   if(req.method==='POST'){
+    let originOk=false;try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+    if(!originOk){send(403,{success:false,code:'ORIGIN_REJECTED'});return;}
+    if(!writeEnabled){send(409,{success:false,code:'SHAPE_UPGRADE_WRITE_DISABLED'});return;}
+    manifest=(await readBoundedJson(req,512)).manifest;
+   }
+   const [sheetValues,records]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore)]);
+   try{
+    if(req.method==='GET'){const {candidates,...plan}=planSnapshotShapeUpgrades20(sheetValues,records);send(200,{success:true,readOnly:true,writeEnabled,...plan});return;}
+    send(200,{success:true,readOnly:false,...await executeSnapshotShapeUpgrades20({store:planningAtomicStore,sheetValues,records,manifest})});
+   }catch(error){send(409,{success:false,code:String(error?.message||'SHAPE_UPGRADE_FAILED').replace(/[^A-Z0-9_]/g,'').slice(0,80)});}
+   return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-parity'){
    if(!planningAtomicParity){res.writeHead(404);res.end();return;}

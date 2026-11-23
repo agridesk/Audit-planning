@@ -10,6 +10,7 @@ on:
       - 'cloudrun/transport-proof/server-r15.js'
       - 'cloudrun/transport-proof/planning-firestore-grid-projection-20.js'
       - 'cloudrun/transport-proof/planning-grid-source-registry-20.js'
+      - 'cloudrun/transport-proof/planning-snapshot-shape-upgrade-20.js'
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/concept-reservation-firestore-store-20.js'
       - 'cloudrun/transport-proof/concept-reservation-bridge-20.js'

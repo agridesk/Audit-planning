@@ -369,6 +369,25 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {seeded:true,idempotent:false,claimCount:ids.length};
   });
  }
+ /** DEV shape upgrade for legacy snapshots: adds Grid headers/row/sourceRow only.
+  * Revision, claims, blocks and lastOperationId stay untouched; no outbox, so no Sheets projection.
+  */
+ async function upgradeSnapshotShape({auditId,expectedRevision,sourceRow,headers,row}){
+  if(!validId(auditId)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||!Number.isSafeInteger(sourceRow)||sourceRow<2||
+     !Array.isArray(headers)||!headers.length||!Array.isArray(row)||!row.length)throw Error('PLANNING_SHAPE_UPGRADE_INPUT_INVALID');
+  return transaction(async tx=>{
+   const old=await tx.get('audit',auditId),current=old?.value,s=current?.snapshot;
+   if(!current||current.auditId!==auditId||s?.auditId!==auditId)throw Error('PLANNING_SHAPE_UPGRADE_AUDIT_MISSING');
+   if(current.revision!==expectedRevision)throw Error('PLANNING_SHAPE_UPGRADE_REVISION_CONFLICT');
+   if(Array.isArray(s.headers)&&Array.isArray(s.row)){
+    if(s.sourceRow===sourceRow&&JSON.stringify(s.headers)===JSON.stringify(headers)&&JSON.stringify(s.row)===JSON.stringify(row))return {upgraded:false,seeded:false,idempotent:true};
+    throw Error('PLANNING_SHAPE_UPGRADE_ALREADY_SHAPED');
+   }
+   if(current.removed===true||s.identityRetired===true||current.pendingOperationId)throw Error('PLANNING_SHAPE_UPGRADE_STATE_INVALID');
+   tx.set('audit',auditId,{...current,snapshot:{...s,headers:clone(headers),row:clone(row),sourceRow,shapeUpgradedAt:new Date().toISOString()}});
+   return {upgraded:true};
+  });
+ }
  async function markProjected({auditId,operationId,proof}){
   if(!validId(auditId)||!validId(operationId)||proof?.verified!==true||proof?.auditId!==auditId||typeof proof?.rowHash!=='string'||!/^[a-f0-9]{64}$/.test(proof.rowHash))throw Error('PLANNING_PROJECTION_EVIDENCE_REQUIRED');
   return transaction(async tx=>{
@@ -407,5 +426,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,listAudits,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,listAudits,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,upgradeSnapshotShape,markProjected,markUncertain});
 }

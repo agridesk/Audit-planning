@@ -15,6 +15,14 @@ assert.throws(()=>buildPlanningValuesFromAudits20([audit('A',2,['A']),audit('B',
 assert.throws(()=>buildPlanningValuesFromAudits20([audit('A',2,['A']),{auditId:'B',snapshot:{auditId:'B',sourceRow:3,headers:['Other'],row:['B']}}]),/GRID_FIRESTORE_HEADERS_DIVERGENT/);
 assert.throws(()=>buildPlanningValuesFromAudits20([{auditId:'C',snapshot:{auditId:'C',status:'Approved'}}]),/GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED/);
 assert.throws(()=>buildPlanningValuesFromAudits20([]),/GRID_FIRESTORE_EMPTY/);
+// Firestore-first audits without a Sheets row follow legacy rows, ordered by Audit ID.
+assert.deepEqual(buildPlanningValuesFromAudits20([audit('Q',undefined,['Q']),audit('P',undefined,['P']),audit('A',2,['A'])]).slice(1),[['A'],['P'],['Q']]);
+assert.equal(comparePlanningGridSources20([headers,['A','Co A','Pending Planning']],[audit('A',undefined,['A','Co A','Pending Planning'])]).ready,true);
+const hoursDrift=comparePlanningGridSources20([['Audit ID','SCOPE_01','Total audit time in hours'],['A','x','3']],
+ [{auditId:'A',revision:0,snapshot:{auditId:'A',sourceRow:2,headers:['Audit ID','SCOPE_01','Total audit time in hours'],row:['A','x','3']}}],
+ {scopeDefaults:scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','4']])});
+assert.deepEqual(hoursDrift.hoursDiagnostics,{SHEET_HOURS_NOT_RECOMPUTED:1});
+assert.deepEqual(comparePlanningGridSources20([headers],[...records,{auditId:'M',revision:0,lastOperationId:'o',snapshot:{auditId:'M',status:'Approved'}}]).shapeDiagnostics,{'auditId|status#op#rev0':1});
 
 // Parity: identical sources are ready; every drift class is reported by row number only.
 const sheet=[headers,['A','Co A','Pending Planning'],['B','Co B','Accepted','{}']];

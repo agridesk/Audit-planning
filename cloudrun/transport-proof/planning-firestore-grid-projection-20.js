@@ -49,15 +49,17 @@ export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null}={})
  for(const record of records){
   if(!record||record.removed===true)continue;
   const s=record.snapshot;
-  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)||!Number.isSafeInteger(s?.sourceRow)||s.sourceRow<2)throw Error('GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED');
+  const hasRow=s?.sourceRow!==undefined&&s?.sourceRow!==null;
+  if(!Array.isArray(s?.headers)||!Array.isArray(s?.row)||hasRow&&(!Number.isSafeInteger(s.sourceRow)||s.sourceRow<2))throw Error('GRID_FIRESTORE_SNAPSHOT_SHAPE_UNSUPPORTED');
   if(headers===null)headers=s.headers.slice();
   else if(!same(headers,s.headers))throw Error('GRID_FIRESTORE_HEADERS_DIVERGENT');
-  if(seenRows.has(s.sourceRow))throw Error('GRID_FIRESTORE_SOURCE_ROW_DUPLICATE');
-  seenRows.add(s.sourceRow);
-  rows.push({sourceRow:s.sourceRow,row:trimEnd(scopeDefaults?deriveTotalAuditHours20(s.headers,s.row,scopeDefaults):s.row)});
+  if(hasRow&&seenRows.has(s.sourceRow))throw Error('GRID_FIRESTORE_SOURCE_ROW_DUPLICATE');
+  if(hasRow)seenRows.add(s.sourceRow);
+  rows.push({sourceRow:hasRow?s.sourceRow:Infinity,auditId:clean(record.auditId),row:trimEnd(scopeDefaults?deriveTotalAuditHours20(s.headers,s.row,scopeDefaults):s.row)});
  }
  if(headers===null)throw Error('GRID_FIRESTORE_EMPTY');
- rows.sort((a,b)=>a.sourceRow-b.sourceRow);
+ // Firestore-first writers have no Sheets row; they follow legacy rows, ordered by Audit ID.
+ rows.sort((a,b)=>a.sourceRow-b.sourceRow||(a.auditId<b.auditId?-1:a.auditId>b.auditId?1:0));
  return [headers,...rows.map(x=>x.row)];
 }
 
@@ -86,7 +88,7 @@ export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=
   const record=fsById.get(id);
   if(!record){problems.push({sourceRow:sheet.sourceRow,reason:'FIRESTORE_AUDIT_MISSING'});const st=statusCol<0?'':clean(sheet.row[statusCol])||'(empty)';missingStatuses[st]=(missingStatuses[st]||0)+1;continue;}
   if(!same(record.snapshot.headers,sheetValues[0]))problems.push({sourceRow:sheet.sourceRow,reason:'HEADERS_MISMATCH'});
-  else if(record.snapshot.sourceRow!==sheet.sourceRow)problems.push({sourceRow:sheet.sourceRow,reason:'SOURCE_ROW_MOVED'});
+  else if(record.snapshot.sourceRow!=null&&record.snapshot.sourceRow!==sheet.sourceRow)problems.push({sourceRow:sheet.sourceRow,reason:'SOURCE_ROW_MOVED'});
   else if(!same(scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row,sheet.row)){
    problems.push({sourceRow:sheet.sourceRow,reason:'ROW_CONTENT_MISMATCH'});
    const fsRow=scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,listAllPlanningAudits20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,deriveTotalAuditHours20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 
 const headers=['Audit ID','Company','Status','Planning JSON'];
 const audit=(auditId,sourceRow,row,extra={})=>({auditId,revision:0,snapshot:{auditId,sourceRow,headers,row},...extra});
@@ -35,4 +35,19 @@ const store={async listAudits({pageSize,pageToken}){calls.push([pageSize,pageTok
 assert.equal((await listAllPlanningAudits20(store)).length,2);
 assert.deepEqual(calls,[[200,''],[200,'p2']]);
 await assert.rejects(()=>listAllPlanningAudits20({async listAudits(){return {audits:[],nextPageToken:'again'};}},{maxPages:3}),/GRID_FIRESTORE_SCAN_TRUNCATED/);
+
+// Derived "Total audit time in hours" follows GAS AuditTimeV5: overrides win, else Config_Scopes defaults.
+const scopeHead=['Audit ID','SCOPE_01','SCOPE_02','Duration SCOPE_02','Total audit time in hours'];
+const defaults=scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','4'],['SCOPE_02','2,5']]);
+assert.equal(defaults.get('SCOPE_02'),2.5);
+const defaultsDot=scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','4'],['SCOPE_02','2.5']]);
+assert.deepEqual(deriveTotalAuditHours20(scopeHead,['A','x','x','','1'],defaultsDot),['A','x','x','',6.5]);
+assert.deepEqual(deriveTotalAuditHours20(scopeHead,['A','x','X','3','1'],defaultsDot),['A','x','X','3',7]);
+assert.throws(()=>scopeDefaultHours20([['Other']]),/GRID_CONFIG_SCOPES_SCHEMA_INVALID/);
+const stale=[{auditId:'A',revision:0,snapshot:{auditId:'A',sourceRow:2,headers:scopeHead,row:['A','x','','','4']}}];
+const changedSheet=[scopeHead,['A','x','','','5,5']];
+assert.deepEqual(comparePlanningGridSources20(changedSheet,stale).mismatchColumns,{'Total audit time in hours':1});
+const rederived=comparePlanningGridSources20(changedSheet,stale,{scopeDefaults:scopeDefaultHours20([['SlotKey','Default_hours'],['SCOPE_01','5.5']])});
+assert.equal(rederived.ready,true);
+assert.deepEqual(buildPlanningValuesFromAudits20(stale,{scopeDefaults:defaultsDot})[1],['A','x','','',4]);
 console.log('planning-firestore-grid-projection-20-test: ok');

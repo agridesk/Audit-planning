@@ -5,7 +5,31 @@
  */
 const clean=value=>String(value??'').trim();
 const trimEnd=values=>{const out=(values||[]).map(v=>v==null?'':v);while(out.length&&clean(out.at(-1))==='')out.pop();return out;};
-const same=(a,b)=>JSON.stringify(trimEnd(a).map(clean))===JSON.stringify(trimEnd(b).map(clean));
+const num=value=>Number(clean(value).replace(',','.'))||0;
+const cell=value=>{const s=clean(value),n=s.replace(',','.');return /^-?\d+(\.\d+)?$/.test(n)?String(Number(n)):s;};
+const same=(a,b)=>JSON.stringify(trimEnd(a).map(cell))===JSON.stringify(trimEnd(b).map(cell));
+const TOTAL_HOURS_HEADER='total audit time in hours';
+
+// Same rule as GAS AuditTimeV5: sum of marked SCOPE_n columns, using the
+// row's "Duration SCOPE_n" override or Config_Scopes Default_hours.
+export function scopeDefaultHours20(configScopeValues){
+ const head=(configScopeValues?.[0]||[]).map(clean),slot=head.indexOf('SlotKey'),hours=head.indexOf('Default_hours');
+ if(slot<0||hours<0)throw Error('GRID_CONFIG_SCOPES_SCHEMA_INVALID');
+ const map=new Map();
+ for(const row of configScopeValues.slice(1)){const key=clean(row[slot]);if(key)map.set(key,num(row[hours]));}
+ return map;
+}
+export function deriveTotalAuditHours20(headers,row,defaults){
+ const head=(headers||[]).map(clean),idx=head.map(h=>h.toLowerCase()).indexOf(TOTAL_HOURS_HEADER);
+ if(idx<0||!(defaults instanceof Map))return row;
+ let total=0;
+ head.forEach((h,c)=>{
+  if(!/^SCOPE_\d+$/.test(h)||clean(row[c]).toLowerCase()!=='x')return;
+  const d=head.indexOf('Duration '+h),override=d>=0?num(row[d]):0;
+  total+=override||defaults.get(h)||0;
+ });
+ const out=row.slice();while(out.length<=idx)out.push('');out[idx]=total;return out;
+}
 
 export async function listAllPlanningAudits20(store,{maxPages=20,pageSize=200}={}){
  if(typeof store?.listAudits!=='function')throw Error('GRID_FIRESTORE_STORE_INVALID');
@@ -19,7 +43,7 @@ export async function listAllPlanningAudits20(store,{maxPages=20,pageSize=200}={
  throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');
 }
 
-export function buildPlanningValuesFromAudits20(records){
+export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null}={}){
  if(!Array.isArray(records))throw Error('GRID_FIRESTORE_RECORDS_INVALID');
  let headers=null;const rows=[],seenRows=new Set();
  for(const record of records){
@@ -30,7 +54,7 @@ export function buildPlanningValuesFromAudits20(records){
   else if(!same(headers,s.headers))throw Error('GRID_FIRESTORE_HEADERS_DIVERGENT');
   if(seenRows.has(s.sourceRow))throw Error('GRID_FIRESTORE_SOURCE_ROW_DUPLICATE');
   seenRows.add(s.sourceRow);
-  rows.push({sourceRow:s.sourceRow,row:trimEnd(s.row)});
+  rows.push({sourceRow:s.sourceRow,row:trimEnd(scopeDefaults?deriveTotalAuditHours20(s.headers,s.row,scopeDefaults):s.row)});
  }
  if(headers===null)throw Error('GRID_FIRESTORE_EMPTY');
  rows.sort((a,b)=>a.sourceRow-b.sourceRow);
@@ -38,7 +62,7 @@ export function buildPlanningValuesFromAudits20(records){
 }
 
 // Compares the live Sheets tab with Firestore by Audit ID and full row content.
-export function comparePlanningGridSources20(sheetValues,records){
+export function comparePlanningGridSources20(sheetValues,records,{scopeDefaults=null}={}){
  const head=(sheetValues?.[0]||[]).map(clean),idCol=head.indexOf('Audit ID');
  if(idCol<0)throw Error('GRID_PARITY_SHEET_SCHEMA_INVALID');
  const problems=[],sheetById=new Map(),mismatchColumns={},missingStatuses={},statusCol=head.indexOf('Status');let matched=0;
@@ -59,10 +83,11 @@ export function comparePlanningGridSources20(sheetValues,records){
   if(!record){problems.push({sourceRow:sheet.sourceRow,reason:'FIRESTORE_AUDIT_MISSING'});const st=statusCol<0?'':clean(sheet.row[statusCol])||'(empty)';missingStatuses[st]=(missingStatuses[st]||0)+1;continue;}
   if(!same(record.snapshot.headers,sheetValues[0]))problems.push({sourceRow:sheet.sourceRow,reason:'HEADERS_MISMATCH'});
   else if(record.snapshot.sourceRow!==sheet.sourceRow)problems.push({sourceRow:sheet.sourceRow,reason:'SOURCE_ROW_MOVED'});
-  else if(!same(record.snapshot.row,sheet.row)){
+  else if(!same(scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row,sheet.row)){
    problems.push({sourceRow:sheet.sourceRow,reason:'ROW_CONTENT_MISMATCH'});
-   const width=Math.max(head.length,record.snapshot.row.length,sheet.row.length);
-   for(let c=0;c<width;c++)if(clean(record.snapshot.row[c])!==clean(sheet.row[c])){const name=head[c]||'#'+c;mismatchColumns[name]=(mismatchColumns[name]||0)+1;}
+   const fsRow=scopeDefaults?deriveTotalAuditHours20(record.snapshot.headers,record.snapshot.row,scopeDefaults):record.snapshot.row;
+   const width=Math.max(head.length,fsRow.length,sheet.row.length);
+   for(let c=0;c<width;c++)if(cell(fsRow[c])!==cell(sheet.row[c])){const name=head[c]||'#'+c;mismatchColumns[name]=(mismatchColumns[name]||0)+1;}
   }
   else matched++;
  }

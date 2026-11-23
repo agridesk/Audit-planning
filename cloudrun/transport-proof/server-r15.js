@@ -59,7 +59,7 @@ import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
-import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,listAllPlanningAudits20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -2073,9 +2073,12 @@ http.createServer(async(req,res)=>{
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end();return;}
    const started=Date.now();
-   const [sheetValues,records]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore)]);
-   const report=comparePlanningGridSources20(sheetValues,records);
-   let projection='OK';try{buildPlanningValuesFromAudits20(records);}catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
+   const configUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent('Config_Scopes!A1:Z128');
+   const readConfigScopes=async()=>{const r=await fetch(configUrl,{headers:{authorization:'Bearer '+await getToken()}});if(!r.ok)throw Error('GRID_CONFIG_SCOPES_READ_'+r.status);return (await r.json()).values||[];};
+   const [sheetValues,records,configScopes]=await Promise.all([readPlanningRows(),listAllPlanningAudits20(planningAtomicStore),readConfigScopes()]);
+   const scopeDefaults=scopeDefaultHours20(configScopes);
+   const report=comparePlanningGridSources20(sheetValues,records,{scopeDefaults});
+   let projection='OK';try{buildPlanningValuesFromAudits20(records,{scopeDefaults});}catch(error){projection=String(error?.message||'GRID_FIRESTORE_PROJECTION_FAILED');}
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,readOnly:true,projection,...report,serverMs:Date.now()-started}));return;
   }

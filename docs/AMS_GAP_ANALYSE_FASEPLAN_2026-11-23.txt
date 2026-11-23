@@ -120,8 +120,13 @@ P2d Golf 2 stap A (LIVE IN DEV, observe): audit-planning-write-guard-20.js als f
   per aanroeper (bestand:regel, 3 frames) gelogd: AUDIT_PLANNING_UNFENCED_WRITE. Vlag AMS_DEV_AUDIT_PLANNING_WRITE_GUARD
   = observe (alleen loggen) | enforce (409 AUDIT_PLANNING_WRITE_NOT_FIRESTORE_FIRST, niets naar Sheets) | leeg (uit).
   Status (manager, alleen-lezen, per instantie): GET /api/v1/planning/audit-planning-write-guard. Bron van waarheid
-  voor attributie: Cloud Logging (jsonPayload.event=AUDIT_PLANNING_UNFENCED_WRITE). Revisie 00230-2zm (image 038544b6)
-  100% verkeer sinds 2026-11-23 18:08, observe; grid/auditor-management 200. Rollback: verkeer naar 00426-dov.
+  voor attributie: Cloud Logging (jsonPayload.event=AUDIT_PLANNING_UNFENCED_WRITE). Revisie 00439-kal (f625e281)
+  100% verkeer sinds 2026-11-23 18:30, observe; auditor-management 200. Rollback: 00230-2zm, of 00426-dov (guard uit).
+  Statische inventaris (2026-11-23): met atomic aan bereiken legacy r4-schrijvers (approve/accept/reject/complete/
+  extension) Sheets niet meer: r15 handelt de routes atomair af (planningAtomicOwnedHttpRoutes20; deferred-lijst leeg)
+  en r4 draait alleen als preview (lifecyclePreviewContext20, geen fetch). Twee gate-gefencede r15-projecties
+  (realized-hours writeBatch, self-planning-rescue writeToggle) gebruikten nog de globale fetch en zijn naar
+  trustedFetch gezet, zodat enforce ze niet blokkeert. Observe-log sinds livegang: 0 ongefencede schrijvers.
   Volgende: na representatieve gebruiksperiode de gelogde aanroepers Firestore-first maken (of verwijderen),
   dan enforce. GAS-schrijvers buiten Cloud Run ziet deze laag niet: tabbeveiliging 'Audit planning' (zoals Golf 1)
   is de fence daarvoor; vereist eerst bevestiging dat annual-cycle/onEdit-triggers niet meer nodig zijn (inventaris 5a).

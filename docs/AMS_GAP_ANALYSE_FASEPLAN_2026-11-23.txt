@@ -100,8 +100,10 @@ P2c Golf 1 stap B (CODE GEDAAN, DEV, vlaggen uit): reference-tables-gateway-20.j
   Vlaggen: AMS_DEV_FIRESTORE_REFERENCE_WRITE_ENABLED (gateway), AMS_DEV_FIRESTORE_REFERENCE_FACADE_READ_ENABLED
   (waarde-reads uit Firestore). Alleen DEV-service. Tests: reference-tables-gateway-20-test.mjs (in test:part-1).
   Herstel bij stale: meta + rijen van die tabel verwijderen en backfill-workflow opnieuw draaien.
-  NOG NODIG voor live aanzetten: GAS-schrijvers en handmatige bewerkingen op deze tabs fencen (tabbeveiliging
-  of GAS via Cloud Run) - beslissing gebruiker. Rollback: vlaggen uit (default); r15-registratie terug.
+  Fencing (GEDAAN 2026-11-23, keuze gebruiker: tabbeveiliging; Scope Manager e.a. GAS-schermen niet meer in gebruik):
+  Auditors/Companies/Config_Scopes beveiligd, editor alleen runtime-SA (+ eigenaar). Workflow ams-dev-reference-protect
+  (mode preview|apply|remove; remove = rollback). Rest: GAS-triggers die als eigenaar draaien blijven technisch
+  mogelijk; geen bekende trigger schrijft deze tabs. Rollback gateway: vlaggen uit (default); r15-registratie terug.
 P3: Backfill na preview/pariteit (vereist toestemming voor schrijven).
 
 5. OPEN PUNTEN (beslissing gebruiker)

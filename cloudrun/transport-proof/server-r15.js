@@ -664,7 +664,7 @@ const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRea
    return (await response.json()).sheets;
   },
   writeBatch:async requests=>{
-   const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+':batchUpdate',
+   const response=await atomicProjectionFetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+':batchUpdate',
     {method:'POST',headers:{authorization:'Bearer '+await getToken(),'content-type':'application/json'},body:JSON.stringify({requests}),signal:AbortSignal.timeout(12000)});
    if(!response.ok)throw Error('REALIZED_HOURS_BATCH_WRITE_FAILED');
   }
@@ -846,7 +846,7 @@ const planningSelfPlanningRescue=planningAtomicRecovery?createAtomicSelfPlanning
   if(before.holder?.operationId!==operationId||before.holder.token!==token||
      before.holder.state!=='RECOVERING')throw Error('SELF_PLANNING_RESCUE_FENCE_LOST');
   const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(cell)+'?valueInputOption=RAW';
-  const response=await fetch(url,{method:'PUT',headers:{
+  const response=await atomicProjectionFetch(url,{method:'PUT',headers:{
    authorization:'Bearer '+await getToken(),'content-type':'application/json'
   },body:JSON.stringify({range:cell,majorDimension:'ROWS',values:[[value]]})});
   if(!response.ok)throw Error('SELF_PLANNING_RESCUE_WRITE_HTTP_'+response.status);

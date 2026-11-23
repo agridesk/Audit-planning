@@ -94,6 +94,6 @@ for(const needle of uiChecks){if(needle.startsWith('!'))assert.ok(!ui.includes(n
 
 assert.ok(ui.includes("'/api/v1/auditor/action'"),'Auditor Complete must use authenticated Auditor action endpoint');cases++;
 assert.ok(r10.includes("const auditorMode=clean(obj?.actorRole).toLowerCase()==='auditor'"),'R10 enrichment must detect Auditor actor scope');cases++;
-assert.ok(r10.includes("if(!auditorMode)r.allowedActions=allowedActions"),'R10 enrichment must never replace Auditor actor-scoped actions');cases++;
+assert.ok(r10.includes("if(!auditorMode&&!Array.isArray(r.allowedActions))r.allowedActions=allowedActions"),'R10 enrichment must never replace Auditor actor-scoped actions');cases++;
 
 console.log(JSON.stringify({ok:true,build:'2026-10-10_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R4',tests:cases,writesPerformed:false}));

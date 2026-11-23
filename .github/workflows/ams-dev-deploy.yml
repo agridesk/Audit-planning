@@ -19,6 +19,16 @@ on:
       - 'cloudrun/transport-proof/server-r12.js'
       - 'cloudrun/transport-proof/manager-portal.js'
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Single EXT release operation
+        required: true
+        type: choice
+        options: [deploy, preview, promote, source-check, rollback, logs, promote-ext-perf, rollback-ext-perf, promote-ext-perf2, rollback-ext-perf2, promote-planner-status, rollback-planner-status, promote-fs-availability, rollback-fs-availability]
+      revision:
+        description: Candidate revision for preview or promotion
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -30,7 +40,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' && github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -105,3 +115,220 @@ jobs:
               exit 1
             fi
           done
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && inputs.operation != 'source-check' && inputs.operation != 'logs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: inputs.operation == 'deploy'
+        with:
+          node-version: '22'
+      - name: Assemble and test isolated EXT-only source
+        if: inputs.operation == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 7aedb189f820719ba34025e4bded9a579c16e247
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
+          mkdir "$RUNNER_TEMP/ext-source"
+          git archive 97be78618828f4ef772ed319be5a0bf865a15a47 | tar -xf - -C "$RUNNER_TEMP/ext-source"
+          git diff --binary c424006d57f23bd866a821e11d30b817b90eab88 2fb3286259b135d65f9ab8803455c9f9ecaa3a40 -- \
+            cloudrun/transport-proof/planning-atomic-extension-service-20.js \
+            cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs \
+            cloudrun/transport-proof/server-r4.js \
+            cloudrun/transport-proof/model-c-extension-dev-direct-route-20-test.mjs \
+            cloudrun/transport-proof/manager-dev-write-route-20-test.mjs \
+            cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs > "$RUNNER_TEMP/ext.patch"
+          test -s "$RUNNER_TEMP/ext.patch"
+          cd "$RUNNER_TEMP/ext-source"
+          git apply --check "$RUNNER_TEMP/ext.patch"
+          git apply "$RUNNER_TEMP/ext.patch"
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs" cloudrun/transport-proof/
+          cd cloudrun/transport-proof
+          npm test > "$RUNNER_TEMP/ext-tests.log" 2>&1 || { tail -n 80 "$RUNNER_TEMP/ext-tests.log"; exit 1; }
+          echo "Isolated EXT-only full test suite passed"
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Execute guarded DEV-only operation
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
+          service=ams-fase12-dev
+          live=ams-fase12-dev-00345-huc
+          candidate_sha=111f0d499b037acc59351edfbd2c25e3faf3f09b
+          tag="single-ext-${candidate_sha:0:12}"
+          describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
+          traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
+          current=$(describe)
+          jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
+          jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
+          if [[ "$OPERATION" =~ ^(promote|rollback)-(ext-perf2?|planner-status|fs-availability)$ ]]; then
+            if [[ "$OPERATION" == *fs-availability ]]; then
+              stable=ams-fase12-dev-00363-koj
+              perf=ams-fase12-dev-00366-puc
+              perf_tag=fs-availability-45030318869
+              perf_sha=629112622e20ab20304ebf72febed36d82624d33
+            elif [[ "$OPERATION" == *planner-status ]]; then
+              stable=ams-fase12-dev-00361-yif
+              perf=ams-fase12-dev-00363-koj
+              perf_tag=planner-status-45021939941
+              perf_sha=db2674cdf0aae1cccc59125ed954011e3171e845
+            elif [[ "$OPERATION" == *perf2 ]]; then
+              stable=ams-fase12-dev-00359-rar
+              perf=ams-fase12-dev-00361-yif
+              perf_tag=ext-perf-45019807926
+              perf_sha=562b406a22c67d6473909e7645cc7eea2b57b2c5
+            else
+              stable=ams-fase12-dev-00349-lux
+              perf=ams-fase12-dev-00359-rar
+              perf_tag=ext-perf-45017520422
+              perf_sha=2e1946b33463273b85249ac93cfd817ca05205da
+            fi
+            if [[ "$OPERATION" == promote-* ]]; then
+              [[ "$(jq -er --arg tag "$perf_tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")" == "$perf" ]]
+              revision_json=$(gcloud run revisions describe "$perf" "${args[@]}" --format=json)
+              jq -e --arg sha "$perf_sha" '.metadata.labels["commit-sha"] == $sha and any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$revision_json" >/dev/null
+              from="$stable"; to="$perf"
+            else
+              revision_json=$(gcloud run revisions describe "$stable" "${args[@]}" --format=json)
+              jq -e 'any(.status.conditions[]; .type == "Ready" and .status == "True")' <<<"$revision_json" >/dev/null
+              from="$perf"; to="$stable"
+            fi
+            jq -e --arg from "$from" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $from and .[0].percent == 100' <<<"$current" >/dev/null
+            gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$to=100" >/dev/null
+            current=$(describe)
+            jq -e --arg to "$to" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $to and .[0].percent == 100' <<<"$current" >/dev/null
+            echo "DEV_TRAFFIC=$to=100"
+            exit 0
+          fi
+          failed=ams-fase12-dev-00349-lux
+          if [[ "$OPERATION" == logs ]]; then
+            for rev in "$failed" "$live"; do
+              echo "=== REQUESTS $rev ==="
+              gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json |
+                jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("\\?.*$";""))] | @tsv'
+              echo "=== ERRORS $rev ==="
+              gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND (severity>=ERROR OR textPayload:\"AMS_ROUTE_ERROR\" OR textPayload:\"Error\" OR textPayload:\"exited\" OR textPayload:\"terminated\")" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json |
+                jq -r '.[] | [.timestamp, .severity, ((.textPayload // (.jsonPayload|tostring) // "") | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>") | .[0:400])] | @tsv'
+            done
+            exit 0
+          fi
+          if [[ "$OPERATION" == rollback ]]; then
+            jq -e --arg failed "$failed" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $failed and .[0].percent == 100' <<<"$current" >/dev/null
+            gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$live=100" >/dev/null
+            current=$(describe)
+            jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
+            echo "ROLLED_BACK_TO=$live"
+            exit 0
+          fi
+          jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
+          before=$(traffic <<<"$current")
+          if [[ "$OPERATION" == deploy ]]; then
+            [[ "$GITHUB_SHA" == "$candidate_sha" ]]
+            gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \
+              --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1"
+            current=$(describe)
+            [[ "$(traffic <<<"$current")" == "$before" ]]
+            revision=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+            echo "CANDIDATE=$revision TAG=$tag REGULAR_TRAFFIC_UNCHANGED"
+          elif [[ "$OPERATION" == preview || "$OPERATION" == promote ]]; then
+            [[ "$REVISION" =~ ^ams-fase12-dev-[0-9]+-[a-z0-9]+$ ]]
+            actual=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+            [[ "$actual" == "$REVISION" ]]
+            sha=$(gcloud run revisions describe "$REVISION" "${args[@]}" --format='value(metadata.labels.commit-sha)')
+            [[ "$sha" == "$candidate_sha" ]]
+            if [[ "$OPERATION" == preview ]]; then
+              previous=$(jq -er '.status.traffic[] | select(.tag == "preflight" and (.percent // 0) == 0) | .revisionName' <<<"$current")
+              restore() {
+                local c p
+                c=$(describe) || return 1
+                p=$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$c") || return 1
+                if [[ "$p" == "$REVISION" ]]; then
+                  gcloud run services update-traffic "$service" "${args[@]}" --update-tags="preflight=$previous" >/dev/null || return 1
+                elif [[ "$p" != "$previous" ]]; then
+                  echo "::error::Preflight tag changed externally; refusing to overwrite it"
+                  return 1
+                fi
+                c=$(describe) || return 1
+                [[ "$(traffic <<<"$c")" == "$before" ]] || return 1
+                [[ "$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$c")" == "$previous" ]]
+              }
+              trap 'restore || exit 1' EXIT
+              trap 'exit 130' INT
+              trap 'exit 143' TERM
+              gcloud run services update-traffic "$service" "${args[@]}" --update-tags="preflight=$REVISION" >/dev/null
+              current=$(describe)
+              [[ "$(traffic <<<"$current")" == "$before" ]]
+              [[ "$(jq -er '.status.traffic[] | select(.tag == "preflight") | .revisionName' <<<"$current")" == "$REVISION" ]]
+              echo "PREFLIGHT_WINDOW_OPEN=$REVISION"
+              sleep 180
+            else
+              gcloud run services update-traffic "$service" "${args[@]}" --to-revisions="$REVISION=100" >/dev/null
+              current=$(describe)
+              jq -e --arg revision "$REVISION" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $revision and .[0].percent == 100' <<<"$current" >/dev/null
+              echo "PROMOTED=$REVISION"
+            fi
+          else
+            echo "::error::Unsupported operation"
+            exit 1
+          fi
+  verify-source:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev' && (inputs.operation == 'source-check' || inputs.operation == 'logs')
+    environment: ams-dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Authenticate read-only DEV identity
+        id: read_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - uses: google-github-actions/setup-gcloud@v3
+        if: inputs.operation == 'logs'
+      - name: Read EXT request logs
+        if: inputs.operation == 'logs'
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "=== EXT TIMING ams-fase12-dev-00359-rar ==="
+          gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"ams-fase12-dev-00359-rar\" AND textPayload:\"_TIMING\"" --project=audit-management-system-dev --freshness=2d --limit=40 --format=json | jq -r '.[] | [.timestamp, (.textPayload // "" | .[0:600])] | @tsv' || echo "TIMING_LOG_READ_FAILED"
+          echo "=== EXT REQUEST LATENCY ams-fase12-dev-00359-rar ==="
+          gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"ams-fase12-dev-00359-rar\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=2d --limit=40 --format=json | jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("[?].*";""))] | @tsv' || echo "REQUEST_LOG_READ_FAILED"
+          for rev in ams-fase12-dev-00349-lux ams-fase12-dev-00345-huc; do
+            echo "=== REQUESTS $rev ==="
+            gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND httpRequest.requestUrl:\"extension-obligation\"" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json | jq -r '.[] | [.timestamp, .httpRequest.requestMethod, (.httpRequest.status|tostring), .httpRequest.latency, (.httpRequest.requestUrl | sub("[?].*";""))] | @tsv'
+            echo "=== ERRORS $rev ==="
+            gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.revision_name=\"$rev\" AND (severity>=WARNING OR textPayload:\"AMS_ROUTE_ERROR\")" --project=audit-management-system-dev --freshness=3h --limit=40 --format=json | jq -r '.[] | [.timestamp, .severity, ((.textPayload // (.jsonPayload|tostring) // "") | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>") | .[0:400])] | @tsv'
+          done
+      - name: Verify candidate against read-only DEV sources
+        if: inputs.operation == 'source-check'
+        env:
+          TOKEN: ${{ steps.read_auth.outputs.access_token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
+          test "$(git hash-object cloudrun/transport-proof/scope-dependency-policy-20.mjs)" = 7e4f62c28cf28ff051b9c744a6fcccea12d5a8a3
+          node .github/scripts/dev-ext-source-check.mjs

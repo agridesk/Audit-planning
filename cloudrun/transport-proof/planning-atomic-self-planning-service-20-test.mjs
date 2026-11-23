@@ -24,7 +24,8 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
    readAudit:async()=>{events.push('readAudit');return old},
    readOutbox:async()=>outbox,
    commit:async args=>{events.push('firestoreCommit');assert.equal(args.nextSnapshot.managerCommentLast,'preserve this comment');assert.equal(args.action,'SELF_PLANNING');
-    assert.deepEqual(args.blocks,[]);assert.equal(args.expectedRevision,7);return{revision:8}},
+    assert.deepEqual(args.blocks,[]);assert.equal(args.expectedRevision,7);
+    assert.equal(args.nextSnapshot.row[18],old.snapshot.row[18]);return{revision:8}},
    markProjected:async()=>events.push('markProjected'),
    markUncertain:async()=>events.push('markUncertain')
   },
@@ -42,7 +43,16 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  return {service,events};
 }
 {
- const {service,events}=mock(),out=await service.commit({actor,body});
+ const {service,events}=mock();
+ let committedReceipt;
+ const out=await service.commit({actor,body,onCommitted(receipt){
+  committedReceipt={receipt,events:[...events]};
+  throw Error('RECEIPT_CONNECTION_LOST');
+ }});
+ assert.equal(committedReceipt.receipt.action,'SELF_PLANNING');
+ assert.equal(committedReceipt.receipt.allowSelfPlanning,true);
+ assert.equal(committedReceipt.receipt.sourceRevision,'rev-after');
+ assert.deepEqual(committedReceipt.events,['gateAcquire','readAudit','preflight','firestoreCommit']);
  assert.equal(out.success,true);assert.equal(out.projection,'PROJECTED');
  assert.deepEqual(events,['gateAcquire','readAudit','preflight','firestoreCommit',
   'projectorApply','projectorInspect','markProjected','gateRelease']);
@@ -75,6 +85,21 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  assert.ok(!events.includes('firestoreCommit'));assert.ok(events.includes('gateRelease'));
 }
 {
+ const numericRow=row.slice();numericRow[18]=8;
+ const old={...before,snapshot:{...before.snapshot,row:numericRow}};
+ const {service,events}=mock({old,preview:{...proof,sourceUnformattedRow:numericRow}});
+ assert.equal((await service.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('firestoreCommit'));
+}
+{
+ const differentRow=row.slice();differentRow[18]=9;
+ const old={...before,snapshot:{...before.snapshot,row:differentRow}};
+ const {service,events}=mock({old,preview:{...proof,sourceUnformattedRow:row}});
+ await assert.rejects(service.commit({actor,body}),/PREFLIGHT_SOURCE_ROW_MISMATCH/);
+ assert.ok(!events.includes('firestoreCommit'));
+ assert.ok(events.includes('gateRelease'));
+}
+{
  const {service,events}=mock({inspection:'MISMATCH'});
  await assert.rejects(service.commit({actor,body}),/PROJECTION_NOT_VERIFIED/);
  assert.ok(events.includes('markUncertain'));assert.ok(events.includes('gateUncertain'));
@@ -96,6 +121,17 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  const out=await service.commit({actor,body:noChange});
  assert.equal(out.unchanged,true);assert.ok(!events.includes('firestoreCommit'));
 }
+{
+ const {service}=mock();
+ const ids=[];
+ const record=receipt=>ids.push(receipt.operationId);
+ const first='134a43d5-5a88-413b-b1d8-20c8a05c1234';
+ const next='f93ac621-af0c-42c3-ae84-0c573e4b5432';
+ for(const requestId of [first,first,next])
+  await service.commit({actor,body:{...body,requestId},onCommitted:record});
+ assert.equal(ids[0],ids[1],'Retrying the same click uses the same outbox key');
+ assert.notEqual(ids[1],ids[2],'A later click must not replay an older toggle');
+}
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 assert.ok(r15.includes("u.pathname==='/api/v1/manager/self-planning-direct'&&planningAtomicSelfPlanning"));
@@ -106,7 +142,7 @@ assert.ok(r4.includes("SELF_PLANNING_ATOMIC_LEGACY_WRITERS_NOT_FROZEN"));
 assert.ok(r4.includes("SELF_PLANNING_LEGACY_WRITER_FROZEN"));
 assert.ok(r4.includes("if(atomicPreflight){"));
 assert.ok(r4.includes("projectionWrites:[{range:targetRange,values:[[updated[index]]]}]"));
-assert.ok(r4.includes("const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[]"),
+assert.ok(r4.includes("const values=atomicPreflight?formattedRows:result[0]?.values||[]"),
  'Self planning must compare the same formatted row and header as R15 backfill');
 assert.ok(r4.includes("encodeURIComponent('Audit planning!A1:BW2000')"),
  'Canonical atomic snapshot range must match R15');

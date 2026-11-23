@@ -12,7 +12,7 @@ function parseRange(value){
  return {sheet:m[1],startRow,endRow,startCol,endCol};
 }
 function label(n){let s='';for(;n>0;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}
-export async function normalizeLifecycleWriteset({writes,readBefore}={}){
+export async function normalizeLifecycleWriteset({writes,readBefore,planningRows,availabilityRows}={}){
  if(!Array.isArray(writes)||!writes.length||writes.length>150||typeof readBefore!=='function')throw Error('LIFECYCLE_WRITESET_INPUT_INVALID');
  const groups=new Map(),steps=[];
  for(const write of writes){
@@ -33,11 +33,23 @@ export async function normalizeLifecycleWriteset({writes,readBefore}={}){
  if(groups.size>120)throw Error('LIFECYCLE_WRITESET_TOO_MANY_ROWS');
  const ordered=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
  const ranges=ordered.map(([,g])=>g.sheet+'!'+label(g.first)+g.row+':'+label(g.last)+g.row);
- const originals=await readBefore(ranges);
- if(!Array.isArray(originals)||originals.length!==ranges.length)throw Error('LIFECYCLE_WRITESET_READ_MISSING');
+ const originals=new Map(),missing=[];
+ for(const [i,[,group]] of ordered.entries()){
+  const range=ranges[i],planning=planningRows?.[group.row-1],availability=availabilityRows?.[group.row-1];
+  if(group.sheet==='Audit planning'&&group.last<=75&&Array.isArray(planning))
+   originals.set(range,planning.slice(group.first-1,group.last));
+  else if(group.sheet==='Auditor Availability'&&group.last<=16&&Array.isArray(availability))
+   originals.set(range,availability.slice(group.first-1,group.last));
+  else missing.push(range);
+ }
+ if(missing.length){
+  const fetched=await readBefore(missing);
+  if(!Array.isArray(fetched)||fetched.length!==missing.length)throw Error('LIFECYCLE_WRITESET_READ_MISSING');
+  for(const [i,range] of missing.entries())originals.set(range,fetched[i]?.values?.[0]||[]);
+ }
  const merged=new Map();
  for(let i=0;i<ordered.length;i++){
-  const [key,g]=ordered[i],before=originals[i]?.values?.[0]||[];
+  const [key,g]=ordered[i],before=originals.get(ranges[i]);
   if(!Array.isArray(before)||before.length>g.last-g.first+1)throw Error('LIFECYCLE_WRITESET_SOURCE_CORRUPT');
   const original=Array.from({length:g.last-g.first+1},(_,j)=>before[j]??'');
   merged.set(key,{...g,range:ranges[i],before:original,after:original.slice()});

@@ -65,6 +65,7 @@ const fallback=await preflight({}, {auditId:'audit-1',authorityPreflight:true},'
  capture.deletes.push({sheetTitle:'Audit planning',rowNumber:2});
  return {success:true};
 });
-assert.equal(requests.length,2,'overlapping planning writes retain the original read path');
+assert.equal(requests.length,1,'overlapping planning writes reuse the same fresh planning snapshot');
+assert.deepEqual(JSON.parse(JSON.stringify(fallback.projectionPreconditions[0].before)),planning[1]);
 assert.deepEqual(JSON.parse(JSON.stringify(fallback.projectionWrites[0].values)),[['audit-1','Rejected','','']]);
 console.log('PLANNING_LIFECYCLE_PREFLIGHT_RANGE_PASS');

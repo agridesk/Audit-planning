@@ -99,6 +99,33 @@ const first=await projector.apply({operationId:'operation-7',gateToken:'token-7'
 assert.equal(first.projected,true);assert.equal(first.replayed,false);
 assert.equal(rows,2);assert.equal(expanded,1);assert.equal(writeCount,1);
 assert.equal((await projector.inspect(plan)).state,'MATCH');
+const narrowPlan={projectionWrites:[{range:'Audit planning!A2:C2',values:[['Company','auditor@example.test','Accepted']]}],
+ projectionPreconditions:[{range:'Audit planning!A2:C2',before:['Company','auditor@example.test','Approved']}]};
+let narrowReads=0,returnWriteEvidence=true;
+const narrow=createPlanningSheetsWritesetProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',verifyFence:async()=>{},
+ fetchImpl:async(url,init={})=>{
+  assert.ok(!new URL(url).pathname.endsWith('/spreadsheets/dev-sheet'),'Existing row projection skips tab metadata');
+  if((init.method||'GET')==='POST'){
+   const request=JSON.parse(init.body);
+   assert.equal(request.valueInputOption,'USER_ENTERED');
+   assert.equal(request.includeValuesInResponse,true);
+   assert.deepEqual(request.data,[{range:'Audit planning!C2:C2',values:[['Accepted']]}]);
+   values.get('Audit planning!A2:C2')[2]='Accepted';
+   return {ok:true,json:async()=>returnWriteEvidence?{responses:[{updatedData:{range:"'Audit planning'!C2",values:[['Accepted']]}}]}:{}};
+  }
+  narrowReads++;
+  return fetchImpl(url,init);
+ }});
+const acceptArgs={operationId:'accept',gateToken:'token',plan:narrowPlan};
+const existingRowsProof=await narrow.prepareExistingPlanningRows(acceptArgs);
+assert.equal((await narrow.apply({...acceptArgs,changedPlanningCellsOnly:true,existingRowsProof})).verification.state,'MATCH');
+assert.equal(narrowReads,1,'The exact Sheets write response is sufficient for the changed cells');
+values.get('Audit planning!A2:C2')[2]='Approved';
+returnWriteEvidence=false;
+const fallbackProof=await narrow.prepareExistingPlanningRows(acceptArgs);
+assert.equal((await narrow.apply({...acceptArgs,changedPlanningCellsOnly:true,existingRowsProof:fallbackProof})).verification.state,'MATCH');
+assert.equal(narrowReads,3,'Missing evidence triggers a full readback');
+values.get('Audit planning!A2:C2')[2]='Approved';
 const replay=await projector.apply({operationId:'operation-7',gateToken:'token-7',plan});
 assert.equal(replay.replayed,true);assert.equal(writeCount,1);
 values.set('Audit planning!A2:C2',['Company','someone-else','Accepted']);

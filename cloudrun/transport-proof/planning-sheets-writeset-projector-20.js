@@ -79,24 +79,32 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   });
   return {state:allMatch?'MATCH':detail.every(x=>x.target||x.before)?'READY':'CONFLICT',detail};
  }
- async function apply({operationId,plan,gateToken,prefetchMetadata=false,allowMissingAvailabilityRows=false,existingRowsOnly=false}){
+ async function prepareExistingPlanningRows({operationId,plan,gateToken}){
   if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
   const changes=rows(plan);
-  const existingRows=existingRowsOnly&&changes.every(change=>
+  if(!changes.every(change=>/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range)&&change.before.some(value=>str(value)!=='')))
+   return null;
+  await verifyFence({operationId,gateToken});
+  return inspect(plan);
+ }
+ async function apply({operationId,plan,gateToken,prefetchMetadata=false,changedPlanningCellsOnly=false,existingRowsProof=null,allowMissingAvailabilityRows=false,existingRowsOnly=false}){
+  if(!operationId||!gateToken)throw Error('SHEETS_PROJECTION_FENCE_REQUIRED');
+  const changes=rows(plan);
+  const existingRows=existingRowsOnly&&!existingRowsProof&&changes.every(change=>
    /^(?:Audit planning|Auditor Availability)!A\d+:[A-Z]+\d+$/.test(change.range)&&
    change.before.some(value=>str(value)!=='')&&change.values.some(value=>str(value)!==''));
   await verifyFence({operationId,gateToken});
-  const pendingMetadata=prefetchMetadata&&!existingRows?metadata().then(value=>({ok:true,value}),error=>({ok:false,error})):null;
+  const pendingMetadata=prefetchMetadata&&!existingRows&&!existingRowsProof?metadata().then(value=>({value}),error=>({error})):null;
   // Matching nonempty rows need no expansion; keep the fence and fresh read together.
-  const [first]=await Promise.all([inspect(plan,{allowMissingAvailabilityRows}),
+  const [first]=await Promise.all([existingRowsProof??inspect(plan,{allowMissingAvailabilityRows}),
    existingRows?verifyFence({operationId,gateToken}):null]);
-  if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
+  if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:first};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
-  let second=first;
-  if(!existingRows){
-   const metadataResult=pendingMetadata?await pendingMetadata:{ok:true,value:await metadata()};
-   if(!metadataResult.ok)throw metadataResult.error;
-   const meta=metadataResult.value,requests=[];
+  const requests=[];
+  if(!existingRowsProof&&!existingRows){
+   const result=pendingMetadata?await pendingMetadata:{value:await metadata()};
+   if(result.error)throw result.error;
+   const meta=result.value;
    for(const sheet of new Set(changes.map(x=>x.sheet))){
     const props=meta.get(sheet),max=Math.max(...changes.filter(x=>x.sheet===sheet).map(x=>x.row));
     if(!Number.isSafeInteger(props?.sheetId)||!Number.isSafeInteger(props?.gridProperties?.rowCount))throw Error('SHEETS_PROJECTION_TAB_MISSING');
@@ -105,13 +113,15 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    await verifyFence({operationId,gateToken});
    if(requests.length)await request(base+':batchUpdate','POST',{requests});
    await verifyFence({operationId,gateToken});
-   second=await inspect(plan);
   }
-  if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
+  const second=existingRowsProof??(existingRows?first:await inspect(plan));
+  if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true,verification:second};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const entered=[],literalDates=[];
   for(const [index,change] of changes.entries()){
-   if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)){
+   if(/^Companies!A\d+:[A-Z]+\d+$/.test(change.range)||
+      changedPlanningCellsOnly&&/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range)||
+      plan.realizedHoursCorrection===true&&/^Log realized audits!A\d+:[A-Z]+\d+$/.test(change.range)){
     // Re-entering unchanged contact data can turn phone numbers into formulas.
     if(second.detail[index].target)continue;
     const changed=[];
@@ -126,7 +136,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
       while(n){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}
       return result;
      };
-     entered.push({range:`Companies!${column(start)}${row}:${column(end)}${row}`,
+     entered.push({range:`${change.sheet}!${column(start)}${row}:${column(end)}${row}`,
       values:[Array.from({length:end-start+1},(_,j)=>change.values[start+j]??'')]});
      i++;
     }
@@ -136,9 +146,21 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
     typeof change.values[0]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(change.values[0]);
    (literalDate?literalDates:entered).push({range:change.range,values:[change.values]});
   }
+  const verifyFromWrite=changedPlanningCellsOnly&&existingRowsProof&&entered.length>0&&literalDates.length===0&&
+   changes.every(change=>/^Audit planning!A\d+:[A-Z]+\d+$/.test(change.range));
+  let verifiedWrites=false;
   for(const [valueInputOption,data] of [['USER_ENTERED',entered],['RAW',literalDates]]){
    if(!data.length)continue;
-   await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:false});
+   const response=await request(base+'/values:batchUpdate','POST',{valueInputOption,data,includeValuesInResponse:Boolean(verifyFromWrite),
+    ...(verifyFromWrite?{responseValueRenderOption:'UNFORMATTED_VALUE',responseDateTimeRenderOption:'FORMATTED_STRING'}:{})});
+   if(verifyFromWrite){
+    const normalizeRange=range=>str(range).replace(/^'Audit planning'!/,'Audit planning!').replace(/!([A-Z]+\d+):\1$/,'!$1');
+    verifiedWrites=Array.isArray(response?.responses)&&response.responses.length===data.length&&data.every((item,index)=>{
+     const actual=response.responses[index]?.updatedData;
+     return normalizeRange(actual?.range)===normalizeRange(item.range)&&
+      Array.isArray(actual?.values)&&actual.values.length<=1&&equal(actual.values[0],item.values[0]);
+    });
+   }
    await verifyFence({operationId,gateToken});
   }
   // USER_ENTERED can reinterpret Last_Updated as a localized Sheets date.
@@ -157,10 +179,10 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
    });
    await verifyFence({operationId,gateToken});
   }
-  const verified=await inspect(plan);
+  const verified=verifiedWrites?{state:'MATCH',detail:changes.map(change=>({range:change.range,target:true}))}:await inspect(plan);
   if(verified.state!=='MATCH')throw Error('SHEETS_PROJECTION_VERIFY_FAILED');
   await verifyFence({operationId,gateToken});
-  return {operationId,idempotent:true,projected:true,replayed:false};
+  return {operationId,idempotent:true,projected:true,replayed:false,verification:verified};
  }
  // Privacy-preserving forensic view: return only differing cell positions,
  // scalar types and whether each cell matches the preflight BEFORE/AFTER.
@@ -306,5 +328,5 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if((await inspect(normalized)).state==='CONFLICT')throw Error('EXT_RECOVERY_SOURCE_MOVED');
   return normalized;
  }
- return Object.freeze({inspect,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
+ return Object.freeze({inspect,prepareExistingPlanningRows,prepareExtensionDateRecovery,inspectDiff,inspectRenderParity,normalizeLegacySourceHours,normalizeCommittedTargetHours,apply});
 }

@@ -11,4 +11,6 @@ assert.ok(source.includes('function renderCompleted(rows)'));
 for(const label of ['two Accepted','Accepted pair','Accepted audits will',"+' Accepted'"])assert.ok(!source.includes(label),'visible label must say Ready: '+label);
 assert.ok(source.includes("after.status='Accepted';after.statusKey='ACCEPTED'"),'stored status value must stay Accepted');
 assert.ok(source.includes("/^accepted$/i.test(String(x.status||'').trim())?'Ready'"));
+assert.ok(source.includes('item.company,displayStatus(item.status),item.datePlanned'));
+assert.ok(source.includes('expectedStatus:item.status'),'transfer still uses the stored status');
 console.log('Ready and scope badge parity source contract OK');

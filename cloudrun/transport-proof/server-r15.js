@@ -64,8 +64,9 @@ import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.j
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
+import {createRealizedHoursAtomicService20,createRealizedHoursBatchProjector20} from './realized-hours-atomic-service-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
-import {createHash,timingSafeEqual} from 'node:crypto';
+import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
@@ -550,14 +551,39 @@ const atomicLifecyclePaths={
  '/api/v1/manager/cancel-direct':'CANCEL',
  '/api/v1/manager/complete-direct':'COMPLETE'
 };
+async function auditorLifecyclePreflight({cookie,body,action}){
+ const payload=JSON.stringify({...body,action});
+ const origin=new URL(runtime.origin);
+ // R12 through R5 rewrite Host. Use Node HTTP for the established R4
+ // loopback port so Origin and Host reach the original guard unchanged.
+ return new Promise((resolve,reject)=>{
+  const request=http.request({
+   hostname:'127.0.0.1',port:port+9,path:'/api/v1/auditor/action',method:'POST',
+   headers:{host:origin.host,origin:origin.origin,cookie:String(cookie||''),
+    'content-type':'application/json','content-length':Buffer.byteLength(payload)}
+  },response=>{
+   const chunks=[];
+   response.on('data',chunk=>chunks.push(chunk));
+   response.on('error',reject);
+   response.on('end',()=>{
+    const status=response.statusCode||503;
+    resolve(new Response(Buffer.concat(chunks),{status}));
+   });
+  });
+  request.on('error',reject);
+  request.setTimeout(25000,()=>request.destroy(Error('AUDITOR_PREFLIGHT_TIMEOUT')));
+  request.end(payload);
+ });
+}
 const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomicService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body,action})=>{
-  const route=actor.role==='auditor'&&action==='ACCEPT'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  const route=Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
   if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
-  const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}: {})},body:JSON.stringify(body)});
+  const r=actor.role==='auditor'?await auditorLifecyclePreflight({cookie:actor.cookie,body,action}):
+   await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
+    headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
@@ -567,11 +593,10 @@ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleS
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body,action})=>{
-  const path=actor.role==='auditor'&&action==='COMPLETE'?'/api/v1/auditor/action':action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
-  const payload=path==='/api/v1/auditor/action'?{...body,action:'COMPLETE'}:body;
-  const r=await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}:{})},
-   body:JSON.stringify(payload)});
+  const path=action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
+  const r=actor.role==='auditor'?await auditorLifecyclePreflight({cookie:actor.cookie,body,action}):
+   await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
+    headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
   return data;
@@ -594,6 +619,76 @@ const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLi
   return data;
  }
 }):null;
+const planningAtomicRealizedHours=runtime.isDev&&planningAtomicEnabled?createRealizedHoursAtomicService20({
+ store:planningAtomicStore,gate:planningGlobalGate,
+ prepareProjection:createRealizedHoursBatchProjector20({
+  readArchive:planningAtomicProjector.inspect,readTrail:planningAtomicAppendProjector.inspect,
+  verifyFence:async({operationId,gateToken})=>{
+   const {holder}=await planningGlobalGate.read();
+   if(holder?.operationId!==operationId||holder?.token!==gateToken||holder.state!=='ACTIVE')throw Error('REALIZED_HOURS_FENCE_LOST');
+  },
+  readTabs:async()=>{
+   const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'?fields=sheets(properties(sheetId,title))',
+    {headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('REALIZED_HOURS_BATCH_METADATA_FAILED');
+   return (await response.json()).sheets;
+  },
+  writeBatch:async requests=>{
+   const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+':batchUpdate',
+    {method:'POST',headers:{authorization:'Bearer '+await getToken(),'content-type':'application/json'},body:JSON.stringify({requests}),signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('REALIZED_HOURS_BATCH_WRITE_FAILED');
+  }
+ }),
+ roster:getRoster,signingKey:process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY,
+ readLog:async()=>{
+  const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Log realized audits'!A1:AZ10000"));
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('REALIZED_HOURS_LOG_READ_FAILED');
+  return (await response.json()).values;
+ }
+}):null;
+function gridActionFailure20(error,action){
+ const raw=String(error?.message||'');
+ const safe=raw==='STALE_REALIZED_HOURS'||/^(?:LIFECYCLE_|PLANNING_MULTI_|SELF_PLANNING_|REALIZED_HOURS_)[A-Z0-9_]{1,130}$/.test(raw);
+ const reference=/^[a-f0-9]{64}$/.test(error?.operationId||'')?error.operationId:randomUUID();
+ const writeOutcome=['NOT_COMMITTED','COMMITTED','PROJECTED'].includes(error?.writeOutcome)?error.writeOutcome:'UNKNOWN';
+ console.error('[AMS_GRID_ACTION_ERROR]',JSON.stringify({action,reference,writeOutcome,errorCode:raw.slice(0,160),revision:process.env.K_REVISION}));
+ return {success:false,error:safe?raw:'GRID_ACTION_FAILED',writeOutcome,reference};
+}
+async function respondToAtomicGridLifecycle(req,res,{actor,body,action}){
+ const service=action==='REALIZED_HOURS'?planningAtomicRealizedHours:action==='SELF_PLANNING'?planningAtomicSelfPlanning:
+  ['COMPLETE','REJECT'].includes(action)?planningMultiLifecycle:planningAtomicLifecycle;
+ const stream=runtime.isDev&&req.headers.accept==='application/x-ndjson'
+  &&['/api/v1/manager/action','/api/v1/auditor/action','/api/v1/manager/self-planning-direct','/api/v1/manager/realized-hours-direct'].includes(String(req.url||'').split('?')[0]);
+ let receiptSent=false;
+ const result=await service.commit({actor,body,action,onCommitted:stream?receipt=>{
+  if(res.destroyed)return;
+  res.writeHead(200,{'content-type':'application/x-ndjson; charset=utf-8','cache-control':'no-store'});
+  receiptSent=true;
+  res.write(JSON.stringify({type:'COMMITTED',...receipt})+'\n');
+ }:undefined}).catch(error=>{
+  if(!runtime.isDev)throw error;
+  const failure=gridActionFailure20(error,action);
+  if(res.destroyed)return null;
+  if(receiptSent)res.end(JSON.stringify({type:'SYNC_UNCONFIRMED',...failure})+'\n');
+  else{
+   res.writeHead(failure.writeOutcome==='NOT_COMMITTED'?409:503,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(failure));
+  }
+  return null;
+ });
+ if(!result)return;
+ planningCache.invalidate();
+ if(res.destroyed)return;
+ if(receiptSent){
+  res.end(JSON.stringify({type:'PROJECTED',result:{...result,action}})+'\n');
+ }else{
+  res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify(result));
+ }
+}
 const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferService({
  store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body})=>{
@@ -1771,6 +1866,14 @@ http.createServer(async(req,res)=>{
    res.end(JSON.stringify({ok:false,code:'AMS_EXT_PREVIEW_READ_ONLY',message:'EXT preview: write and unverified routes are disabled'}));return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
+   const host=String(req.headers.host||'').toLowerCase();
+   const origin=String(req.headers.origin||'');
+   const devHosts=[new URL(runtime.origin).host,'ams-fase12-dev-510075419067.europe-west1.run.app',
+    'ams-transport-proof-510075419067.europe-west1.run.app'];
+   if(origin!=='https://'+host||!(runtime.isDev?devHosts.includes(host):origin===runtime.origin)){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'ORIGIN_FORBIDDEN'}));return;
+   }
    const actor=await session(req);
    if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('AUDITOR_ATOMIC_BODY_TOO_LARGE');}
@@ -1778,9 +1881,7 @@ http.createServer(async(req,res)=>{
    const action=String(body.action||'').toUpperCase();
    if(!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
    const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
-   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:actorCtx,body,action});return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&(atomicLifecyclePaths[u.pathname]||u.pathname==='/api/v1/manager/action')){
    const actor=await session(req);
@@ -1790,9 +1891,7 @@ http.createServer(async(req,res)=>{
    const action=atomicLifecyclePaths[u.pathname]||(u.pathname==='/api/v1/manager/action'?String(body?.action||'').trim().toUpperCase():null);
    if(!['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_ACTION_NOT_MIGRATED');
    const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
-   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:actorCtx,body,action});return;
   }
   if(req.method==='POST'&&planningAtomicTransfer&&u.pathname==='/api/v1/manager/auditor-management/audit/transfer'){
    const actor=await session(req);
@@ -1926,6 +2025,16 @@ http.createServer(async(req,res)=>{
    const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
     Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
    if(input.confirm!=='RECOVER_VERIFIED_OPERATION')throw Error('ATOMIC_FORWARD_RECOVERY_CONFIRMATION_REQUIRED');
+   if(input.recovery==='verified-cancel'&&planningAtomicRecovery){
+    const {holder}=await planningGlobalGate.read();
+    if(holder?.state!=='UNCERTAIN'||holder.operationId!==input.operationId)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
+    const entry=await planningAtomicStore.readOutbox(holder.operationId);
+    if(entry?.action!=='CANCEL')throw Error('ATOMIC_RECOVERY_ENTRY_INVALID');
+    const recovered=await planningAtomicRecovery.recoverOne(entry);
+    if(recovered.state!=='PROJECTED')throw Error(recovered.reason||'ATOMIC_RECOVERY_UNRESOLVED');
+    planningCache.invalidate();
+    res.writeHead(303,{location:'/api/v1/planning/atomic-write-health','cache-control':'no-store'});res.end();return;
+   }
    const result=await planningAtomicForwardRecovery.commit({operationId:String(input.operationId||'')});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -2212,6 +2321,16 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/realized-hours-direct'&&planningAtomicRealizedHours){
+   const actor=await session(req);
+   if(actor?.role!=='manager'||req.headers.origin!=='https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'DEV_MANAGER_SAME_ORIGIN_REQUIRED',writeOutcome:'NOT_COMMITTED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('REALIZED_HOURS_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('REALIZED_HOURS_BODY_INVALID');}
+   await respondToAtomicGridLifecycle(req,res,{actor,body,action:'REALIZED_HOURS'});return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/self-planning-direct'&&planningAtomicSelfPlanning){
    const actor=await session(req);
    if(actor?.role!=='manager'){
@@ -2220,10 +2339,8 @@ http.createServer(async(req,res)=>{
    }
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('SELF_PLANNING_BODY_TOO_LARGE');}
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('SELF_PLANNING_BODY_INVALID');}
-   const result=await planningAtomicSelfPlanning.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
-   planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
-   res.end(JSON.stringify(result));return;
+   await respondToAtomicGridLifecycle(req,res,{actor:{...actor,cookie:String(req.headers.cookie||'')},
+    body,action:'SELF_PLANNING'});return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/batch-commit'&&runtime.isDev&&planningAtomicCommands){
    const actor=await session(req);
@@ -2418,11 +2535,22 @@ http.createServer(async(req,res)=>{
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
    const current=await planningGlobalGate.read(),holder=current.holder;
-   let eligible=false,condition='NO_QUARANTINED_PLAN';
+   let eligible=false,verifiedCancel=false,condition='NO_QUARANTINED_PLAN';
    const operationId=holder?.operationId||'';
    if(holder?.state==='UNCERTAIN'&&/^[a-f0-9]{64}$/.test(operationId)){
     const entry=await planningAtomicStore.readOutbox(operationId);
-    if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
+    if(entry?.action==='CANCEL'&&entry.state==='UNCERTAIN'&&entry.snapshot&&planningAtomicRecovery){
+     try{
+      const rows=await planningAtomicProjector.inspect(entry.snapshot);
+      const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+      verifiedCancel=rows.state==='MATCH'&&append.state==='MATCH';
+      const since=Date.parse(holder.uncertainAt||'');
+      const quarantineComplete=Number.isFinite(since)&&Date.now()-since>=30*60*1000;
+      eligible=verifiedCancel||(quarantineComplete&&entry.multi!==true&&
+       ['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state));
+     }catch{eligible=false;}
+     condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
+    }else if(['PLAN','EXT_APPLY','EXT_UNDO'].includes(entry?.action)&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
      const since=Date.parse(holder.uncertainAt||'');
      if(!Number.isFinite(since)||Date.now()-since<30*60*1000)condition='QUARANTINE_NOT_COMPLETE';
      else{
@@ -2451,6 +2579,7 @@ http.createServer(async(req,res)=>{
    const safeId=/^[a-f0-9]{64}$/.test(operationId)?operationId:'';
    const form=eligible?`<form method="post" action="/api/v1/planning/atomic-forward-recover">
     <input type="hidden" name="operationId" value="${safeId}">
+    ${verifiedCancel?'<input type="hidden" name="recovery" value="verified-cancel">':''}
     <input type="hidden" name="confirm" value="RECOVER_VERIFIED_OPERATION">
     <button type="submit">Recover this verified DEV transaction</button></form>`:'';
    const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

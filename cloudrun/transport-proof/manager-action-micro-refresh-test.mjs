@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
@@ -24,7 +26,6 @@ const checks=[
 ['Accept route explicit through r10',r10.includes("managerAction==='accept'")&&r10.includes("/api/v1/manager/accept-direct")],
 ['Approve follows roadmap self-plan flow',r4.includes("roadmapRule:'AUDITOR_SELF_PLAN_MANAGER_APPROVE_DIRECT_ACCEPTED'")&&r4.includes("set(['Status'],'Accepted')")&&r4.includes("set(['Date - Approved','Date approved','Date Approved'],now.slice(0,10))")&&r4.includes("set(['Date accepted','Date - Accepted','Date Accepted'],now.slice(0,10))")&&r4.includes("'AUDIT_APPROVED'")&&r4.includes("'ECAS_AUDIT_APPROVAL_DIGEST'")],
 ['Manager Accept on behalf is explicitly logged',r4.includes("async function directManagerAcceptOnBehalf")&&r4.includes("onBehalf:true")&&r4.includes("confirmationSource:acceptSource")&&r4.includes("representedAuditor")&&r4.includes("acceptSource='MANAGER_PORTAL'")],
-['Manager Accept is one-click with no prompt fields',manager.includes('action!=="accept"&&action!=="complete"&&!window.confirm')&&!manager.includes('Confirmation channel: WhatsApp, Phone, Email or Other')&&!manager.includes('Optional note about the auditor confirmation:')],
 ['Manager Approved rows expose Accept',r4.includes("statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']")&&manager.includes('raw.indexOf("ACCEPT")>=0')],
 ['Manager Accept on behalf queues accepted plus ECAS',r4.includes("'AUDIT_ACCEPTED'")&&r4.includes("'ECAS_AUDIT_APPROVAL_DIGEST'")&&r4.includes("CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF")],
 ['Reject updates Model C scope ownership',r4.includes("rr[ost]='REJECTED'")&&r4.includes("rr[csactive]='NO'")&&r4.includes("MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_REJECT")],
@@ -54,8 +55,10 @@ const checks=[
 ['transport trace propagated',manager.includes('clientSentAt')&&manager.includes('browserToWorkerMs')&&manager.includes('workerRpcWallMs')&&relayHtml.includes('workerReceivedAt')&&relayHtml.includes('rpcStartedAt')&&relayHtml.includes('rpcEndedAt')],
 ['status phases instrumented',statusMachine.includes('__statusPerf.writeGuardMs')&&statusMachine.includes('__statusPerf.loadAuditMs')&&statusMachine.includes('__statusPerf.coreMs')&&statusMachine.includes('__statusPerf.notificationOnlyMs')],
 ['cancel subphases instrumented',statusMachine.includes('__perf.availabilityMs')&&statusMachine.includes('__perf.resetPlanningMs')&&statusMachine.includes('__perf.statusWriteMs')&&statusMachine.includes('__perf.lifecycleMs')&&statusMachine.includes('__perf.cacheInvalidationMs')],
-['trace visible in UI',manager.includes('coreDetail=')&&manager.includes(' · trace ')],
-['trace timing marker',manager.includes(' · trace ')&&manager.includes('b→w ')&&manager.includes('preRPC ')&&manager.includes('w→b ')],
+['synchronization visible in UI',manager.includes('Saved, synchronizing…')&&manager.includes('Saved and synchronized')],
+['individual grid actions skip confirmation-only dialogs',!manager.slice(manager.indexOf('function runAction(button)'),manager.indexOf('var actionPromise=')).includes('window.confirm(')],
+['Cancel and Reject still collect a required reason',manager.includes('reason=window.prompt(')&&manager.includes('Comment is required.')],
+['trace and timing retained in diagnostics',manager.includes('console.info("[MANAGER_ACTION_TIMING]",perf)')&&['traceId','browserToWorkerMs','workerPreRpcMs','workerToBrowserMs'].every(field=>manager.includes('perf.'+field))],
 ['Planning opens as popup when available',manager.includes('window.open("/planning?auditId="')&&manager.includes('"amsPlanning_"+auditId')],
 ['Planning save message patches row immediately and background-rereads direct audit',manager.includes("msg.type==='AMS_PLANNING_SAVED'")&&manager.includes('mergeRowInPlace(auditId,patch)')&&manager.includes('rereadAudit(auditId,before.sourceRow)')],
 ['r10 stable chain',r10.includes("await import('./server-r9.js')")]
@@ -67,3 +70,61 @@ const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
 if(failed.length)process.exit(1);
 console.log('manager-action-micro-refresh-test passed');
+
+const transportStart=manager.indexOf('async function runActionViaCloudRun(');
+const transportEnd=manager.indexOf('function removeCompletedRowInPlace',transportStart);
+assert.ok(transportStart>=0&&transportEnd>transportStart);
+const failureStart=manager.indexOf('function gridActionError20(');
+const failureEnd=manager.indexOf('async function toggleSelfPlanning20(',failureStart);
+assert.ok(failureStart>=0&&failureEnd>failureStart);
+const transport=manager.slice(failureStart,failureEnd)+manager.slice(transportStart,transportEnd);
+const encode=new TextEncoder();
+const committed={type:'COMMITTED',auditId:'a1',action:'ACCEPT',status:'ACCEPTED',operationId:'op'};
+const projected={type:'PROJECTED',result:{success:true,auditId:'a1',action:'ACCEPT',projection:'PROJECTED'}};
+const firstFrame=JSON.stringify(committed)+'\n';
+function transportTest(finalFrame){
+ let notifications=0, reads=0, released=false;
+ const chunks=[firstFrame.slice(0,11),firstFrame.slice(11),finalFrame];
+ const ctx=vm.createContext({actorRole:'Manager',performance,TextDecoder,
+  fetch:async(_url,options)=>{
+   assert.equal(options.headers.accept,'application/x-ndjson');
+   return {ok:true,headers:new Headers({'content-type':'application/x-ndjson'}),
+    body:{getReader(){return {async read(){
+     if(reads===2)assert.equal(notifications,1,'Commit acknowledgement arrives before projection');
+     return reads<chunks.length?{value:encode.encode(chunks[reads++])}:{done:true};
+    },releaseLock(){released=true;}};}}};
+  }});
+ vm.runInContext(transport,ctx);
+ const response=ctx.runActionViaCloudRun('a1','accept',{},receipt=>{
+  notifications++;
+  assert.equal(receipt.operationId,'op');
+ });
+ return {response,didRelease:()=>released};
+}
+const successful=transportTest(JSON.stringify(projected)+'\n');
+assert.equal((await successful.response).result.projection,'PROJECTED');
+assert.equal(successful.didRelease(),true);
+const syncFailure=transportTest('{"type":"SYNC_UNCONFIRMED"}\n');
+await assert.rejects(syncFailure.response,/LIFECYCLE_SYNC_UNCONFIRMED/);
+assert.equal(syncFailure.didRelease(),true);
+
+const gateway=fs.readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const failureStartOnServer=gateway.indexOf('function gridActionFailure20(');
+const failureEndOnServer=gateway.indexOf('async function respondToAtomicGridLifecycle(',failureStartOnServer);
+assert.ok(failureStartOnServer>=0&&failureEndOnServer>failureStartOnServer);
+const logEntries=[];
+const errorContext=vm.createContext({randomUUID:()=> 'ref-generated',
+ process:{env:{K_REVISION:'test-revision'}},console:{error:(label,entry)=>logEntries.push({label,...JSON.parse(entry)})}});
+vm.runInContext(gateway.slice(failureStartOnServer,failureEndOnServer),errorContext);
+const operationId='a'.repeat(64);
+const rejection=errorContext.gridActionFailure20({message:'LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_DIRECT_ACCEPT_REVISION_CONFLICT',
+ writeOutcome:'NOT_COMMITTED',operationId},'ACCEPT');
+assert.equal(rejection.error,'LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_DIRECT_ACCEPT_REVISION_CONFLICT');
+assert.equal(rejection.reference,operationId);
+assert.equal(rejection.writeOutcome,'NOT_COMMITTED');
+assert.equal(logEntries[0].revision,'test-revision');
+const uncertain=errorContext.gridActionFailure20({message:'Internal response with an arbitrary value'},'CANCEL');
+assert.equal(uncertain.error,'GRID_ACTION_FAILED');
+assert.equal(uncertain.reference,'ref-generated');
+assert.equal(uncertain.writeOutcome,'UNKNOWN');
+assert.equal(logEntries.at(-1).reference,uncertain.reference);

@@ -14,6 +14,7 @@ const availabilityHeaders=['Available','First_Audit_Start_Time','First_Audit_End
  'Status_1','Second_Audit_Start_Time','Second_Audit_End_Time','Audit_ID_2','Status_2','Last_Updated'];
 let writes=[],appends=[],auditRow;
 const context={
+ lifecyclePreviewContext20:{getStore:()=>null},
  process:{env:{AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'true'}},
  clean:x=>String(x??'').trim(),
  col:(h,names)=>h.findIndex(x=>names.includes(x)),

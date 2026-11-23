@@ -9,12 +9,19 @@ const names=(h,a)=>a.map(n=>col(h,n)).find(x=>x>=0)??-1;
 const cell=(r,i)=>i>=0?clean(r[i]):'';
 const setCell=(index,v)=>({userEnteredValue:{stringValue:clean(v)}});
 const norm=v=>clean(v).toUpperCase().replace(/[\s-]+/g,'_');
-const revision=(h,r)=>createHash('sha256').update([
- cell(r,names(h,['Audit ID','Audit_ID','AuditId','Audit Id'])),
- cell(r,names(h,['Status'])),cell(r,names(h,['Assigned to','Assigned auditor','Auditor'])),
- cell(r,names(h,['Planning JSON','Planning_JSON'])),cell(r,names(h,['Last decision timestamp'])),
- cell(r,names(h,['Status since']))
-].join('|')).digest('hex').slice(0,24);
+export function directLifecycleRowRevision20(headers,row){
+ const key=value=>clean(value).toLowerCase().replace(/\s+/g,'_');
+ const g=aliases=>{
+  const index=aliases.map(alias=>headers.findIndex(header=>key(header)===key(alias))).find(i=>i>=0)??-1;
+  return cell(row,index);
+ };
+ const uid=g(['Auditor_UID','Assigned_Auditor_UID']);
+ const fields=[g(['Audit ID','Audit_ID','AuditId','Audit Id']),g(['Status']),
+  g(['Assigned to','Assigned auditor','Auditor']),g(['Planning JSON','Planning_JSON']),
+  g(['Last decision timestamp']),g(['Status since'])];
+ if(uid)fields.push(uid);
+ return createHash('sha256').update(fields.join('|')).digest('hex').slice(0,24);
+}
 const fail=s=>{throw Error(s)};
 export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision,values,sheetIds,stamp}={}){
  if(actor?.role!=='AUDITOR'||!clean(actor?.uid)||!lower(actor?.email))fail('DIRECT_ACCEPT_ACTOR_REQUIRED');
@@ -36,7 +43,7 @@ export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision
  const roster=actors[0],possible=[email,lower(uid),lower(cell(roster,names(ah,['Name']))),lower(cell(roster,names(ah,['Abbreviation'])))];
  if(!assigned||!possible.includes(assigned))fail('DIRECT_ACCEPT_ASSIGNMENT_MISMATCH');
  if(norm(cell(r,statusIndex))!=='APPROVED')fail('DIRECT_ACCEPT_STATUS_CONFLICT');
- if(revision(h,r)!==expectedRevision)fail('DIRECT_ACCEPT_REVISION_CONFLICT');
+ if(directLifecycleRowRevision20(h,r)!==expectedRevision)fail('DIRECT_ACCEPT_REVISION_CONFLICT');
  if(!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(clean(stamp)))fail('DIRECT_ACCEPT_TIMESTAMP_REQUIRED');
  const changes=[['Status','Accepted'],['Status since',stamp],['Last auditor decision','ACCEPT'],['Last auditor decision timestamp',stamp],['Auditor comment (last)','']];
  // Fail closed on absent canonical columns: never write to a guessed column.

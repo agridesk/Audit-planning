@@ -12,7 +12,7 @@ const norm=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
 const actions=new Set(['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE']);
 export function createPlanningLifecycleAtomicService({atomicStore,gate,projector,appendProjector,preflight,roster}={}){
  if(typeof atomicStore?.commit!=='function'||typeof atomicStore?.readAudit!=='function'||typeof atomicStore?.markProjected!=='function'||typeof atomicStore?.readOutbox!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof preflight!=='function'||typeof roster!=='function')throw Error('LIFECYCLE_ATOMIC_CONFIG_INVALID');
- async function commit({actor,body,action}){
+ async function commit({actor,body,action,onCommitted}){
   action=norm(action);
   if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
   if(['REJECT','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED');
@@ -22,15 +22,13 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
   const replay=await measure('priorMs',()=>atomicStore.readOutbox(operationId));
   if(replay){
    if(replay.auditId!==auditId||replay.actorId!==actor.auditorId||replay.action!==action)throw Error('LIFECYCLE_ATOMIC_REPLAY_IDENTITY_CONFLICT');
-   if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,action,authority:'FIRESTORE',projection:'PROJECTED'};
+   if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,action,sourceRevision:replay.snapshot?.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED'};
    throw Error('LIFECYCLE_ATOMIC_RECOVERY_REQUIRED');
   }
   let lock=null,attempted=false,committed=false,projected=false;
   try{
    lock=await measure('gateMs',()=>gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_LIFECYCLE_'+action}));
-   // APPROVE/ACCEPT always resolve the assignee; overlap that read with the preflight.
-   const rosterPrefetch=['APPROVE','ACCEPT'].includes(action)?measure('rosterMs',()=>roster()):null;
-   rosterPrefetch?.catch(()=>{});
+   const rosterPrefetch=['APPROVE','ACCEPT'].includes(action)?measure('rosterMs',()=>roster()).then(value=>({value}),error=>({error})):null;
    const [preview,old]=await Promise.all([
     measure('preflightMs',()=>preflight({actor,body:{...body,authorityPreflight:true},action})),
     measure('auditMs',()=>atomicStore.readAudit(auditId))
@@ -51,7 +49,9 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    let auditorId=null,blocks=[];
    if(statuses.has(status)){
     const email=str(snapshot.assignedTo).toLowerCase();
-    const matching=(await (rosterPrefetch||measure('rosterMs',()=>roster()))).filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
+    const rosterResult=rosterPrefetch?await rosterPrefetch:{value:await measure('rosterMs',()=>roster())};
+    if(rosterResult.error)throw rosterResult.error;
+    const matching=rosterResult.value.filter(x=>x.role==='auditor'&&x.active!==false&&str(x.email).toLowerCase()===email);
     if(matching.length!==1||!str(matching[0].auditorId))throw Error('LIFECYCLE_ATOMIC_AUDITOR_IDENTITY_UNRESOLVED');
     auditorId=matching[0].auditorId;
     const head=snapshot.headers||[],row=snapshot.row||[];
@@ -63,14 +63,41 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     blocks=raw.map(x=>({date:str(x.date),start:str(x.start),end:str(x.end)}));
    }
    if(actor.role==='auditor'&&action==='ACCEPT'&&auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
+   // ACCEPT writes the planning row and appends notifications to a separate tab.
+   // Read-only append preparation can overlap the commit and row projection.
+   const appendArgs={operationId,gateToken:lock.token,intents:snapshot.appendIntents};
+   const overlap=action==='ACCEPT'&&typeof appendProjector.prepare==='function'&&snapshot.appendIntents.length>0&&
+    snapshot.appendIntents.every(intent=>intent.range==='Notification Queue!A:M')&&
+    snapshot.projectionWrites.every(write=>write.range.startsWith('Audit planning!'));
+   const prepared=overlap?measure('appendPrepareMs',()=>appendProjector.prepare({...appendArgs,metadataOnly:true})).then(value=>({value}),error=>({error})):null;
+   const rowArgs={operationId,gateToken:lock.token,plan:snapshot};
+   const preparedRow=overlap&&typeof projector.prepareExistingPlanningRows==='function'?
+    measure('rowPrepareMs',()=>projector.prepareExistingPlanningRows(rowArgs)).then(value=>({value}),error=>({error})):null;
+   // The queue scan reads a separate tab under the same exclusive gate.
+   // Publish only once the Firestore commit and planning-row readback succeed.
+   const freshQueue=overlap?measure('appendFinalScanMs',()=>appendProjector.inspect(snapshot.appendIntents))
+    .then(value=>({value}),error=>({error})):null;
    attempted=true;
    const receipt=await measure('commitMs',()=>atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks}));
    committed=true;
    if(receipt.replayed)throw Error('LIFECYCLE_ATOMIC_UNEXPECTED_REPLAY');
-   await measure('rowProjectionMs',()=>projector.apply({operationId,gateToken:lock.token,plan:snapshot,existingRowsOnly:action==='CANCEL'&&actor.role==='manager'}));
-   await measure('appendProjectionMs',()=>appendProjector.apply({operationId,gateToken:lock.token,intents:snapshot.appendIntents}));
+   // The receipt is observational. A lost client connection cannot interrupt projection.
+   if(onCommitted){
+    try{onCommitted({auditId,operationId,action,status:status});}
+    catch{console.warn('[AMS_LIFECYCLE_COMMIT_RECEIPT_FAILED]');}
+   }
+   const rowReady=await preparedRow;
+   if(rowReady?.error)throw rowReady.error;
+   const rowResult=await measure('rowProjectionMs',()=>projector.apply({...rowArgs,changedPlanningCellsOnly:overlap,existingRowsProof:rowReady?.value,existingRowsOnly:action==='CANCEL'&&actor.role==='manager'}));
+   const ready=await prepared;
+   if(ready?.error)throw ready.error;
+   const fresh=await freshQueue;
+   if(fresh?.error)throw fresh.error;
+   const appendResult=await measure('appendProjectionMs',()=>appendProjector.apply({...appendArgs,prepared:ready?.value,freshInspection:fresh?.value}));
+   if(appendResult?.timing)Object.assign(timings,appendResult.timing);
    const [rows,appends]=await measure('verifyMs',()=>Promise.all([
-    projector.inspect(snapshot),appendProjector.inspect(snapshot.appendIntents)
+    overlap&&rowResult?.verification?rowResult.verification:projector.inspect(snapshot),
+    overlap&&appendResult?.verification?appendResult.verification:appendProjector.inspect(snapshot.appendIntents)
    ]));
    if(rows.state!=='MATCH'||appends.state!=='MATCH')throw Error('LIFECYCLE_ATOMIC_PROJECTION_UNVERIFIED');
    const proof={verified:true,auditId,rowHash:hash({rows:rows.detail,appends:appends.count})};
@@ -78,7 +105,11 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    projected=true;
    await measure('releaseMs',()=>gate.release({token:lock.token,verified:true,proof:'LIFECYCLE_FIRESTORE_AND_SHEETS_VERIFIED'}));
    lock=null;
-   return {success:true,action,auditId,operationId,revision:receipt.revision,authority:'FIRESTORE',projection:'PROJECTED'};
+   return {success:true,action,auditId,operationId,revision:receipt.revision,sourceRevision:snapshot.sourceRevision,authority:'FIRESTORE',projection:'PROJECTED'};
+  }catch(error){
+   error.operationId=operationId;
+   error.writeOutcome=projected?'PROJECTED':committed?'COMMITTED':attempted?'UNKNOWN':'NOT_COMMITTED';
+   throw error;
   }finally{
    console.info('[PLANNING_LIFECYCLE_TIMING]',JSON.stringify({action,...timings,totalMs:Date.now()-started,projected}));
    if(lock){

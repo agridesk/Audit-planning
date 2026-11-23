@@ -1,0 +1,2 @@
+# Unified patches require a single space on blank context lines.
+.github/workflows/*.patch whitespace=-blank-at-eol,-blank-at-eof

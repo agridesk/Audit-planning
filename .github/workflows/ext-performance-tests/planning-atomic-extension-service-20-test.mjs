@@ -1,0 +1,223 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
+import {createAtomicExtensionService20} from './planning-atomic-extension-service-20.js';
+const ph=['Audit ID','Status','Extension applied','Extended Expiration Date','Planning window from','Planning window to'],
+ oh=['Obligation_ID','Extension_Applied','Extension_Metadata_JSON','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To'];
+const before=['audit-1','Pending Planning','','2027-01-01','2026-12-01','2027-03-01'];
+const obligation=['ob-1','','','2027-01-01','2026-12-01','2027-03-01'];
+const sheetsHeaders=ph.map(header=>header==='Status'?' Status ':header);
+const source={planningRows:[sheetsHeaders,before],obligationRows:[oh,obligation]};
+const values=['Yes','{"source":"AMS_DEV_MODEL_C_SCOPE_EXTENSION_20"}','2028-01-01','2027-12-01','2028-03-01'];
+const updates=[
+ ...[1,2,3,4,5].map((col,i)=>({range:"'Audit_Obligations'!"+'ABCDEF'[col]+'2',values:[[values[i]]]})),
+ ...[2,3,4,5].map((col,i)=>({range:"'Audit planning'!"+'ABCDEF'[col]+'2',values:[[ ['Yes','2028-01-01','2027-12-01','2028-03-01'][i] ]]}))
+];
+const plan={auditId:'audit-1',obligationId:'ob-1',command:'apply',operationId:'request-1',
+ updates,expected:{effectiveExpiry:'2028-01-01'},
+ patch:{auditId:'audit-1',extensionApplied:true}};
+const cbEvent={eventId:'CB_EXT_request-1',values:Array.from({length:16},(_,i)=>'field-'+i),
+ certificationBodyId:'CB-1',notBefore:'2026-11-20T00:00:00Z'};
+const rev=(headers,row)=>row[2]==='Yes'?'new-rev':'old-rev';
+const proof=buildAtomicExtensionWriteset20({plan,source,cbEvent,revisionOf:rev});
+assert.equal(proof.projectionWrites.length,9);
+assert.equal(proof.projectionPreconditions.length,9);
+assert.equal(proof.expectedSourceRevision,'old-rev');
+assert.equal(proof.canonicalSnapshot.sourceRevision,'new-rev');
+assert.deepEqual(proof.sourceRowBefore,before);
+assert.deepEqual(proof.canonicalSnapshot.headers,ph);
+assert.equal(proof.appendIntents[0].range,'CB_Extension_Outbox!A:P');
+assert.throws(()=>buildAtomicExtensionWriteset20({plan:{...plan,updates:updates.slice(1)},source,cbEvent,revisionOf:rev}),
+ /SOURCE_INCOMPLETE/);
+assert.throws(()=>buildAtomicExtensionWriteset20({plan:{...plan,updates:[...updates.slice(0,8),updates[0]]},source,cbEvent,revisionOf:rev}),
+ /DUPLICATE/);
+const previous={auditId:'audit-1',revision:6,pendingOperationId:null,
+ claimIds:[],blocks:[],snapshot:{auditId:'audit-1',status:'Pending Planning',
+ sourceRevision:'old-rev',headers:ph,row:before,managerCommentLast:'KEEP'}};
+const actor={role:'manager',auditorId:'manager-1'};
+const body={auditId:'audit-1',companyUid:'company-1',obligationId:'ob-1',command:'apply',requestId:'request-1'};
+function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outbox=null,old=previous,hooks={}}={}){
+ const events=[];
+ const instance=createAtomicExtensionService20({
+  store:{
+   readAudit:async()=>{events.push('readAudit');if(hooks.audit)await hooks.audit();return old},
+   readOutbox:async()=>outbox,
+   commit:async args=>{events.push('commit');assert.equal(args.action,'EXT_APPLY');
+    assert.equal(args.nextSnapshot.managerCommentLast,'KEEP');
+    assert.equal(args.nextSnapshot.appendIntents[0].range,'CB_Extension_Outbox!A:P');
+    return {revision:7}},
+   markProjected:async()=>events.push('marked'),
+   markUncertain:async()=>events.push('uncertainStore')
+  },
+  gate:{
+   acquire:async()=>{events.push('gateAcquire');return{token:'token'}},
+   release:async()=>events.push('gateRelease'),
+   uncertain:async()=>events.push('uncertainGate')
+  },
+  preflight:async args=>{events.push('preflight');if(hooks.preflight)await hooks.preflight(args);return preflight},
+  projector:{
+   apply:async({prefetchMetadata})=>{assert.equal(prefetchMetadata,true,'EXT row projection overlaps metadata with its first read');events.push('projectRows')},
+   inspect:async()=>{if(hooks.rowInspect)await hooks.rowInspect();return {state:inspection,detail:[{matched:true}]}}
+  },
+  appendProjector:{
+   apply:async()=>events.push('appendOutbox'),
+   inspect:async()=>{if(hooks.appendInspect)await hooks.appendInspect();return {state:appendInspection,count:1}}
+  }
+ });
+ return {instance,events};
+}
+{
+ let auditRead=false,appendInspectStarted=false;
+ const {instance}=setup({hooks:{
+  audit:async()=>{auditRead=true},
+  preflight:async({body})=>{assert.equal(auditRead,true);assert.equal(body.sourceValueRenderOption,'FORMATTED_VALUE')},
+  rowInspect:async()=>{await Promise.resolve();assert.equal(appendInspectStarted,true,'both readbacks start together')},
+  appendInspect:async()=>{appendInspectStarted=true}
+ }});
+ assert.equal((await instance.commit({actor,body:{...body,sourceValueRenderOption:'UNFORMATTED_VALUE'}})).projection,'PROJECTED');
+}
+{
+ const {instance,events}=setup(),result=await instance.commit({actor,body});
+ assert.equal(result.success,true);assert.equal(result.direct,true);assert.equal(result.projection,'PROJECTED');
+ assert.equal(result.cbNotification.certificationBodyId,'CB-1');
+ assert.deepEqual(events,['gateAcquire','readAudit','preflight','commit',
+  'projectRows','appendOutbox','marked','gateRelease']);
+}
+{
+ const {instance,events}=setup({preflight:{...proof,sourceRowBefore:['other']}});
+ await assert.rejects(instance.commit({actor,body}),/PREFLIGHT_NOT_AUTHORITATIVE/);
+ assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const numericRow=before.slice();numericRow[3]=9;
+ const old={...previous,snapshot:{...previous.snapshot,row:[...numericRow,'','']}};
+ const numericProof={...proof,sourceRowBefore:numericRow,
+  canonicalSnapshot:{...proof.canonicalSnapshot,row:[...numericRow.slice(0,2),'Yes',...numericRow.slice(3)]}};
+ const {instance,events}=setup({old,preflight:numericProof,hooks:{
+  preflight:async({body})=>assert.equal(body.sourceValueRenderOption,'UNFORMATTED_VALUE')
+ }});
+ assert.equal((await instance.commit({actor,body:{...body,sourceValueRenderOption:'FORMATTED_VALUE'}})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+}
+{
+ const old={...previous,snapshot:{...previous.snapshot,row:[...before,'',0]}};
+ const {instance,events}=setup({old});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const numericRow=before.slice();numericRow[3]=9;
+ const old={...previous,snapshot:{...previous.snapshot,row:numericRow}};
+ const changed=numericRow.slice();changed[4]='2026-11-30';
+ const {instance,events}=setup({old,preflight:{...proof,sourceRowBefore:changed}});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!events.includes('commit'));assert.ok(events.includes('gateRelease'));
+}
+{
+ const {instance,events}=setup({appendInspection:'MISSING'});
+ await assert.rejects(instance.commit({actor,body}),/PROJECTION_NOT_VERIFIED/);
+ assert.ok(events.includes('uncertainStore'));assert.ok(events.includes('uncertainGate'));
+ assert.ok(!events.includes('marked'));
+}
+{
+ const {instance,events}=setup({outbox:{auditId:'audit-1',actorId:'manager-1',
+  state:'PROJECTED',snapshot:{scopeExtension:{patch:plan.patch,cbNotification:proof.cbNotification}}}});
+ const result=await instance.commit({actor,body});
+ assert.equal(result.idempotent,true);assert.equal(result.direct,true);assert.equal(events.length,0);
+}
+{
+ const {instance,events}=setup();
+ await assert.rejects(instance.commit({actor:{...actor,role:'auditor'},body}),/INPUT_INVALID/);
+ assert.equal(events.length,0);
+}
+const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert.ok(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension"));
+assert.ok(r4.includes("return buildAtomicExtensionWriteset20({plan,source,cbEvent,cbEvents,revisionOf:directRowRevision})"));
+assert.ok(r4.includes("EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN"));
+assert.ok(r4.includes("const planningRows=atomicPreflight?canonicalPlanningRows:dates.planning"),
+ 'EXT/Undo CAS must use the bounded canonical Sheets read');
+{
+ const start=r4.indexOf('async function readCanonicalPlanningRowsForAtomic20(');
+ const end=r4.indexOf('function normalizeDevModelCDateCells20(',start);
+ assert(start>=0&&end>start);
+ const urls=[];
+ const read=vm.runInNewContext(r4.slice(start,end)+'\nreadCanonicalPlanningRowsForAtomic20',{
+  URL,encodeURIComponent,SID:'test-sheet',
+  process:{env:{AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'true'}},
+  accessToken:async()=> 'test-token',
+  fetch:async url=>{urls.push(new URL(url));return {ok:true,json:async()=>({values:[['Audit ID'],['audit-1']]})}}
+ });
+ await read();await read('UNFORMATTED_VALUE');
+ assert.equal(urls[0].searchParams.has('valueRenderOption'),false);
+ assert.equal(urls[1].searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');
+ assert.equal(urls[1].searchParams.get('dateTimeRenderOption'),'FORMATTED_STRING');
+ await assert.rejects(read('INVALID'),/RENDER_INVALID/);
+ assert.equal(urls.length,2);
+}
+
+const managerGrid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert.ok(managerGrid.includes("receipt.direct===true&&receipt.projection==='PROJECTED'"),
+ 'Manager Grid must accept the already projected atomic receipt without legacy reconcile');
+console.log('Issue #87 EXT/Undo atomic: 9-cell CAS + CB outbox + failure/replay PASS');
+
+const pairedChanges=['ob-1','ob-2'].map(obligationId=>({obligationId,expected:plan.expected}));
+const pairedValues=pairedChanges.map(({obligationId},i)=>{
+ const values=Array(16).fill('');
+ values[0]='event-'+i; values[3]=obligationId;
+ return {values,eventId:values[0]};
+});
+const pairedProof=buildAtomicExtensionWriteset20({
+ plan:{...plan,obligationChanges:pairedChanges,updates:[...updates,...updates.slice(0,5).map(u=>({...u,range:u.range.replace(/2$/,'3')}))]},
+ source:{...source,obligationRows:[oh,obligation,['ob-2',...obligation.slice(1)]]},
+ cbEvent:pairedValues[0],cbEvents:pairedValues,revisionOf:rev
+});
+{
+ const rawRow=[...before,9],headers=[...ph,'Duration'];
+ const old={...previous,snapshot:{...previous.snapshot,headers,row:[...rawRow,'','']}};
+ const rawProof=buildAtomicExtensionWriteset20({
+  plan:{...plan,obligationChanges:pairedChanges,updates:[...updates,...updates.slice(0,5).map(u=>({...u,range:u.range.replace(/2$/,'3')}))]},
+  source:{planningRows:[headers,rawRow],obligationRows:[oh,obligation,['ob-2',...obligation.slice(1)]]},
+  cbEvent:pairedValues[0],cbEvents:pairedValues,revisionOf:rev
+ });
+ const {instance,events}=setup({old,preflight:rawProof,hooks:{
+  preflight:async({body})=>assert.equal(body.sourceValueRenderOption,'UNFORMATTED_VALUE')
+ }});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+ const changed=[...rawRow];changed[changed.length-1]=10;
+ const blocked=setup({old,preflight:{...rawProof,sourceRowBefore:changed}});
+ await assert.rejects(blocked.instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!blocked.events.includes('commit'));
+ const wrongType=[...rawRow];wrongType[wrongType.length-1]='9';
+ const typeMismatch=setup({old,preflight:{...rawProof,sourceRowBefore:wrongType}});
+ await assert.rejects(typeMismatch.instance.commit({actor,body}),/SOURCE_ROW/);
+ assert.ok(!typeMismatch.events.includes('commit'));
+}
+{
+ const {instance,events}=setup({preflight:pairedProof});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.deepEqual(events,['gateAcquire','readAudit','preflight','commit','projectRows','appendOutbox','marked','gateRelease']);
+}
+{
+ const {instance,events}=setup({preflight:pairedProof,inspection:'MISSING'});
+ await assert.rejects(instance.commit({actor,body}),/PROJECTION_NOT_VERIFIED/);
+ assert.ok(events.includes('uncertainStore')&&events.includes('uncertainGate'));
+ assert.ok(!events.includes('marked'));
+}
+console.log('Shared expiry atomic service: commit and incomplete projection fencing PASS');
+
+for(const preflight of [proof,pairedProof]){
+ const old={...previous,snapshot:{...previous.snapshot,headers:[...sheetsHeaders,'',' ']}};
+ const {instance,events}=setup({preflight,old});
+ assert.equal((await instance.commit({actor,body})).projection,'PROJECTED');
+ assert.ok(events.includes('commit'));
+}
+{
+ const old={...previous,snapshot:{...previous.snapshot,headers:['Audit ID','Different column',...ph.slice(2)]}};
+ const {instance,events}=setup({old});
+ await assert.rejects(instance.commit({actor,body}),/SOURCE_HEADERS/);
+ assert.ok(!events.includes('commit'));
+ assert.ok(events.includes('gateRelease'));
+}

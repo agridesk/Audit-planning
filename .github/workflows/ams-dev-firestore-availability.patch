@@ -1,0 +1,284 @@
+diff --git a/cloudrun/transport-proof/availability-firestore-authority-preflight-20-test.mjs b/cloudrun/transport-proof/availability-firestore-authority-preflight-20-test.mjs
+new file mode 100644
+index 0000000..6105594
+--- /dev/null
++++ b/cloudrun/transport-proof/availability-firestore-authority-preflight-20-test.mjs
+@@ -0,0 +1,47 @@
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import vm from 'node:vm';
++
++const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
++const loop=r4.match(/for\(const b of requested\)\{\s*let x=avRows\.find[^]*?touched\.set\(x\.sheetRow,x\);\s*\}/)[0];
++assert.match(loop,/AVAILABILITY_HARD_BLOCK_/);
++
++const clean=v=>String(v??'').trim();
++const yes=v=>['yes','true','1','y','ja'].includes(clean(v).toLowerCase());
++const overlaps=(a,b)=>!!(a.start&&a.end&&b.start&&b.end&&a.start<b.end&&b.start<a.end);
++// Columns: Date, Email, Available, s1,e1,id1, s2,e2,id2, st1, st2
++const header=['Date','Auditor_Email','Available','S1','E1','ID1','S2','E2','ID2','ST1','ST2'];
++function run({row,flags,authorityPreflight,block={date:'2027-01-04',start:'09:00',end:'17:00'}}){
++ const av=[header,row.slice()],avRows=[{row:row.slice(),sheetRow:2,date:row[0],email:row[1]}],touched=new Map();
++ const ctx={requested:[block],avRows,av,ah:header,cd:0,ce:1,ca:2,s1:3,e1:4,id1:5,s2:6,e2:7,id2:8,st1:9,st2:10,lu:-1,
++  auditorEmail:'a@example.test',auditId:'NEW-1',actorRole:'MANAGER',authorityPreflight,touched,clean,yes,overlaps,
++  isoLocalStamp:()=>'2027-01-01 00:00',process:{env:flags}};
++ vm.runInNewContext(loop,ctx);
++ return [...touched.values()][0].row;
++}
++const atomic={AMS_RUNTIME_ENV:'DEV',AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'true'};
++const authority={...atomic,AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED:'true'};
++const hardDay=['2027-01-04','a@example.test','NO','','','','','','','Unavailable',''];
++
++// Legacy behaviour is unchanged without the authority flag or outside the atomic preflight.
++assert.throws(()=>run({row:hardDay,flags:atomic,authorityPreflight:true}),/AVAILABILITY_HARD_BLOCK_2027-01-04/);
++assert.throws(()=>run({row:hardDay,flags:authority,authorityPreflight:false}),/AVAILABILITY_HARD_BLOCK_2027-01-04/);
++assert.throws(()=>run({row:hardDay,flags:{...authority,AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED:'false'},authorityPreflight:true}),/AVAILABILITY_HARD_BLOCK_/);
++
++// With Firestore authority the stale Sheets HARD projection no longer blocks; the empty slot is used.
++const projected=run({row:hardDay,flags:authority,authorityPreflight:true});
++assert.deepEqual(projected.slice(3,11),['','','','09:00','17:00','NEW-1','Unavailable','Manager Planned']);
++assert.equal(projected[2],'NO');
++
++// Audit-vs-audit collisions and capacity still fail closed.
++const occupied=['2027-01-04','a@example.test','NO','10:00','12:00','OTHER','','','','Manager Planned',''];
++assert.throws(()=>run({row:occupied,flags:authority,authorityPreflight:true}),/AVAILABILITY_COLLISION_2027-01-04/);
++const full=['2027-01-04','a@example.test','NO','07:00','08:00','X1','18:00','19:00','X2','Manager Planned','Manager Planned'];
++assert.throws(()=>run({row:full,flags:authority,authorityPreflight:true}),/AVAILABILITY_CAPACITY_2027-01-04/);
++
++// The planner workspace route is replaced only on DEV with the explicit flag.
++const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
++assert.match(r15,/const firestorePlannerAvailabilityEnabled=runtime\.isDev&&process\.env\.AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED==='true';/);
++assert.match(r15,/if\(req\.method==='GET'&&u\.pathname==='\/api\/v1\/planning\/workspace'&&firestorePlannerAvailabilityEnabled\)\{await firestorePlannerWorkspace\(req,res\);return;\}/);
++assert.match(r15,/applyFirestorePlannerAvailability\(\{workspace:body,actor:\{role:actor\.role,id:actor\.auditorId\},roster:await swapRoster\(\),period:overlay\.period\}\)/);
++console.log('availability firestore authority preflight tests passed');
+diff --git a/cloudrun/transport-proof/availability-planner-calendar-projection-20-test.mjs b/cloudrun/transport-proof/availability-planner-calendar-projection-20-test.mjs
+new file mode 100644
+index 0000000..c608c37
+--- /dev/null
++++ b/cloudrun/transport-proof/availability-planner-calendar-projection-20-test.mjs
+@@ -0,0 +1,63 @@
++import assert from 'node:assert/strict';
++import {plannerRowsFromPeriod,splitAvailabilityRange,applyFirestorePlannerAvailability} from './availability-planner-calendar-projection-20.js';
++import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
++
++// Ranges are bounded to the overlay service read limit (<=92 day difference).
++assert.deepEqual(splitAvailabilityRange('2027-01-01','2027-01-05'),[{fromDate:'2027-01-01',toDate:'2027-01-05'}]);
++const long=splitAvailabilityRange('2027-01-01','2027-12-31');
++assert.ok(long.length>1);
++assert.equal(long[0].fromDate,'2027-01-01');assert.equal(long.at(-1).toDate,'2027-12-31');
++for(let i=1;i<long.length;i++)assert.equal(Date.parse(long[i].fromDate)-Date.parse(long[i-1].toDate),86400000);
++for(const r of long)assert.ok((Date.parse(r.toDate)-Date.parse(r.fromDate))/86400000<=92);
++assert.deepEqual(splitAvailabilityRange('2027-02-01','2027-01-01'),[]);
++assert.throws(()=>splitAvailabilityRange('x','2027-01-01'),/RANGE_INVALID/);
++
++// 2027-01-04 Mon: whole-day HARD (the reported false block came from Sheets; Firestore is now leading).
++// 2027-01-05 Tue: partial HARD. 2027-01-06 Wed: committed audit. 2027-01-07 Thu: free. 2027-01-09 Sat: weekend SOFT.
++const days=resolveAvailabilityPeriod({fromDate:'2027-01-04',toDate:'2027-01-09',blocks:[
++ {id:'h1',date:'2027-01-04',wholeDay:true,state:'HARD'},
++ {id:'h2',date:'2027-01-05',wholeDay:false,start:'13:00',end:'17:00',state:'HARD'},
++ {id:'audit:A-1|2027-01-06|09:00|17:00',date:'2027-01-06',wholeDay:false,start:'09:00',end:'17:00',state:'COMMITTED'}
++]});
++const rows=plannerRowsFromPeriod({email:'Auditor@Example.test',days,auditDetails:{
++ 'audit:A-1|2027-01-06|09:00|17:00':{auditId:'A-1',company:'Co',scopes:'Scope A, Scope B',date:'2027-01-06',start:'09:00',end:'17:00',state:'COMMITTED'}
++}});
++const by=Object.fromEntries(rows.map(r=>[r.date,r]));
++assert.equal(by['2027-01-04'].visualState,'HARD_BLOCKED');
++assert.deepEqual(by['2027-01-04'].slots.map(s=>[s.kind,s.start,s.end]),[['hard','','']]);
++assert.equal(by['2027-01-05'].visualState,'HARD_BLOCKED');
++assert.deepEqual(by['2027-01-05'].slots.map(s=>[s.kind,s.start,s.end]),[['hard','13:00','17:00']]);
++assert.equal(by['2027-01-06'].visualState,'OCCUPIED');
++assert.deepEqual(by['2027-01-06'].slots[0],{start:'09:00',end:'17:00',auditId:'A-1',auditRef:'A-1',status:'Committed',kind:'audit',company:'Co',scopes:['Scope A','Scope B']});
++assert.equal(by['2027-01-07'],undefined,'free weekdays use the client default AVAILABLE row');
++assert.equal(by['2027-01-09'].visualState,'SOFT_UNAVAILABLE');
++assert.ok(rows.every(r=>r.auditorEmail==='auditor@example.test'));
++assert.throws(()=>plannerRowsFromPeriod({email:'',days,auditDetails:{}}),/SOURCE_INVALID/);
++
++// Workspace overlay: managers read every candidate by UID; Sheets rows are fully replaced.
++const roster=[{auditorId:'uid-1',email:'a@example.test'},{auditorId:'uid-2',email:'b@example.test'},{auditorId:'manager:x',email:'m@example.test'}];
++const calls=[];
++const period=async args=>{calls.push(args);return {auditorId:args.auditorId,days:resolveAvailabilityPeriod({fromDate:args.fromDate,toDate:args.toDate,blocks:args.auditorId==='uid-1'?[{id:'h',date:'2027-01-04',wholeDay:true,state:'HARD'}]:[]}),auditDetails:{}};};
++const workspace={ok:true,data:{period:{from:'2027-01-04',to:'2027-01-08'},audit:{candidateAuditors:[{email:'A@example.test'},{email:'b@example.test'},{email:'unknown@example.test'}]},overlays:{availability:{byAuditorEmail:{'a@example.test':[{date:'2027-01-05',visualState:'HARD_BLOCKED',slots:[{kind:'hard'}]}]}},reservations:{rows:[]}}}};
++const out=await applyFirestorePlannerAvailability({workspace,actor:{role:'manager',id:'manager:x'},roster,period});
++assert.equal(out.data.overlays.availability.source,'FIRESTORE_AVAILABILITY_20');
++assert.equal(out.data.overlays.availability.unresolvedCandidates,1);
++assert.deepEqual(out.data.overlays.availability.byAuditorEmail['a@example.test'].map(r=>[r.date,r.visualState]),[['2027-01-04','HARD_BLOCKED']]);
++assert.deepEqual(out.data.overlays.availability.byAuditorEmail['b@example.test'],[]);
++assert.deepEqual(out.data.overlays.reservations,{rows:[]});
++assert.deepEqual(calls.map(c=>c.auditorId).sort(),['uid-1','uid-2']);
++assert.ok(calls.every(c=>c.actor.role==='manager'&&c.actor.id==='manager:x'&&c.canonicalAuditors.length===2));
++assert.equal(workspace.data.overlays.availability.byAuditorEmail['a@example.test'][0].date,'2027-01-05','input is not mutated');
++
++// Auditors may only read their own UID; failures are fail-closed.
++const own={ok:true,data:{period:{from:'2027-01-04',to:'2027-01-04'},audit:{candidateAuditors:[{email:'a@example.test'}]},overlays:{availability:{byAuditorEmail:{}}}}};
++const self=await applyFirestorePlannerAvailability({workspace:own,actor:{role:'auditor',id:'uid-1'},roster,period});
++assert.equal(self.data.overlays.availability.byAuditorEmail['a@example.test'][0].visualState,'HARD_BLOCKED');
++assert.ok(!('canonicalAuditors' in calls.at(-1)));
++await assert.rejects(applyFirestorePlannerAvailability({workspace:own,actor:{role:'auditor',id:'uid-2'},roster,period}),/SCOPE_FORBIDDEN/);
++await assert.rejects(applyFirestorePlannerAvailability({workspace,actor:{role:'manager',id:'manager:x'},roster,period:async()=>{throw Error('FIRESTORE_DOWN');}}),/FIRESTORE_DOWN/);
++await assert.rejects(applyFirestorePlannerAvailability({workspace,actor:{role:'manager',id:'manager:x'},roster,period:async a=>({auditorId:'other',days:[],auditDetails:{}})}),/SOURCE_INVALID/);
++// Non-workspace or failed responses pass through unchanged.
++const failed={ok:false,error:'AUDIT_NOT_FOUND'};
++assert.equal(await applyFirestorePlannerAvailability({workspace:failed,actor:{role:'manager',id:'m'},roster,period}),failed);
++console.log('availability-planner-calendar-projection-20 tests passed');
+diff --git a/cloudrun/transport-proof/availability-planner-calendar-projection-20.js b/cloudrun/transport-proof/availability-planner-calendar-projection-20.js
+new file mode 100644
+index 0000000..b516094
+--- /dev/null
++++ b/cloudrun/transport-proof/availability-planner-calendar-projection-20.js
+@@ -0,0 +1,80 @@
++/** AMS Availability 2.0: planner-calendar projection from Firestore (DEV authority).
++ * Replaces the legacy Sheets 'Auditor Availability' overlay in the planning workspace
++ * with rows resolved from the canonical Firestore availability document (Auditor_UID).
++ * Read-only. Fails closed: any read error rejects the whole projection.
++ */
++const MAX_RANGE_DAYS=92;
++const clean=x=>String(x??'').trim();
++const isDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
++const addDays=(s,n)=>new Date(Date.parse(s+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
++const scopeList=v=>Array.isArray(v)?v.map(clean).filter(Boolean):clean(v).split(/\s*,\s*/).filter(Boolean);
++
++export function splitAvailabilityRange(fromDate,toDate,maxDays=MAX_RANGE_DAYS){
++ if(!isDate(fromDate)||!isDate(toDate))throw Error('PLANNER_AVAILABILITY_RANGE_INVALID');
++ if(toDate<fromDate)return [];
++ const out=[];let start=fromDate;
++ while(start<=toDate){const end=addDays(start,maxDays)<toDate?addDays(start,maxDays):toDate;out.push({fromDate:start,toDate:end});start=addDays(end,1);}
++ return out;
++}
++
++/** Map one resolved Firestore period to the legacy planner row format. */
++export function plannerRowsFromPeriod({email,days,auditDetails}={}){
++ const auditorEmail=clean(email).toLowerCase();
++ if(!auditorEmail||!Array.isArray(days)||!auditDetails||typeof auditDetails!=='object')throw Error('PLANNER_AVAILABILITY_SOURCE_INVALID');
++ const auditsByDate={};
++ for(const d of Object.values(auditDetails)){
++  if(!d||!isDate(d.date)||!clean(d.auditId))throw Error('PLANNER_AVAILABILITY_SOURCE_INVALID');
++  (auditsByDate[d.date]??=[]).push(d);
++ }
++ const rows=[];
++ for(const day of days){
++  if(!day||!isDate(day.date)||!Array.isArray(day.segments))throw Error('PLANNER_AVAILABILITY_SOURCE_INVALID');
++  const slots=[];
++  for(const a of (auditsByDate[day.date]||[]).sort((x,y)=>clean(x.start).localeCompare(clean(y.start)))){
++   const auditId=clean(a.auditId);
++   slots.push({start:clean(a.start),end:clean(a.end),auditId,auditRef:auditId,status:a.state==='PROVISIONAL'?'Provisional':'Committed',kind:'audit',company:clean(a.company),scopes:scopeList(a.scopes)});
++  }
++  let hard=false,soft=false;
++  for(const s of day.segments){
++   if(s.state!=='HARD'&&s.state!=='SOFT')continue;
++   const wholeDay=s.start==='00:00'&&s.end==='24:00';
++   if(s.state==='HARD')hard=true;else soft=true;
++   slots.push({start:wholeDay?'':clean(s.start),end:wholeDay?'':clean(s.end),auditId:'',auditRef:'',status:s.state==='HARD'?'Unavailable':'SYSTEM_DEFAULT',kind:s.state==='HARD'?'hard':'soft',company:'',scopes:[]});
++  }
++  if(!slots.length)continue;
++  const occupied=slots.some(z=>z.kind==='audit');
++  rows.push({date:day.date,auditorEmail,available:occupied||hard||soft?'NO':'YES',state:occupied||hard||soft?'NO':'YES',
++   visualState:occupied?'OCCUPIED':hard?'HARD_BLOCKED':soft?'SOFT_UNAVAILABLE':'AVAILABLE',slots,source:'FIRESTORE_AVAILABILITY_20'});
++ }
++ return rows;
++}
++
++/** Replace data.overlays.availability in a planning-workspace response with Firestore rows.
++ * period: async ({actor,auditorId,fromDate,toDate,canonicalAuditors}) => overlay.period result.
++ * roster: [{auditorId,email}] canonical active identities.
++ */
++export async function applyFirestorePlannerAvailability({workspace,actor,roster,period}={}){
++ if(typeof period!=='function'||!Array.isArray(roster))throw Error('PLANNER_AVAILABILITY_CONFIGURATION_INVALID');
++ const data=workspace?.data;
++ if(workspace?.ok!==true||!data?.overlays?.availability||!data.period)return workspace;
++ if(!actor||!clean(actor.id)||!['manager','auditor'].includes(actor.role))throw Error('PLANNER_AVAILABILITY_ACTOR_INVALID');
++ const {from,to}=data.period;
++ const ranges=isDate(from)&&isDate(to)?splitAvailabilityRange(from,to):[];
++ const canonicalAuditors=roster.filter(x=>clean(x.auditorId)&&!clean(x.auditorId).startsWith('manager:')).map(x=>({auditorId:clean(x.auditorId),email:clean(x.email).toLowerCase()}));
++ const byEmail=new Map(canonicalAuditors.map(x=>[x.email,x.auditorId]));
++ const emails=[...new Set((data.audit?.candidateAuditors||[]).map(x=>clean(x?.email).toLowerCase()).filter(Boolean))];
++ const byAuditorEmail={};let unresolved=0;
++ await Promise.all(emails.map(async email=>{
++  const auditorId=byEmail.get(email);
++  if(!auditorId){unresolved++;byAuditorEmail[email]=[];return;}
++  if(actor.role==='auditor'&&auditorId!==clean(actor.id))throw Error('PLANNER_AVAILABILITY_SCOPE_FORBIDDEN');
++  const rows=[];
++  for(const r of ranges){
++   const result=await period({actor:{role:actor.role,id:clean(actor.id)},auditorId,fromDate:r.fromDate,toDate:r.toDate,...(actor.role==='manager'?{canonicalAuditors}:{})});
++   if(!result||result.auditorId!==auditorId)throw Error('PLANNER_AVAILABILITY_SOURCE_INVALID');
++   rows.push(...plannerRowsFromPeriod({email,days:result.days,auditDetails:result.auditDetails||{}}));
++  }
++  byAuditorEmail[email]=rows;
++ }));
++ return {...workspace,data:{...data,overlays:{...data.overlays,availability:{byAuditorEmail,source:'FIRESTORE_AVAILABILITY_20',unresolvedCandidates:unresolved}}}};
++}
+diff --git a/cloudrun/transport-proof/package.json b/cloudrun/transport-proof/package.json
+index 604dfff..3fcde20 100644
+--- a/cloudrun/transport-proof/package.json
++++ b/cloudrun/transport-proof/package.json
+@@ -18,7 +18,7 @@
+     "test:part-1": "node planning-firestore-authority-20-test.mjs && node planning-sheets-projector-20-test.mjs && node planning-distributed-gate-20-test.mjs && node planning-outbox-reconciler-20-test.mjs && node planning-atomic-firestore-store-20-test.mjs && node planning-atomic-backfill-20-test.mjs && node planning-atomic-parity-verifier-20-test.mjs && node planning-global-claims-parity-20-test.mjs && node planning-cutover-data-audit-20-test.mjs && node planning-sheets-writeset-projector-20-test.mjs && node planning-sheets-append-projector-20-test.mjs && node planning-append-r1c-failure-injection-test.mjs && node planning-atomic-command-service-20-test.mjs && node planning-lifecycle-atomic-service-20-test.mjs && node planning-multi-lifecycle-service-20-test.mjs && node planning-atomic-transfer-service-20-test.mjs && node planning-multi-cutover-integration-20-test.mjs && node planning-lifecycle-writeset-20-test.mjs && node planning-runtime-import-closure-20-test.mjs && node planning-multi-e2e-simulator-20-test.mjs && node planning-atomic-recovery-20-test.mjs && node planning-atomic-self-planning-rescue-20-test.mjs && node planning-atomic-self-planning-service-20-test.mjs && node planning-atomic-extension-service-20-test.mjs && node planning-atomic-scope-admin-20-test.mjs && node planning-atomic-company-scopes-20-test.mjs && node planning-atomic-auditor-governance-20-test.mjs && node planning-atomic-auditor-identity-20-test.mjs && node planning-atomic-config-bridge-20-test.mjs && node planning-atomic-notification-scalar-20-test.mjs && node planning-atomic-cutover-guard-20-test.mjs && node availability-firestore-adapter-20-test.mjs && node availability-http-api-20-test.mjs && node availability-planning-hard-gate-20-test.mjs && node availability-audit-planning-bridge-20-test.mjs && node availability-manager-overview-20-test.mjs && node availability-manager-rca-regression-test.mjs && node --check auditor-email-dev-preflight.mjs && node --check assignment-validation-v211.js && node --check actor-capabilities-v211.js && node --check company-management-readmodel-20.js && node --check company-scope-hours-snapshot-20.js && node --check company-scope-hours-backfill-20.js && node --check company-scope-hours-migration-20.js && node --check company-scope-hours-storage-20.js && node --check company-scope-hours-resolver-20.js && node --check scope-create-20.js && node --check scope-certification-body-20.js && node --check scope-scheme-version-20.js && node --check scope-policy-20.js && node --check scope-hours-version-20.js && node --check auditor-identity-versions.js && node --check auditor-uid-backfill-preview.js && node --check server-r4.js && node --check manager-portal.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node --check server-r12.js && node --check ../../EntryV5.js && node visit-composition-atomic-service-20-test.mjs && node visit-composition-together-r4-preflight-20-test.mjs && node planning-workspace-visit-composition-entry-20-test.mjs && node visit-composition-separate-authority-preflight-20-test.mjs && node --check visit-composition-manager-page-20.mjs && node multi-scope-planning-parity-20-test.mjs",
+     "test:part-2": "node --check ../../OpenAuditsGrid2Service.js && node --check ../../Grid2SelectionService.js && node --check ../../PlanningWorkspaceRpc.js && node --check ../../PlanningWorkspaceDecisionReadModel.js && node --check ../../zz_ExternalPlanningWorkspaceHandoff.js && node --check ../../zz_PlanningWorkspaceEntryRouteOverride.js && node --check ../../ModelCAnnualCycleRuntime.js && node --check ../../ConfigScopesMinIntervalMigration.js && node --check ../../CompaniesAuditorExclusionsMigration.js && node --check ../../V211PlanningSchemaMigration.js && node --check ../../ConfigScopesService.js && node --check ../../CompaniesBackend.js && node --check ../../AvailabilityPlanningReconciler.js && node --check ../../zzz_ExternalAuditorPlanningSessionHandoff.js && node assignment-validation-v211-test.mjs && node actor-capabilities-v211-test.mjs && node auditor-planning-mode-contract-test.mjs && node shared-grid2-auditor-contract-test.mjs && node auditor-preassignment-display-contract-test.mjs && node manager-auditor-portal-separation-stress-test.mjs && node portal-review-20261005-contract-test.mjs && node login-auth-v211-contract-test.mjs && node portal2-direct-login-contract-test.mjs && node runtime-entrypoint-test.mjs && node generated-planning-client-syntax-test.mjs && node manager-action-micro-refresh-test.mjs && node complete-v29-contract-test.mjs && node realized-hours-direct-contract-test.mjs && node grid2-selection-contract-test.mjs && node scheduling-delta-test.mjs && node planning-toolkit-v210-contract-test.mjs && node contract-test.mjs && node combined-visit-contract-test.mjs && node issue87-combined-calendar-behavior-test.mjs && node planning-calendar-window-hard-constraints-20-test.mjs && node planning-scope-min-interval-20-test.mjs && node scope-dependency-policy-20-test.mjs && node atomic-backfill-get-dry-run-20-test.mjs && node atomic-cutover-evidence-readonly-20-test.mjs && node planning-backfill-source-revision-cas-20-test.mjs && node system-write-guard-cutover-20-test.mjs && node gas-trigger-source-inventory-20-test.mjs && node dev-cutover-freeze-20-test.mjs && node dev-cutover-console-20-test.mjs && node issue87-canonical-window-test.mjs && node issue87-mode-switch-state-test.mjs && node issue87-canonical-qualification-client-test.mjs && node open-audits-grid2-contract-test.mjs && node open-audits-grid2-gas-contract-test.mjs && node legacy-hours-remnant-scan-test.mjs && node recurring-company-hours-v211-test.mjs && node company-scope-hours-snapshot-20-test.mjs && node company-scope-hours-backfill-20-test.mjs && node company-scope-hours-migration-20-test.mjs && node company-scope-hours-storage-20-test.mjs && node company-scope-hours-resolver-20-test.mjs && node scope-create-20-test.mjs && node scope-certification-body-20-test.mjs && node certification-body-routing-20-test.mjs && node certification-body-scope-management-contract-20-test.mjs && node certification-body-extension-outbox-20-test.mjs && node cb-extension-notification-gas-20-test.mjs && node certification-body-notification-overview-20-test.mjs && node cb-notifications-dashboard-contract-20-test.mjs && node certification-body-integration-contract-20-test.mjs && node scope-scheme-version-20-test.mjs && node scope-policy-20-test.mjs && node scope-hours-version-20-test.mjs && node scope-slot-bridge-v211-test.mjs && node scope-owner-hours-contract-test.mjs && node company-management-readmodel-20-test.mjs && node company-management-contract-test.mjs && node company-auditor-permissions-20-test.mjs && node fase12-extension-compact-dossier-20-test.mjs && node fase12-map-column-grid-20-test.mjs && node manager-self-planning-post-ext-20-test.mjs && node self-planning-proxy-origin-20-test.mjs && node manager-dev-write-route-20-test.mjs && node dev-model-c-sheet-serial-date-20-test.mjs",
+     "test:part-3": "node auditor-management-20-contract-test.mjs && node auditor-identity-versions-test.mjs && node auditor-uid-backfill-preview-test.mjs && node availability-release-preflight-20.mjs && node availability-hard-history-migration-20-test.mjs && node availability-uid-gas-contract-test.mjs && node availability-mutations-20-test.mjs && node availability-storage-service-20-test.mjs && node availability-planning-overlay-service-20-test.mjs && node availability-planning-read-cache-20-test.mjs && node availability-my-auditor-ui-contract-test.mjs && node availability-manager-ui-contract-test.mjs && node --check auth-session-policy.mjs && node ../../tests/auth-session-policy.test.mjs && node ../../tests/auth-login-2-0-contract.test.mjs && node notification-email-action-policy-20-test.mjs && node notification-email-action-flow-20-test.mjs && node notification-email-deeplink-20-test.mjs && node notification-email-actions-prod-parity-20-test.mjs && node notification-device-trust-20-test.mjs && node notification-portal-settings-policy-20-test.mjs && node notification-overview-20-test.mjs && node --check server-r4.js && node --check server-r15.js && node auth-cloudrun-login-contract.test.mjs && node auth-session-revocation-20-test.mjs && node auth-fast-otp-20-test.mjs && node auth-fast-otp-contract-test.mjs && node auth-cookie-proxy-contract-test.mjs && node auth-2-0-closeout-contract-test.mjs && node auth-remember-cookie-contract-test.mjs && node auth-mail-acceptance-contract-test.mjs && node rotation-dynamic-scopes-20-test.mjs && node issue87-model-c-rotation-gate-test.mjs && node rotation-preassignment-enforcement-20-test.mjs && node rotation-config-schema-migration-20-test.mjs && node rotation-policy-diagnostics-20-test.mjs && node rotation-ams-log-identity-20-test.mjs && node rotation-canonical-coverage-20-test.mjs && node rotation-canonical-policy-validation-20-test.mjs && node rotation-policy-edgecases-20-test.mjs && node rotation-overview-readmodel-20-test.mjs && node rotation-gas-service-contract-20-test.mjs && node --check rotation-manager-20.mjs && node --check rotation-manager-20.js && node rotation-manager-20-test.mjs && node rotation-manager-access-20-test.mjs && node runtime-environment-20-test.mjs && node canonical-dev-entry-20-test.mjs && node preflight-browser-auth-gate-20-test.mjs && node notifications-auth-rotation-compat-20-test.mjs && node notifications-gas-contract-20-test.mjs && node notification-batching-window-20-test.mjs && node notification-email-actions-runtime-20-test.mjs",
+-    "test:part-4": "node notification-rolling-digest-contract-test.mjs && node notification-digest-send-simulation-test.mjs && node notification-digest-config-writer-20-test.mjs && node notification-weekly-envelope-20-test.mjs && node notification-external-digest-integrity-20-test.mjs && node notification-weekly-queue-idempotency-20-test.mjs && node swap-gas-clasp-cleanup-20-test.mjs && node swap-proposal-20-test.mjs && node swap-commit-gate-20-test.mjs && node swap-manager-commit-timings-20-test.mjs && node swap-coordinator-recovery-20-test.mjs && node auditor-accept-direct-sheets-20-test.mjs && node auditor-accept-direct-sheets-20-route-test.mjs && node lifecycle-accept-cutover-20-test.mjs && node lifecycle-atomic-accept-20-test.mjs && node lifecycle-auditor-accept-direct-20-test.mjs && node lifecycle-auditor-accept-orchestrator-20-test.mjs && node scope-20-legacy-gap-check.mjs && node auditor-scope-qualifications-20-test.mjs && node auditor-scope-qualifications-migration-20-test.mjs && node auditor-scope-qualifications-parity-20-test.mjs && node auditor-scope-qualifications-migration-plan-20-test.mjs && node auditor-scope-qualifications-migration-apply-20-test.mjs && node auditor-scope-qualifications-migration-sheets-20-test.mjs && node auditor-scope-qualifications-firestore-lock-20-test.mjs && node fase1-integration-known-gaps-20-test.mjs && node model-c-new-obligation-provenance-20-test.mjs && node model-c-provenance-projector-e2e-synthetic-20-test.mjs && node model-c-successor-writer-gate-20-test.mjs && node model-c-annual-scope20-headerless-test.mjs && node model-c-gas-annual-hours-snapshot-20-test.mjs && node auditor-uid-owner-resolution-20-test.mjs && node auditor-uid-revision-fingerprint-20-test.mjs && node scope20-gas-canonical-preassignment-test.mjs && node scope20-auditor-read-cutover-20-test.mjs && node auditor-r15-roster-identity-20-test.mjs && node runtime-docker-import-closure-20-test.mjs && node availability-day-details-behavior-20-test.mjs && node availability-fase12-ui-contract-test.mjs && npm run test:fase12",
++    "test:part-4": "node notification-rolling-digest-contract-test.mjs && node notification-digest-send-simulation-test.mjs && node notification-digest-config-writer-20-test.mjs && node notification-weekly-envelope-20-test.mjs && node notification-external-digest-integrity-20-test.mjs && node notification-weekly-queue-idempotency-20-test.mjs && node swap-gas-clasp-cleanup-20-test.mjs && node swap-proposal-20-test.mjs && node swap-commit-gate-20-test.mjs && node swap-manager-commit-timings-20-test.mjs && node swap-coordinator-recovery-20-test.mjs && node auditor-accept-direct-sheets-20-test.mjs && node auditor-accept-direct-sheets-20-route-test.mjs && node lifecycle-accept-cutover-20-test.mjs && node lifecycle-atomic-accept-20-test.mjs && node lifecycle-auditor-accept-direct-20-test.mjs && node lifecycle-auditor-accept-orchestrator-20-test.mjs && node scope-20-legacy-gap-check.mjs && node auditor-scope-qualifications-20-test.mjs && node auditor-scope-qualifications-migration-20-test.mjs && node auditor-scope-qualifications-parity-20-test.mjs && node auditor-scope-qualifications-migration-plan-20-test.mjs && node auditor-scope-qualifications-migration-apply-20-test.mjs && node auditor-scope-qualifications-migration-sheets-20-test.mjs && node auditor-scope-qualifications-firestore-lock-20-test.mjs && node fase1-integration-known-gaps-20-test.mjs && node model-c-new-obligation-provenance-20-test.mjs && node model-c-provenance-projector-e2e-synthetic-20-test.mjs && node model-c-successor-writer-gate-20-test.mjs && node model-c-annual-scope20-headerless-test.mjs && node model-c-gas-annual-hours-snapshot-20-test.mjs && node auditor-uid-owner-resolution-20-test.mjs && node auditor-uid-revision-fingerprint-20-test.mjs && node scope20-gas-canonical-preassignment-test.mjs && node scope20-auditor-read-cutover-20-test.mjs && node auditor-r15-roster-identity-20-test.mjs && node runtime-docker-import-closure-20-test.mjs && node availability-day-details-behavior-20-test.mjs && node availability-fase12-ui-contract-test.mjs && node availability-planner-calendar-projection-20-test.mjs && node availability-firestore-authority-preflight-20-test.mjs && npm run test:fase12",
+     "preflight:auditor-email:dev": "node auditor-email-dev-preflight.mjs",
+     "preflight:availability:dev": "node availability-release-preflight-20.mjs",
+     "test:auth-fast": "node auth-fast-otp-20-test.mjs && node auth-fast-otp-contract-test.mjs",
+diff --git a/cloudrun/transport-proof/server-r15.js b/cloudrun/transport-proof/server-r15.js
+index c3494d5..e0a24d0 100644
+--- a/cloudrun/transport-proof/server-r15.js
++++ b/cloudrun/transport-proof/server-r15.js
+@@ -66,6 +66,7 @@ import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
+ import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
+ import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
+ import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
++import {applyFirestorePlannerAvailability} from './availability-planner-calendar-projection-20.js';
+ import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
+ import {migrateLegacyHardHistory} from './availability-hard-history-migration-20.js';
+ 
+@@ -846,6 +847,24 @@ const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity
+   canonicalAuditors:roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}))
+  };
+ }});
++// DEV Firestore availability authority: the planner calendar reads the canonical
++// Availability 2.0 document by Auditor_UID instead of the Sheets projection.
++const firestorePlannerAvailabilityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED==='true';
++async function firestorePlannerWorkspace(req,res){
++ const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];delete headers['accept-encoding'];
++ const inner=await fetch('http://127.0.0.1:'+innerPort+(req.url||'/'),{headers,redirect:'manual',signal:AbortSignal.timeout(60000)});
++ const text=await inner.text();
++ let body=null;try{body=JSON.parse(text);}catch{}
++ if(!inner.ok||body?.ok!==true){
++  res.writeHead(inner.status,{'content-type':inner.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
++  res.end(text);return;
++ }
++ const actor=await session(req);
++ if(!actor)throw Error('PLANNER_AVAILABILITY_SESSION_REQUIRED');
++ const result=await applyFirestorePlannerAvailability({workspace:body,actor:{role:actor.role,id:actor.auditorId},roster:await swapRoster(),period:overlay.period});
++ res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
++ res.end(JSON.stringify(result));
++}
+ async function legacyAvailabilityDiagnostic(req,res){
+  const actor=await session(req);
+  if(!actor||actor.role!=='manager'){res.writeHead(403);res.end();return;}
+@@ -2901,6 +2920,7 @@ http.createServer(async(req,res)=>{
+    if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+    await swap20AuditorRequest(req,res,operation);return;
+   }
++  if(req.method==='GET'&&u.pathname==='/api/v1/planning/workspace'&&firestorePlannerAvailabilityEnabled){await firestorePlannerWorkspace(req,res);return;}
+   if(await availability(req,res))return;
+   await proxy(req,res);
+  }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const isSwap=runtime.isDev&&path.includes('/swap20/');const code=isSwap?'SWAP20_INTEGRATION_FAILED':subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){const planningConflict=runtime.isDev&&path==='/api/v1/planning/direct-commit'&&['PLANNING_LEASE_ACTIVE','VERSION_CONFLICT','AVAILABILITY_HARD_BLOCK'].some(x=>String(e?.message||'').startsWith(x));res.writeHead(planningConflict?409:503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:planningConflict?String(e.message).slice(0,100):runtime.isDev&&path==='/api/v1/planning/direct-commit'&&String(e?.message||'').includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')?'PLANNING_COMMIT_OUTCOME_UNCERTAIN':isSwap?String(e?.message||'SWAP20_INTEGRATION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100):runtime.isDev&&(/^\/api\/v1\/(?:planning\/|manager\/(?:self-planning-direct|action|cancel-direct|approve-direct|accept-direct|reject-direct|complete-direct))/.test(path))?String(e?.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,140):code,diagnostic:subsystem==='NOTIFICATIONS'?String(e?.message||'UNKNOWN').slice(0,100):runtime.isDev&&path==='/api/v1/manager/model-c-visit-preview'?String(e?.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100):undefined}));}else res.destroy();}
+diff --git a/cloudrun/transport-proof/server-r4.js b/cloudrun/transport-proof/server-r4.js
+index d86de54..0395c78 100644
+--- a/cloudrun/transport-proof/server-r4.js
++++ b/cloudrun/transport-proof/server-r4.js
+@@ -2197,8 +2197,11 @@ function directPlanningCommit(identity,body){
+       const hardSlots=slots.filter(z=>!clean(x.row[z.id])&&clean(x.row[z.st])&&!/^(DEFAULT_|MANUAL_|SYSTEM_DEFAULT|USER_MANUAL|CALENDAR|CALENDER)/i.test(clean(x.row[z.st])));
+       const wholeDayHard=!yes(x.row[ca])&&hardSlots.some(z=>!clean(x.row[z.s])&&!clean(x.row[z.e]));
+       const timedHard=hardSlots.some(z=>clean(x.row[z.s])&&clean(x.row[z.e])&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}));
+-      if(wholeDayHard||timedHard)throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
+-      let z=slots.find(q=>!clean(x.row[q.id]));if(!z)throw new Error('AVAILABILITY_CAPACITY_'+b.date);
++      // Firestore Availability 2.0 is the HARD authority once the atomic command has run its hard gate;
++      // the Sheets row is then only a derived projection and must not block or double-check HARD.
++      const firestoreAvailabilityAuthority=authorityPreflight&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&process.env.AMS_DEV_FIRESTORE_AVAILABILITY_AUTHORITY_ENABLED==='true';
++      if(!firestoreAvailabilityAuthority&&(wholeDayHard||timedHard))throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
++      let z=firestoreAvailabilityAuthority?(slots.find(q=>!clean(x.row[q.id])&&!clean(x.row[q.st]))||slots.find(q=>!clean(x.row[q.id]))):slots.find(q=>!clean(x.row[q.id]));if(!z)throw new Error('AVAILABILITY_CAPACITY_'+b.date);
+       x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]=actorRole==='MANAGER'?'Manager Planned':'Auditor Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
+     }
+ 

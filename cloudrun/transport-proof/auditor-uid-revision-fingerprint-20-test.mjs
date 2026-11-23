@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {directLifecycleRowRevision20} from './auditor-accept-direct-sheets-20.mjs';
 import {runInNewContext} from 'node:vm';
 const code=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const start=code.indexOf('function directRowRevision('),end=code.indexOf('function directResolveAuditorEmail(',start);
 assert.ok(start>=0&&end>start);
-const norm=x=>String(x??'').trim().toLowerCase();
-const col=(headers,names)=>headers.findIndex(h=>names.some(n=>norm(n)===norm(h)));
-const val=(row,i)=>i>=0?String(row[i]??'').trim():'';
-const context={createHash,col,val};
+const context={directLifecycleRowRevision20};
 runInNewContext(code.slice(start,end),context);
 const headers=['Audit ID','Status','Assigned to','Planning JSON','Last decision timestamp','Status since','Auditor_UID'];
 const row=['AUD-1','Approved','someone@example.com','{}','2026-10-31','2026-10-31',''];

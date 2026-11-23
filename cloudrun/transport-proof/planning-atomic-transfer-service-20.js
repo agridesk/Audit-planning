@@ -27,7 +27,7 @@ export function createPlanningAtomicTransferService({store,gate,projector,append
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision||old.snapshot?.legacyUnverified)throw Error('TRANSFER_ATOMIC_CANONICAL_REVISION_CONFLICT');
    if(!canonicalPlanningRowMatches20(old.snapshot,preview))throw Error('TRANSFER_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT');
    const status=String(preview.canonicalSnapshot.status||'').toUpperCase().replace(/[\s-]/g,'_');
-   if(status!=='PENDING_APPROVAL'||txt(preview.canonicalSnapshot.assignedTo))throw Error('TRANSFER_ATOMIC_TARGET_STATE_INVALID');
+   if(status!=='PENDING_PLANNING'||txt(preview.canonicalSnapshot.assignedTo))throw Error('TRANSFER_ATOMIC_TARGET_STATE_INVALID');
    const plan={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};
    attempted=true;
    const receipt=await store.commitMulti({operationId,actorId:actor.auditorId,action:'TRANSFER',entities:[{auditId,expectedRevision:old.revision,remove:false,auditorId:null,blocks:[],nextSnapshot:plan}],projectionPlan:plan});
@@ -41,7 +41,7 @@ export function createPlanningAtomicTransferService({store,gate,projector,append
    projected=true;
    await gate.release({token:lock.token,verified:true,proof:'TRANSFER_FIRESTORE_SHEETS_VERIFIED'});
    lock=null;
-   return {ok:true,success:true,auditId,operationId,status:'Pending Approval',toEmail:preview.toEmail,authority:'FIRESTORE',projection:'PROJECTED',availabilityWarning:true};
+   return {ok:true,success:true,auditId,operationId,status:'Pending Planning',toEmail:preview.toEmail,authority:'FIRESTORE',projection:'PROJECTED',availabilityWarning:true};
   }finally{
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'TRANSFER_VALIDATION_FAILED_BEFORE_WRITE'});

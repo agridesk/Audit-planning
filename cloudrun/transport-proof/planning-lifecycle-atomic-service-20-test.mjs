@@ -30,12 +30,22 @@ preview.canonicalSnapshot={...snapshot,headers:['Audit ID','Status','Assigned to
 await assert.rejects(()=>service.commit(req),/LIFECYCLE_ATOMIC_CANONICAL_ROW_PARITY_CONFLICT/);
 assert.equal(writes,0);assert.equal(lock,null);
 preview.canonicalSnapshot=snapshot;
-const first=await service.commit(req);
+let committedReceipt;
+const first=await service.commit({...req,onCommitted(receipt){
+ committedReceipt={...receipt,state:outbox.get(receipt.operationId)?.state,appendCount,gateHeld:Boolean(lock)};
+ throw Error('BROWSER_CONNECTION_LOST');
+}});
+assert.equal(committedReceipt.state,'PENDING');
+assert.equal(committedReceipt.status,'ACCEPTED');
+assert.equal(committedReceipt.appendCount,0);
+assert.equal(committedReceipt.gateHeld,true);
+assert.equal(first.sourceRevision,'newrev');
 assert.equal(first.success,true);assert.equal(writes,1);assert.equal(appendCount,1);assert.equal(lock,null);
 assert.equal((await service.commit(req)).idempotent,true);
 assert.equal(writes,1);
 audit.snapshot.sourceRevision='newrev';preview.expectedSourceRevision='newrev';snapshot.sourceRevision='newrev2';failed=true;
-await assert.rejects(()=>service.commit({...req,action:'APPROVE'}),/PROJECTOR_TIMEOUT/);
+await assert.rejects(()=>service.commit({...req,action:'APPROVE'}),error=>
+ error.message==='PROJECTOR_TIMEOUT'&&error.writeOutcome==='COMMITTED'&&/^[a-f0-9]{64}$/.test(error.operationId));
 assert.equal(uncertain,2);assert.equal(lock.state,'UNCERTAIN');
 // Separate canonical fixture for auditor ACCEPT; other actions must remain forbidden.
 const auditorState={revision:0,pendingOperationId:null,auditorId:'uid1',snapshot:{sourceRevision:'oldrev',status:'Approved',headers,row:sourceRow}};
@@ -53,7 +63,7 @@ const auditorService=createPlanningLifecycleAtomicService({
  appendProjector:{async apply(){},async inspect(){return {state:'MATCH',count:1}}},
  preflight:async()=>auditorPreview,roster:async()=>[{auditorId:'uid1',email:'aud@example.test',role:'auditor'}]
 });
-await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid2'},body:{auditId:'a1'},action:'ACCEPT'}),/LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED/);
+await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid2'},body:{auditId:'a1'},action:'ACCEPT'}),{message:'LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED',writeOutcome:'NOT_COMMITTED'});
 await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'CANCEL'}),/LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED/);
 assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'ACCEPT'})).success,true);
 assert.equal(auditorWrites,1);assert.equal(storedOperation.auditorId,'uid1');

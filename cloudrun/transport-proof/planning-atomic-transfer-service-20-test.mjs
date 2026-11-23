@@ -17,8 +17,8 @@ const gate={
  async uncertain(){uncertain++;fence.state='UNCERTAIN';}
 };
 const preview={success:true,authorityPreflight:true,action:'TRANSFER',auditId:'A1',fromEmail:'old@example.test',toEmail:'new@example.test',expectedSourceRevision:'old-revision',
- sourceRowBefore:sourceRow.slice(),canonicalSnapshot:{auditId:'A1',status:'Pending Approval',assignedTo:'',sourceRevision:'new-revision',headers},
- projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Pending Approval']]}],
+ sourceRowBefore:sourceRow.slice(),canonicalSnapshot:{auditId:'A1',status:'Pending Planning',assignedTo:'',sourceRevision:'new-revision',headers},
+ projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Pending Planning']]}],
  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],
  appendIntents:[{range:'Diagnostics_Log!A:K',values:[['today','TRANSFER','A1']]}]};
 const projector={async apply(){if(fail)throw Error('SHEETS_TIMEOUT');},async inspect(){return {state:'MATCH',detail:[]}}};
@@ -30,7 +30,7 @@ await assert.rejects(()=>service.commit({actor,body}),/TRANSFER_ATOMIC_CANONICAL
 assert.equal(writes,0);assert.equal(fence,null);
 preview.sourceRowBefore=sourceRow.slice();
 const result=await service.commit({actor,body});
-assert.equal(result.success,true);assert.equal(result.ok,true);assert.equal(result.status,'Pending Approval');assert.equal(holder,null);assert.equal(projected,1);
+assert.equal(result.success,true);assert.equal(result.ok,true);assert.equal(result.status,'Pending Planning');assert.equal(holder,null);assert.equal(projected,1);
 const replay=await service.commit({actor,body});assert.equal(replay.ok,true);assert.equal(replay.idempotent,true);assert.equal(writes,1);
 previous.snapshot.sourceRevision='new-parent-revision';preview.expectedSourceRevision='new-parent-revision';fail=true;
 await assert.rejects(()=>service.commit({actor,body:{...body,reason:'another transfer'}}),/SHEETS_TIMEOUT/);

@@ -7,6 +7,13 @@ const str=x=>String(x??'');
 const scalar=x=>x===null||typeof x==='string'||typeof x==='boolean'||typeof x==='number'&&Number.isFinite(x);
 const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();return a;};
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
+function sameReservedPayload(stored,expected){
+ try{
+  const actual=JSON.parse(stored),intent=JSON.parse(expected);
+  return !!actual?.windowKey&&!!actual?.groupKey&&!intent?.windowKey&&
+    !!intent?.payload&&JSON.stringify(actual.payload)===JSON.stringify(intent.payload);
+ }catch{return false;}
+}
 const columnNumber=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
 const widthOf=range=>{const m=/!A:([A-Z]+)$/.exec(range);return m?columnNumber(m[1]):0;};
 const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log','CB_Extension_Outbox']);
@@ -96,7 +103,8 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
       const storedReserved=str(existing[0][12]),expectedReserved=str(item.row[12]);
       const delivered=['SENT','SENT_DEV_REDIRECT','SENT_SIMULATED','SENT_SUPPRESSED'];
       if(storedReserved!==expectedReserved&&
-         !(storedReserved===''&&expectedReserved!==''&&delivered.includes(str(existing[0][1]))))
+         !(storedReserved===''&&expectedReserved!==''&&delivered.includes(str(existing[0][1])))&&
+         !((str(existing[0][1])==='RESERVED'||delivered.includes(str(existing[0][1])))&&sameReservedPayload(storedReserved,expectedReserved)))
        throw Error('APPEND_NOTIFICATION_HASH_CONFLICT');
       continue;
      }
@@ -108,21 +116,34 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   return {state:missing.length?'MISSING':'MATCH',missing,count:items.length};
  }
- async function apply({operationId,gateToken,intents}){
+ async function prepare({operationId,gateToken,intents,metadataOnly=false}){
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
+  if(metadataOnly){
+   validate(intents);
+   return {metadata:await request(base+'?fields=sheets(properties(sheetId,title))')};
+  }
   const before=await inspect(intents);
-  if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
+  const metadata=before.state==='MATCH'?null:await request(base+'?fields=sheets(properties(sheetId,title))');
+  return {before,metadata};
+ }
+ async function apply({operationId,gateToken,intents,prepared,freshInspection}){
+  const timing={};
+  if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
+  await verifyFence({operationId,gateToken});
+  const before=prepared?.before??freshInspection??await inspect(intents);
+  if(!prepared&&before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true,verification:before};}
   await verifyFence({operationId,gateToken});
   // Metadata is independent of the final identity scan.
   const [metadata,fresh]=await Promise.all([
-   request(base+'?fields=sheets(properties(sheetId,title))'),
-   inspect(intents)
+   prepared?.metadata??(before.state==='MATCH'?null:request(base+'?fields=sheets(properties(sheetId,title))')),
+   freshInspection??inspect(intents)
   ]);
   if(fresh.state!=='MATCH'){
+   const tabs=metadata??await request(base+'?fields=sheets(properties(sheetId,title))');
    const groups=new Map();
    for(const missing of fresh.missing){
-    const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
+    const target=(tabs.sheets||[]).find(s=>s.properties?.title===missing.sheet);
     if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
     const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
     if(!groups.has(target.properties.sheetId))groups.set(target.properties.sheetId,[]);
@@ -130,13 +151,17 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    }
    const requests=[...groups].map(([sheetId,rows])=>({appendCells:{sheetId,rows,fields:'userEnteredValue'}}));
    await verifyFence({operationId,gateToken});
-   await request(base+':batchUpdate','POST',{requests});
+   const writeStarted=Date.now();
+   try{await request(base+':batchUpdate','POST',{requests});}
+   finally{timing.appendWriteMs=Date.now()-writeStarted;}
    await verifyFence({operationId,gateToken});
   }
-  const after=await inspect(intents);
+  const verifyStarted=Date.now();
+  const after=freshInspection&&fresh.state==='MATCH'?fresh:await inspect(intents);
+  timing.appendReadbackMs=Date.now()-verifyStarted;
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');
   await verifyFence({operationId,gateToken});
-  return {operationId,confirmed:true,replayed:false};
+  return {operationId,confirmed:true,replayed:false,verification:after,timing};
  }
- return Object.freeze({inspect,apply});
+ return Object.freeze({inspect,prepare,apply});
 }

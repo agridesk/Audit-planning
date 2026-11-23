@@ -1,0 +1,97 @@
+name: Deploy EXT performance DEV candidate
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/ams-dev-ext-performance-candidate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ams-fase12-dev-isolated-deploy
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    if: github.repository == 'agridesk/Audit-planning' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assemble and test isolated EXT candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs)" = 8c638b586ea4ee1cb320930a9d1d2d2ed66bac4f
+          test "$(git hash-object cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs)" = 36fa0d37b7e267c1ba7baaa7ec24ccfe66411101
+          mkdir -p "$RUNNER_TEMP/ext-source"
+          git archive 97be78618828f4ef772ed319be5a0bf865a15a47 | tar -xf - -C "$RUNNER_TEMP/ext-source"
+          git diff --binary c424006d57f23bd866a821e11d30b817b90eab88 2fb3286259b135d65f9ab8803455c9f9ecaa3a40 -- \
+            cloudrun/transport-proof/planning-atomic-extension-service-20.js \
+            cloudrun/transport-proof/planning-atomic-extension-service-20-test.mjs \
+            cloudrun/transport-proof/server-r4.js \
+            cloudrun/transport-proof/model-c-extension-dev-direct-route-20-test.mjs \
+            cloudrun/transport-proof/manager-dev-write-route-20-test.mjs \
+            cloudrun/transport-proof/dev-model-c-sheet-serial-date-20-test.mjs > "$RUNNER_TEMP/ext.patch"
+          test -s "$RUNNER_TEMP/ext.patch"
+          cd "$RUNNER_TEMP/ext-source"
+          git apply --check "$RUNNER_TEMP/ext.patch"
+          git apply "$RUNNER_TEMP/ext.patch"
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/cloudrun/transport-proof/model-c-extension-dev-direct-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/dev-model-c-sheet-serial-date-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/planning-atomic-extension-service-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/manager-dev-write-route-20-test.mjs" cloudrun/transport-proof/
+          cp "$GITHUB_WORKSPACE/.github/workflows/ext-performance-tests/fase12-extension-undo-regression-test.mjs" cloudrun/transport-proof/
+          git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
+          git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance.patch"
+          git apply --check "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance-2.patch"
+          git apply "$GITHUB_WORKSPACE/.github/workflows/ams-dev-ext-performance-2.patch"
+          echo "CANDIDATE_SERVER_R4_SHA256=$(sha256sum cloudrun/transport-proof/server-r4.js | cut -d' ' -f1)"
+          echo "CANDIDATE_MANAGER_PORTAL_SHA256=$(sha256sum cloudrun/transport-proof/manager-portal.js | cut -d' ' -f1)"
+          cd cloudrun/transport-proof
+          npm test > "$RUNNER_TEMP/ext-tests.log" 2>&1 || { tail -n 100 "$RUNNER_TEMP/ext-tests.log"; exit 1; }
+          tail -n 20 "$RUNNER_TEMP/ext-tests.log"
+          echo "Isolated EXT performance candidate full suite passed"
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev
+          service_account: ams-github-dev-deploy@audit-management-system-dev.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Deploy candidate with no regular traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--project=audit-management-system-dev --region=europe-west1 --quiet)
+          service=ams-fase12-dev
+          live=ams-fase12-dev-00359-rar
+          tag="ext-perf-${GITHUB_RUN_ID}"
+          describe() { gcloud run services describe "$service" "${args[@]}" --format=json; }
+          traffic() { jq -c '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName,percent}] | sort_by(.revisionName)'; }
+          current=$(describe)
+          jq -e '.spec.template.spec.serviceAccountName == "510075419067-compute@developer.gserviceaccount.com"' <<<"$current" >/dev/null
+          jq -e '[.spec.template.spec.containers[0].env[]? | {key:.name,value:.value}] | from_entries | .AMS_RUNTIME_ENV == "DEV" and .AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED == "true" and .AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED != "true"' <<<"$current" >/dev/null
+          jq -e --arg live "$live" '[.status.traffic[] | select((.percent // 0) > 0)] | length == 1 and .[0].revisionName == $live and .[0].percent == 100' <<<"$current" >/dev/null
+          before=$(traffic <<<"$current")
+          gcloud run deploy "$service" "${args[@]}" --source="$RUNNER_TEMP/ext-source/cloudrun/transport-proof" \
+            --no-traffic --tag="$tag" --update-labels="commit-sha=$GITHUB_SHA,ext-base=97be78618828,ext-patch=2fb3286259b1,ext-perf=fewer-roundtrips-v2"
+          current=$(describe)
+          [[ "$(traffic <<<"$current")" == "$before" ]]
+          revision=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .revisionName' <<<"$current")
+          url=$(jq -er --arg tag "$tag" '.status.traffic[] | select(.tag == $tag and (.percent // 0) == 0) | .url' <<<"$current")
+          sha=$(gcloud run revisions describe "$revision" "${args[@]}" --format='value(metadata.labels.commit-sha)')
+          [[ "$sha" == "$GITHUB_SHA" ]]
+          echo "CANDIDATE_REVISION=$revision"
+          echo "CANDIDATE_TAG=$tag"
+          echo "CANDIDATE_URL=$url"
+          echo "REGULAR_TRAFFIC_UNCHANGED=$before"

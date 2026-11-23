@@ -1,7 +1,7 @@
 import {requiredTogetherScopePairs20} from './scope-dependency-policy-20.mjs';
 import http from 'node:http';
 import {validateTogetherCompositionPreflight20} from './visit-composition-together-r4-preflight-20.mjs';
-import {resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
+import {managerApprovalBlocks20,resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
 import {createScopeExtensionCommand20} from './model-c-scope-extension-command-20.mjs';
 import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-firestore-store-20.mjs';
 import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
@@ -32,7 +32,7 @@ const lifecyclePreviewContext20=new AsyncLocalStorage();
 const scopeExtensionProjectionWrites20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
-import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
+import {buildDirectAuditorAcceptSheets20,directLifecycleRowRevision20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
 import {URL} from 'node:url';
@@ -181,7 +181,12 @@ async function sheetsBatchGetOnce(ranges,serialDates=false){
   for(const range of ranges)u.searchParams.append('ranges',range);
   u.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');u.searchParams.set('dateTimeRenderOption',serialDates?'SERIAL_NUMBER':'FORMATTED_STRING');
   const r=await fetch(u,{headers:{authorization:'Bearer '+token}}),body=await r.json();
-  if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
+  if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));
+  const values=body.valueRanges||[],preview=lifecyclePreviewContext20.getStore();
+  const planningIndex=ranges.indexOf('Audit planning!A1:BW2000');
+  if(preview&&planningIndex>=0&&!serialDates&&Array.isArray(values[planningIndex]?.values))
+   preview.planningRows=structuredClone(values[planningIndex].values);
+  return values;
 }
 async function sheetsValuesBatchUpdate(data){
   assertScopeExtensionLegacyWriteFenced20({authority:process.env.AMS_SCOPE_EXTENSION_AUTHORITY,writes:data});
@@ -916,7 +921,17 @@ function managerOpen(apValues,email,scopeValues,companyValues,audValues){
     const id=val(row,ci);if(!id||isRetiredCompositionPlanningRow20(row,cpj))continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
     const company=val(row,cc),location=val(row,cl),uid=val(row,cu),companyMeta=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||{},region=companyMeta.region||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex),activeLocations=Number(companyMeta.activeLocations||1),hqGps=clean(companyMeta.hqGps);
-    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,locs:activeLocations,locationsToPlan:activeLocations,locationCount:activeLocations,gps:hqGps,gpsData:hqGps,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningWindowFrom:from,planningWindowTo:to,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours:maxOffsiteHoursForScopes(catalog,scopes),offsitePolicy:offsitePolicyForScopes(catalog,scopes),toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),assignedToUid:val(row,col(h,['Auditor_UID','Assigned_Auditor_UID'])),assignedToDisplayName:directAuditorDisplayName(audValues,val(row,ca)),preassignedAuditor:val(row,cp),preassignedAuditorDisplayName:directAuditorDisplayName(audValues,val(row,cp)),allowSelfPlanning:yes(val(row,cself)),datePlanned:dateOnly(row[cd]),planningJson:val(row,cpj),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')+(val(row,col(h,['Auditor_UID','Assigned_Auditor_UID']))?'|'+val(row,col(h,['Auditor_UID','Assigned_Auditor_UID'])):'')).digest('hex').slice(0,24),latestComment:val(row,ccomment),latestCommentActor:'Manager',latestCommentAction:val(row,cdecision),latestCommentTimestamp:val(row,cldt),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
+    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];
+    const hasSavedPlan=Boolean(dateOnly(row[cd])&&managerApprovalBlocks20(val(row,cpj)).length);
+    const hoursPlanned=statusKey==='PENDING_PLANNING'||!hasSavedPlan?'':val(row,cph);
+    if(statusKey==='PENDING_APPROVAL'){
+     try{
+      if(!hasSavedPlan)throw Error('APPROVE_SAVED_PLANNING_REQUIRED');
+      resolveManagerApprovalRecipient20({assigned:val(row,ca),
+       assignedUid:val(row,idx(['Auditor_UID','Auditor UID','Assigned_Auditor_UID'])),auditorValues:audValues});
+     }catch{actions.splice(actions.indexOf('APPROVE'),1);}
+    }
+    rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,locs:activeLocations,locationsToPlan:activeLocations,locationCount:activeLocations,gps:hqGps,gpsData:hqGps,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningWindowFrom:from,planningWindowTo:to,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:hoursPlanned,hoursPlanned,requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours:maxOffsiteHoursForScopes(catalog,scopes),offsitePolicy:offsitePolicyForScopes(catalog,scopes),toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),assignedToUid:val(row,col(h,['Auditor_UID','Assigned_Auditor_UID'])),assignedToDisplayName:directAuditorDisplayName(audValues,val(row,ca)),preassignedAuditor:val(row,cp),preassignedAuditorDisplayName:directAuditorDisplayName(audValues,val(row,cp)),allowSelfPlanning:yes(val(row,cself)),datePlanned:dateOnly(row[cd]),planningJson:val(row,cpj),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')+(val(row,col(h,['Auditor_UID','Assigned_Auditor_UID']))?'|'+val(row,col(h,['Auditor_UID','Assigned_Auditor_UID'])):'')).digest('hex').slice(0,24),latestComment:val(row,ccomment),latestCommentActor:'Manager',latestCommentAction:val(row,cdecision),latestCommentTimestamp:val(row,cldt),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
   }
   const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;
@@ -1142,7 +1157,11 @@ async function directManagerSelfPlanning20(identity,body){
  if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{
   // Read canonical audit state and DEV writer fence in one consistent Sheets round trip.
-  const result=await sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100']);
+  const atomicRequested=process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body.authorityPreflight===true;
+  const [result,formattedRows]=await Promise.all([
+   sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100']),
+   atomicRequested?readCanonicalPlanningRowsForAtomic20():null
+  ]);
   const rows=result[1]?.values||[];
   if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
   const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
@@ -1150,7 +1169,7 @@ async function directManagerSelfPlanning20(identity,body){
   if(!atomicPreflight&&!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
   if(process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&!atomicPreflight)
    throw Error('SELF_PLANNING_LEGACY_WRITER_FROZEN');
-  const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[];
+  const values=atomicPreflight?formattedRows:result[0]?.values||[];
   if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
   const found=findAudit(values,auditId);
   if(!found)throw Error('AUDIT_NOT_FOUND');
@@ -1171,6 +1190,14 @@ async function directManagerSelfPlanning20(identity,body){
     expectedSourceRevision:expectedRevision,
     canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:found.h,row:updated,
      status:'Pending Planning',sourceRevision:directRowRevision(found.h,updated)},
+    // Lifecycle writes can store the same row in unformatted Sheets form.
+    // Offer it as a second exact proof only for the same row and revision.
+    sourceUnformattedRow:(()=>{
+     const candidate=findAudit(result[0]?.values||[],auditId);
+     return candidate?.sourceRow===found.sourceRow&&
+      JSON.stringify(candidate.h)===JSON.stringify(found.h)&&
+      directRowRevision(candidate.h,candidate.row)===expectedRevision?candidate.row:null;
+    })(),
     // A Self planning toggle owns only the selected AD cell. A full-row
     // CAS would reject unrelated numeric/formatted cells (e.g. total hours).
     projectionWrites:[{range:targetRange,values:[[updated[index]]]}],
@@ -1260,8 +1287,8 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
 
   const batchReject=String(action).toUpperCase()==='REJECT'&&capture.deletes.length===1&&
    capture.writes.every(w=>!/^Audit planning!/.test(w.range||''));
-  const batched=batchReject?await normalizeRejectWritesetWithPlanning({writes:capture.writes,readBefore:sheetsBatchGet}):null;
-  const planning=batched?batched.planning:(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
+  const batched=batchReject&&!capture.planningRows?await normalizeRejectWritesetWithPlanning({writes:capture.writes,readBefore:sheetsBatchGet}):null;
+  const planning=batched?batched.planning:capture.planningRows??(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values??[];
   if(!planning.length||planning.length>=2000)throw Error('LIFECYCLE_PREFLIGHT_PLANNING_INCOMPLETE');
   const auditId=clean(body?.auditId),found=findAudit(planning,auditId);
   if(!found)throw Error('LIFECYCLE_PREFLIGHT_AUDIT_MISSING');
@@ -1279,7 +1306,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
   const normalized=batched?mergeLifecycleWritesets(batched.normalized,
    await normalizeLifecycleWriteset({writes:[capture.writes[capture.writes.length-1]],
     readBefore:async()=>[{values:[found.row]}]})):
-   await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet});
+   await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet,planningRows:planning,availabilityRows:capture.availabilityRows});
   const preconditions=normalized.projectionPreconditions;
   capture.writes=normalized.projectionWrites;
   const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;
@@ -1384,15 +1411,7 @@ async function withDevLifecycleFirestoreLock20(auditId,fn){
 }
 function directStatusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
 function directRowRevision(h,row){
-  const g=n=>val(row,col(h,n));
-  return createHash('sha256').update([
-    g(['Audit ID','Audit_ID','AuditId','Audit Id']),
-    g(['Status']),
-    g(['Assigned to','Assigned auditor','Auditor']),
-    g(['Planning JSON','Planning_JSON']),
-    g(['Last decision timestamp']),
-    g(['Status since'])
-  ].join('|')+(g(['Auditor_UID','Assigned_Auditor_UID'])?'|'+g(['Auditor_UID','Assigned_Auditor_UID']):'')).digest('hex').slice(0,24);
+  return directLifecycleRowRevision20(h,row);
 }
 function directResolveAuditorEmail(audValues,assigned){
   const a=clean(assigned).toLowerCase();if(!a)return'';
@@ -1437,6 +1456,10 @@ async function directManagerApprove(identity,body){
     const assigned=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']));
     const assignedUid=val(row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID']));
     const recipientEmail=resolveManagerApprovalRecipient20({assigned,assignedUid,auditorValues:vr[1]?.values||[]});
+    const planningRaw=val(row,col(h,['Planning JSON','PlanningJSON','Planning']));
+    const plannedDate=dateOnly(val(row,col(h,['Date - Planned','Date – Planned','Date planned','Date Planned'])));
+    const planningBlocks=managerApprovalBlocks20(planningRaw);
+    if(!plannedDate||!planningBlocks.length)throw Error('APPROVE_SAVED_PLANNING_REQUIRED');
     const company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),now=isoLocalStamp(),minuteStamp=now.slice(0,16),actorEmail=clean(identity?.email).toLowerCase();
     const set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
     set(['Status'],'Accepted');
@@ -1455,7 +1478,6 @@ async function directManagerApprove(identity,body){
     const bodyText=['Audit approved','Company: '+company,'Audit ID: '+auditId,'Auditor: '+assigned].join('\\n'),notifyHash=createHash('md5').update(recipientEmail+'|AUDIT_APPROVED|'+auditId+'|'+now).digest('hex');
     const companies=vr[2]?.values||[],ch=companies[0]||[],cuid=col(ch,['Company_UID','Company UID','CompanyUid']),cmps=col(ch,['MPS number','MPS Number','MPS nr','MPS-nr','Number']),cfg=scopeCatalog(vr[3]?.values||[]),scopes=scopesForAudit(found,cfg);
     let mpsNumber='';for(const cr of companies.slice(1)){if(cuid>=0&&val(cr,cuid)===companyUid){mpsNumber=val(cr,cmps);break;}}
-    const planningRaw=val(found.row,col(h,['Planning JSON','PlanningJSON','Planning']));let planningBlocks=blocks(planningRaw);let parsedPlanning={};try{parsedPlanning=JSON.parse(planningRaw||'{}')||{};}catch{}if(!planningBlocks.length&&Array.isArray(parsedPlanning.days)){planningBlocks=parsedPlanning.days.map(d=>({date:clean(d?.date),start:clean(d?.start),end:clean(d?.end),hours:Number(d?.hours)||0,execLoc:clean(d?.execLoc||d?.location),slotComment:clean(d?.slotComment||d?.comment)}));}let plannedHours=Number(val(found.row,col(h,['Hours planned','Planned hours','Hours Planned']))||0);if(!(plannedHours>0)){plannedHours=Number(parsedPlanning.totalPlannedHours||parsedPlanning.totalHours||0)||planningBlocks.reduce((s,b)=>s+(Number(b&&b.hours)||0),0);}
     const ecasPayload={eventType:'ECAS_AUDIT_APPROVAL_DIGEST',eventFamily:'EXTERNAL_OPERATIONAL',rendererProfile:'EXTERNAL_OPERATIONAL',deliveryProfile:'BUFFERED_EXTERNAL',company,companyUid,mpsNumber,auditNumber:mpsNumber,auditId,actor:actorEmail,actorRole:'MANAGER',auditorEmail:recipientEmail,auditorName:assigned,auditorUid:val(row,col(h,['Auditor_UID','Auditor UID'])),recipientRole:'PLANNING',recipientGroup:'PLANNING',recipientEmail:actorEmail,resultStatus:'Accepted',displayStatus:'Accepted',scopes,blocks:planningBlocks,plannedHours,planningJson:planningRaw,config:{active:true,sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:10,digestGroup:'ECAS_OPERATIONAL',templateFamily:'EXTERNAL_OPERATIONAL',templateKeyDefault:'ECAS_AUDIT_APPROVAL_DIGEST',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:false,requireReason:false}};
     const ecasHash=createHash('md5').update(actorEmail+'|ECAS_AUDIT_APPROVAL_DIGEST|'+auditId+'|'+now).digest('hex');
     const queueRows=[
@@ -2056,6 +2078,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
       ['Planning JSON','PlanningJSON','Planning'],
       ['Hours planned','Planned hours','Hours Planned']
     ])set(names,'');
+    if(!auditorMode) set(['Auditor_UID','Auditor UID','Assigned_Auditor_UID'],'');
     if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body?.authorityPreflight===true)
       for(const name of ['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID'])set([name],'');
     set(['Status'],'Pending Planning');
@@ -2066,6 +2089,8 @@ async function directManagerCancel(identity,body,auditorMode=false){
 
     const av=vr[1]?.values||[],ah=av[0]||[],ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
     if(id1<0&&id2<0)throw new Error('AVAILABILITY_SCHEMA_INVALID');
+    const preview=lifecyclePreviewContext20.getStore();
+    if(preview&&!auditorMode)preview.availabilityRows=structuredClone(av);
     const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
     let availabilityRows=0;
     for(let i=1;i<av.length;i++){
@@ -2530,6 +2555,33 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     catch(e){return send(res,409,{ok:false,error:'IDENTITY_READINESS_FAILED',detail:clean(e.message)});}
   }
   if(u.pathname==='/api/v1/planning/rotation-direct'&&req.method==='GET'){const sess=await sessionFromRequestValidated(req);if(!sess)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(sess.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),auditorEmail=clean(u.searchParams.get('auditorEmail')).toLowerCase();if(!auditId||!auditorEmail)return send(res,400,{ok:false,error:'ROTATION_REQUIRED_FIELDS_MISSING'});if(clean(sess.role).toLowerCase()==='auditor'&&auditorEmail!==clean(sess.email).toLowerCase())return send(res,403,{ok:false,error:'AUDITOR_CANNOT_CHECK_OTHER_AUDITOR'});try{return send(res,200,await directRotationRead(auditId,auditorEmail));}catch(e){return send(res,500,{ok:false,error:'DIRECT_ROTATION_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/self-planning-state'&&req.method==='GET'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev')
+     return send(res,404,{success:false,error:'DEV_ONLY'});
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{success:false,error:'MANAGER_REQUIRED'});
+    const auditId=clean(u.searchParams.get('auditId')),sourceRow=Number(u.searchParams.get('sourceRow'));
+    if(!auditId||auditId.length>256)return send(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});
+    try{
+     let found=null;
+     if(Number.isSafeInteger(sourceRow)&&sourceRow>=2&&sourceRow<2000){
+      const [header,row]=await sheetsBatchGet(['Audit planning!A1:BW1','Audit planning!A'+sourceRow+':BW'+sourceRow]);
+      const result=findAudit([header?.values?.[0]||[],row?.values?.[0]||[]],auditId);
+      if(result)found=result;
+     }
+     if(!found){
+      const rows=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
+      if(rows.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
+      found=findAudit(rows,auditId);
+     }
+     if(!found)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
+     const index=col(found.h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']);
+     if(index<0)throw Error('SELF_PLANNING_COLUMN_MISSING');
+     return send(res,200,{success:true,auditId,statusKey:directStatusKey(val(found.row,col(found.h,['Status']))),
+      allowSelfPlanning:yes(found.row[index]),sourceRevision:directRowRevision(found.h,found.row)});
+    }catch(e){return send(res,409,{success:false,error:clean(e?.message||e)||'SELF_PLANNING_STATE_UNAVAILABLE'});}
+  }
   if(u.pathname==='/api/v1/manager/self-planning-direct'&&req.method==='POST'){
     if(process.env.AMS_RUNTIME_ENV!=='DEV')return send(res,404,{ok:false,error:'DEV_ONLY'});
     const requestOrigin=clean(req.headers.origin);if(requestOrigin){let origin;try{origin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'})}const trustedProxyOrigin=clean(process.env.AMS_DEV_SELF_PLANNING_PROXY_ORIGIN);const devProxyAllowed=process.env.AMS_RUNTIME_ENV==='DEV'&&/^http:\/\/127\.0\.0\.1:[0-9]{2,5}$/.test(trustedProxyOrigin)&&origin.origin===trustedProxyOrigin;const isolatedOriginAllowed=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.K_SERVICE==='ams-fase12-dev'&&(['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(origin.origin)||devScopeTestOriginAllowed20(origin.origin));if(origin.host!==clean(req.headers.host)&&!devProxyAllowed&&!isolatedOriginAllowed)return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});}
@@ -3164,33 +3216,50 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const missing=required.filter(x=>{if(canonicalQualificationRead)return !v211AuditorQualified(av,catalog,[x.scopeCode],toEmail,[],qualificationRelations);const i=col(ah,[x.scopeCode,x.displayName,x.slotKey]);return i<0||!yes(targets[0][i])}).map(x=>x.scopeCode);
       if(missing.length)return send(res,409,{ok:false,error:'TRANSFER_TARGET_NOT_QUALIFIED',missing});
       const requiredScopes=scopesForAudit(audit,scopeCatalog(sc)),companyName=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID'])),plannedDate=dateOnly(val(row,col(h,['Date planned','Date - Planned'])));const eligibility=v211AssignmentHardCheck({auditorEmail:toEmail,auditorValues:av,catalog:scopeCatalog(sc),scopeCodes:requiredScopes,companyValues:values[3]?.values||[],companyUid,companyName,logValues:values[4]?.values||[],requestedDates:plannedDate?[plannedDate]:[],qualificationRelations,requireCanonicalQualifications:canonicalQualificationRead});const intervalWarnings=eligibility.reasons.filter(x=>x.startsWith('MIN_INTERVAL_HARD_BLOCK_'));const transferHardReasons=eligibility.reasons.filter(x=>!x.startsWith('MIN_INTERVAL_HARD_BLOCK_'));if(transferHardReasons.length)return send(res,409,{ok:false,error:'TRANSFER_ELIGIBILITY_BLOCKED',reasons:transferHardReasons});if(intervalWarnings.length&&body?.acknowledgeDateRestriction!==true)return send(res,409,{ok:false,error:'TRANSFER_DATE_RESTRICTION_ACK_REQUIRED',warnings:intervalWarnings});const rotation=v211RotationHardCheck(rotationReadFromLoaded(auditId,toEmail,ap,av,sc,values[4]?.values||[]));if(!rotation.ok)return send(res,409,{ok:false,error:'TRANSFER_ROTATION_BLOCKED',reasons:rotation.reasons});
-      const stamp=new Date().toISOString(),trail=JSON.stringify({auditId,actor:clean(actor.email),fromEmail,toEmail,oldStatus:current,newStatus:'Pending Approval',previousAssigned:val(row,ai),previousPreassigned:val(row,pi),plannedDate:val(row,col(h,['Date planned','Date - Planned'])),availability:'NOT_VERIFIED_SOFT_WARNING',planningWarnings:intervalWarnings,reason:clean(body?.reason).slice(0,500)});
-      if(!transferPreflight)await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Approval',trail]]);
+      const stamp=new Date().toISOString(),trail=JSON.stringify({auditId,actor:clean(actor.email),fromEmail,toEmail,oldStatus:current,newStatus:'Pending Planning',previousAssigned:val(row,ai),previousPreassigned:val(row,pi),plannedDate:val(row,col(h,['Date planned','Date - Planned'])),availability:'NOT_VERIFIED_SOFT_WARNING',planningWarnings:intervalWarnings,reason:clean(body?.reason).slice(0,500)});
+      if(!transferPreflight)await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Planning',trail]]);
       const letter=n=>{let x=n+1,out='';while(x){x--;out=String.fromCharCode(65+x%26)+out;x=Math.floor(x/26)}return out};
-      const planningIndex=col(h,['Planning JSON']),managerCommentIndex=col(h,['Manager comment (last)']),managerDecisionIndex=col(h,['Last manager decision']),transferUidIndex=col(h,['Auditor_UID','Auditor UID']);const transferComment='TRANSFER: '+fromEmail+' → '+toEmail+'. Pending Approval; receiving auditor must Accept or Cancel. Availability not confirmed.'+(intervalWarnings.length?' DATE WARNING: '+intervalWarnings.join(', ')+'. Replan required.':'');let planningUpdate=[];if(planningIndex>=0&&val(row,planningIndex)){let p;try{p=JSON.parse(val(row,planningIndex))}catch{return send(res,409,{ok:false,error:'TRANSFER_PLANNING_JSON_INVALID'})}if(!p||typeof p!=='object'||Array.isArray(p))return send(res,409,{ok:false,error:'TRANSFER_PLANNING_JSON_INVALID'});p.auditorEmail=toEmail;p.auditorName=val(targets[0],col(ah,['Name']))||toEmail;planningUpdate=[{range:'Audit planning!'+letter(planningIndex)+audit.sourceRow,values:[[JSON.stringify(p)]]}]};const transferWrites=[{range:'Audit planning!'+letter(ai)+audit.sourceRow,values:[['']]},...(transferUidIndex>=0?[{range:'Audit planning!'+letter(transferUidIndex)+audit.sourceRow,values:[['']]}]:[]),{range:'Audit planning!'+letter(pi)+audit.sourceRow,values:[[toEmail]]},{range:'Audit planning!'+letter(ci)+audit.sourceRow,values:[['Pending Approval']]},{range:'Audit planning!'+letter(si)+audit.sourceRow,values:[[stamp]]},{range:'Audit planning!'+letter(li)+audit.sourceRow,values:[[stamp]]},...(managerCommentIndex>=0?[{range:'Audit planning!'+letter(managerCommentIndex)+audit.sourceRow,values:[[transferComment]]}]:[]),...(managerDecisionIndex>=0?[{range:'Audit planning!'+letter(managerDecisionIndex)+audit.sourceRow,values:[['TRANSFER']]}]:[]),...planningUpdate];
+      const managerCommentIndex=col(h,['Manager comment (last)']),managerDecisionIndex=col(h,['Last manager decision']);
+      const transferUidIndex=col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID']);
+      const transferComment='TRANSFER: '+fromEmail+' → '+toEmail+'. Pending Planning; planning must be saved before approval. Availability not confirmed.';
+      const nextRow=row.slice();
+      const transferWrites=[];
+      const setTransferCell=(index,value)=>{
+       if(index<0)return;
+       nextRow[index]=value;
+       transferWrites.push({range:'Audit planning!'+letter(index)+audit.sourceRow,values:[[value]]});
+      };
+      setTransferCell(ai,'');
+      setTransferCell(transferUidIndex,'');
+      setTransferCell(pi,toEmail);
+      setTransferCell(ci,'Pending Planning');
+      setTransferCell(si,stamp);
+      setTransferCell(li,stamp);
+      setTransferCell(managerCommentIndex,transferComment);
+      setTransferCell(managerDecisionIndex,'TRANSFER');
+      for(const names of [
+       ['Date - Planned','Date – Planned','Date planned','Date Planned'],
+       ['Date - Approved','Date – Approved','Date approved','Date Approved'],
+       ['Date accepted','Date - Accepted','Date Accepted'],
+       ['Audit days textual'],['Planning JSON','PlanningJSON','Planning'],['Hours planned','Planned hours']
+      ])setTransferCell(col(h,names),'');
       if(transferPreflight){
        if(transferUidIndex<0)throw Error('TRANSFER_AUDITOR_UID_COLUMN_MISSING');
        const revisionBefore=directRowRevision(h,row);
        if(clean(body?.expectedRevision)&&clean(body.expectedRevision)!==revisionBefore)throw Error('TRANSFER_SOURCE_REVISION_CONFLICT');
        const envelope=await normalizeLifecycleWriteset({writes:transferWrites,readBefore:sheetsBatchGet});
-       const nextRow=row.slice();
-       nextRow[ai]='';nextRow[transferUidIndex]='';nextRow[pi]=toEmail;nextRow[ci]='Pending Approval';
-       nextRow[si]=stamp;nextRow[li]=stamp;
-       if(managerCommentIndex>=0)nextRow[managerCommentIndex]=transferComment;
-       if(managerDecisionIndex>=0)nextRow[managerDecisionIndex]='TRANSFER';
-       if(planningUpdate.length&&planningIndex>=0)nextRow[planningIndex]=planningUpdate[0].values[0][0];
        return send(res,200,{success:true,authorityPreflight:true,auditId,action:'TRANSFER',
         expectedSourceRevision:revisionBefore,fromEmail,toEmail,
         sourceRowBefore:row.slice(),
-        canonicalSnapshot:{auditId,sourceRow:audit.sourceRow,headers:h,row:nextRow,status:'Pending Approval',
+        canonicalSnapshot:{auditId,sourceRow:audit.sourceRow,headers:h,row:nextRow,status:'Pending Planning',
          assignedTo:'',sourceRevision:directRowRevision(h,nextRow)},
         projectionWrites:envelope.projectionWrites,projectionPreconditions:envelope.projectionPreconditions,
-        appendIntents:[{range:'Diagnostics_Log!A:K',values:[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Approval',trail],[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; approval required; availability unverified',trail]]}],
+        appendIntents:[{range:'Diagnostics_Log!A:K',values:[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Planning',trail],[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; planning required; availability unverified',trail]]}],
         owner:'CLOUD_RUN_DEV_FIRESTORE_TRANSFER_PREFLIGHT'});
       }
       await sheetsValuesBatchUpdateRaw(transferWrites);
-      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; approval required; availability unverified',trail]]);
-      return send(res,200,{ok:true,auditId,status:'Pending Approval',toEmail,availabilityWarning:true});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; planning required; availability unverified',trail]]);
+      return send(res,200,{ok:true,auditId,status:'Pending Planning',toEmail,availabilityWarning:true});
     }catch(e){return send(res,503,{ok:false,error:'TRANSFER_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification-impact'&&req.method==='GET'){

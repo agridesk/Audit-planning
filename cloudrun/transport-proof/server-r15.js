@@ -61,7 +61,8 @@ import {createRejectPhoneRecovery20} from './planning-reject-phone-recovery-20.j
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {buildPlanningValuesFromAudits20,compareManagerGridOutputs20,comparePlanningGridSources20,createVersionedPlanningAuditSource20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 import {executeSnapshotShapeUpgrades20,planSnapshotShapeUpgrades20} from './planning-snapshot-shape-upgrade-20.js';
-import {managerGridBuilder20,setFirestoreGridAuditSource20} from './planning-grid-source-registry-20.js';
+import {managerGridBuilder20,setFirestoreGridAuditSource20,setFirestoreGridReferenceSource20} from './planning-grid-source-registry-20.js';
+import {createGridReferenceSource20,createReferenceTablesFirestoreStore20,createVersionedReferenceTableReader20} from './reference-tables-firestore-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
@@ -207,6 +208,9 @@ const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?cre
 const gridFirestoreReadEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&
  process.env.AMS_DEV_FIRESTORE_GRID_READ_ENABLED==='true'&&Boolean(planningAtomicStore);
 if(gridFirestoreReadEnabled)setFirestoreGridAuditSource20(createVersionedPlanningAuditSource20(planningAtomicStore));
+// Reference tables for the Grid from Firestore (only together with the Grid flag); r4 falls back to Sheets on error.
+const gridReferenceFirestoreReadEnabled=gridFirestoreReadEnabled&&process.env.AMS_DEV_FIRESTORE_REFERENCE_READ_ENABLED==='true';
+if(gridReferenceFirestoreReadEnabled)setFirestoreGridReferenceSource20(createGridReferenceSource20(createVersionedReferenceTableReader20(createReferenceTablesFirestoreStore20({projectId:project,getToken}))));
 const rotationHistoryMigrationEnabled=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev';
 const rotationHistoryFirestoreReadEnabled=rotationHistoryMigrationEnabled&&
  process.env.AMS_DEV_ROTATION_HISTORY_FIRESTORE_READ_ENABLED==='true'&&

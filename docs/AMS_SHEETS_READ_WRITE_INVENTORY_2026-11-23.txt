@@ -91,6 +91,8 @@ Doel: niets vergeten bij Firestore als enige bron (Auditor_UID als koppeling, Sh
          Rejected audits, Log realized audits, Availability, Concept Reservations, Qualifications/Eligibility.
   Golf 3 Notificaties: Queue -> Firestore-outbox + sender, Rules/Config/Settings/Templates, ECAS receipts.
   Golf 4 Opruimen: caches, diagnostics, GAS-triggers uitzetten na bewezen pariteit.
+  Poort: deze inventaris opnieuw uitvoeren voor elke golf-cutover en voor het uitzetten van GAS-triggers
+  (eerste herhaling ingepland 2026-12-07).
   Per golf: Firestore-schema + backfill-preview -> pariteit -> writers Firestore-first met Sheets-projectie
   -> readers om -> GAS-writer fencen -> trigger uit. Rollback per golf: vlag uit, projectie blijft Sheets vullen.
 

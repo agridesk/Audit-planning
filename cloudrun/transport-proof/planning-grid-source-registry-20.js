@@ -12,3 +12,10 @@ export function setManagerGridBuilder20(builder){
  gridBuilder=builder;
 }
 export const managerGridBuilder20=()=>gridBuilder;
+// Reference tables (Config_Scopes, Companies, Auditors) from Firestore; resolves to sheetsBatchGet-shaped [{values}x3].
+let referenceSource=null;
+export function setFirestoreGridReferenceSource20(source){
+ if(source!==null&&typeof source!=='function')throw Error('GRID_REFERENCE_SOURCE_INVALID');
+ referenceSource=source;
+}
+export const firestoreGridReferenceSource20=()=>referenceSource;

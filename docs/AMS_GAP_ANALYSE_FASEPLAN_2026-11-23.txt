@@ -34,7 +34,10 @@ WP4 Workflow
 - Toolkit naar atomaire keten   -> Firestore planningcutover + projectie Sheets.
 - Combined commit               -> atomaire keten + Model C relink-owner.
 - Kwalificatie-/notitiecutover  -> schrijffence tegen handmatige Sheet-writers.
-- Realized-backfill             -> geldige read-only preview + pariteit (nu geblokkeerd: NOT_FOUND).
+- Realized-backfill             -> GEDAAN (create-only run 2026-11-22). Read-only preview 2026-11-23 (run 45184208378): 377/377 geldige
+                                   rijen aanwezig in ams_realized_audits_20_dev, toCreate=0. 1 blokkerende rij (AUDIT_ID_INVALID, bevat '/')
+                                   vereist correctie van brondata (beslissing gebruiker; niet automatisch).
+- DEV-kandidaat 2026-11-23: merge 97228475 op dev gedeployed met --no-traffic (run 45183650270, smoke OK); verkeer ongewijzigd.
 
 4. FASEPLAN
 P0 (gedaan): Save-bevestiging strikt; Hours planned = blokken.

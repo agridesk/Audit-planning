@@ -122,6 +122,34 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   });
   return {audits,nextPageToken:data.nextPageToken||null};
  }
+ /** Cheap change detection: audit IDs with updateTime only (field mask, ~1% of full payload). */
+ async function listAuditVersions({pageSize=300,pageToken=''}={}){
+  if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>300||typeof pageToken!=='string')throw Error('PLANNING_AUDIT_SCAN_INPUT_INVALID');
+  const u=new URL(base+'/'+coll.audit);u.searchParams.set('pageSize',String(pageSize));u.searchParams.set('mask.fieldPaths','payload.revision');
+  if(pageToken)u.searchParams.set('pageToken',pageToken);
+  const r=await request(u.toString());
+  if(!r.ok)throw Error('PLANNING_AUDIT_SCAN_'+r.status);
+  const data=await r.json(),versions=(data.documents||[]).map(raw=>{
+   const auditId=decodeURIComponent(String(raw.name||'').split('/').at(-1)||'');
+   if(!validId(auditId)||!str(raw.updateTime))throw Error('PLANNING_AUDIT_SCAN_CORRUPT');
+   return {auditId,updateTime:raw.updateTime};
+  });
+  return {versions,nextPageToken:data.nextPageToken||null};
+ }
+ async function batchGetAudits(auditIds){
+  if(!Array.isArray(auditIds)||auditIds.length>100||auditIds.some(id=>!validId(id)))throw Error('PLANNING_AUDIT_BATCH_INPUT_INVALID');
+  if(!auditIds.length)return [];
+  const r=await request(base+':batchGet','POST',{documents:auditIds.map(id=>writeName('audit',id))});
+  if(!r.ok)throw Error('PLANNING_AUDIT_BATCH_'+r.status);
+  const found=[];
+  for(const item of await r.json()){
+   if(!item.found)continue;
+   const auditId=decodeURIComponent(String(item.found.name||'').split('/').at(-1)||''),decoded=decodeDoc(item.found);
+   if(!auditIds.includes(auditId)||decoded?.value?.auditId!==auditId)throw Error('PLANNING_AUDIT_BATCH_CORRUPT');
+   found.push({auditId,updateTime:decoded.updateTime,value:decoded.value});
+  }
+  return found;
+ }
  async function readAudit(auditId){return clone((await get('audit',auditId))?.value??null);}
  async function inspectAuditClaimIndex(auditId){
   const audit=await readAudit(auditId);
@@ -426,5 +454,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,listAudits,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,upgradeSnapshotShape,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,readOutboxWithCreateTime,listOutbox,listClaims,listAudits,listAuditVersions,batchGetAudits,inspectAuditClaimIndex,commit,commitMulti,commitRealizedHours,seed,upgradeSnapshotShape,markProjected,markUncertain});
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,compareManagerGridOutputs20,deriveTotalAuditHours20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
+import {buildPlanningValuesFromAudits20,comparePlanningGridSources20,compareManagerGridOutputs20,createVersionedPlanningAuditSource20,deriveTotalAuditHours20,listAllPlanningAudits20,scopeDefaultHours20} from './planning-firestore-grid-projection-20.js';
 
 const headers=['Audit ID','Company','Status','Planning JSON'];
 const audit=(auditId,sourceRow,row,extra={})=>({auditId,revision:0,snapshot:{auditId,sourceRow,headers,row},...extra});
@@ -64,4 +64,18 @@ assert.deepEqual(buildPlanningValuesFromAudits20(stale,{scopeDefaults:defaultsDo
 const gridCmp=compareManagerGridOutputs20({rows:[{auditId:'A',company:'Co',requiredHours:4},{auditId:'B',company:'Co'}]},{rows:[{auditId:'A',company:'Co',requiredHours:5},{auditId:'C'}]});
 assert.deepEqual(gridCmp,{ready:false,gridRowsSheet:2,gridRowsFirestore:2,gridMatched:0,gridMissing:1,gridExtra:1,gridDiffFields:{requiredHours:1}});
 assert.equal(compareManagerGridOutputs20({rows:[{auditId:'A',x:1}]},{rows:[{auditId:'A',x:1}]}).ready,true);
-console.log('planning-firestore-grid-projection-20-test: ok');
+{
+ // Versioned source: exact per call, refetches only changed/new docs, drops deleted ones.
+ const db=new Map([['A',{t:'1',v:{auditId:'A',revision:0}}],['B',{t:'1',v:{auditId:'B',revision:0}}]]);let fetched=[];
+ const fake={async listAuditVersions({pageToken}){const all=[...db].map(([auditId,d])=>({auditId,updateTime:d.t}));return pageToken?{versions:all.slice(1),nextPageToken:null}:{versions:all.slice(0,1),nextPageToken:all.length>1?'p':null};},
+  async batchGetAudits(ids){fetched.push(...ids);return ids.filter(id=>db.has(id)).map(id=>({auditId:id,updateTime:db.get(id).t,value:structuredClone(db.get(id).v)}));}};
+ const read=createVersionedPlanningAuditSource20(fake);
+ assert.deepEqual((await read()).map(r=>r.auditId),['A','B']);assert.deepEqual(fetched,['A','B']);
+ fetched=[];assert.equal((await read()).length,2);assert.deepEqual(fetched,[],'unchanged docs are served from cache');
+ db.set('B',{t:'2',v:{auditId:'B',revision:1}});db.delete('A');db.set('C',{t:'1',v:{auditId:'C',revision:0}});
+ const third=await read();assert.deepEqual(fetched.sort(),['B','C']);
+ assert.deepEqual(third.map(r=>[r.auditId,r.revision]),[['B',1],['C',0]]);
+ assert.throws(()=>{third[0].revision=9;},TypeError,'cached values are immutable');
+ const truncated=createVersionedPlanningAuditSource20({async listAuditVersions(){return {versions:[],nextPageToken:'x'};},async batchGetAudits(){return [];}},{maxPages:2});
+ await assert.rejects(truncated,/GRID_FIRESTORE_SCAN_TRUNCATED/);
+}console.log('planning-firestore-grid-projection-20-test: ok');

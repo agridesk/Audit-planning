@@ -57,6 +57,36 @@ export async function listAllPlanningAudits20(store,{maxPages=20,pageSize=200}={
  throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');
 }
 
+const deepFreeze=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const v of Object.values(value))deepFreeze(v);}return value;};
+/** Exact, change-validated audit source: every call lists current updateTimes
+ * (field mask, small) and fetches only new/changed documents. No TTL staleness.
+ */
+export function createVersionedPlanningAuditSource20(store,{maxPages=10,pageSize=300}={}){
+ if(typeof store?.listAuditVersions!=='function'||typeof store?.batchGetAudits!=='function')throw Error('GRID_FIRESTORE_STORE_INVALID');
+ let cache=new Map();
+ return async function readVersionedPlanningAudits20(){
+  const versions=[];let pageToken='',complete=false;
+  for(let page=0;page<maxPages;page++){
+   const result=await store.listAuditVersions({pageSize,pageToken});
+   versions.push(...result.versions);
+   if(!result.nextPageToken){complete=true;break;}
+   pageToken=result.nextPageToken;
+  }
+  if(!complete)throw Error('GRID_FIRESTORE_SCAN_TRUNCATED');
+  const next=new Map(),stale=[];
+  for(const v of versions){const hit=cache.get(v.auditId);if(hit&&hit.updateTime===v.updateTime)next.set(v.auditId,hit);else stale.push(v);}
+  for(let i=0;i<stale.length;i+=100){
+   const wanted=new Map(stale.slice(i,i+100).map(v=>[v.auditId,v.updateTime]));
+   for(const doc of await store.batchGetAudits([...wanted.keys()])){
+    // A document changed again after listing: keep the newer read; it is a valid later state.
+    next.set(doc.auditId,{updateTime:doc.updateTime,value:deepFreeze(doc.value)});
+   }
+  }
+  cache=next;
+  return versions.filter(v=>next.has(v.auditId)).map(v=>next.get(v.auditId).value);
+ };
+}
+
 // skipUnsupportedShapes is for parity reports only; the live Grid read must stay strict.
 export function buildPlanningValuesFromAudits20(records,{scopeDefaults=null,skipUnsupportedShapes=false}={}){
  if(!Array.isArray(records))throw Error('GRID_FIRESTORE_RECORDS_INVALID');
